@@ -194,6 +194,26 @@ export async function GET(req: Request) {
       }
     }
 
+    // Header search only needs a tiny catalog projection. Returning the full
+    // product graph (variants, bundles and relations) on every storefront page
+    // wastes bandwidth and client parsing time.
+    if (storefront && searchParams.get("fields") === "summary") {
+      const summaries = await prisma.product.findMany({
+        where: whereClause,
+        orderBy: { id: "desc" },
+        select: {
+          id: true,
+          name: true,
+          image: true,
+        },
+      });
+
+      return publicJson(summaries, {
+        maxAge: 300,
+        staleWhileRevalidate: 1800,
+      });
+    }
+
     const products = await prisma.product.findMany({
       where: whereClause,
       orderBy: { id: "desc" },

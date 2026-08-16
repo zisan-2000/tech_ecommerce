@@ -624,9 +624,10 @@ export default function Header({
 
         setSearchLoading(true);
 
-        const data = await cachedFetchJson<any[]>("/api/products?view=storefront", {
-          ttlMs: 2 * 60 * 1000,
-        });
+        const data = await cachedFetchJson<any[]>(
+          "/api/products?view=storefront&fields=summary",
+          { ttlMs: 5 * 60 * 1000 },
+        );
 
         const mapped: ProductSummary[] = Array.isArray(data)
           ? data.map((p: any) => ({

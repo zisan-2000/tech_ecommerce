@@ -148,7 +148,7 @@ export async function POST(req: Request) {
 
     const activeSeconds =
       event === "heartbeat" && typeof body?.engagement?.activeSeconds === "number"
-        ? Math.max(0, Math.min(60, Math.floor(body.engagement.activeSeconds)))
+        ? Math.max(0, Math.min(300, Math.floor(body.engagement.activeSeconds)))
         : 0;
 
     const userId = safeStr(body?.userId, 100);

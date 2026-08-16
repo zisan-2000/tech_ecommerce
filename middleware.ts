@@ -1892,6 +1892,38 @@ export default async function authMiddleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Most storefront and public API requests do not need authentication. Avoid
+  // calling /api/auth/session for those requests: at high traffic that extra
+  // round trip would otherwise double the request volume and can touch the
+  // session store before a cacheable response is served.
+  const matchedApiRule =
+    pathname.startsWith("/api/") && !pathname.startsWith("/api/auth/")
+      ? findMatchedRule(pathname, method, apiPermissionRules)
+      : null;
+
+  if (
+    pathname.startsWith("/api/") &&
+    !pathname.startsWith("/api/auth/") &&
+    (!matchedApiRule || matchedApiRule.permissions.length === 0)
+  ) {
+    return NextResponse.next();
+  }
+
+  const isUserDashboardRequest =
+    pathname === "/ecommerce/user" || pathname.startsWith("/ecommerce/user/");
+  const needsPageSession =
+    isAuthRoute ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/supplier") ||
+    pathname.startsWith("/investor") ||
+    pathname === "/delivery" ||
+    pathname.startsWith("/delivery/") ||
+    isUserDashboardRequest;
+
+  if (!pathname.startsWith("/api/") && !needsPageSession) {
+    return NextResponse.next();
+  }
+
   let session: SessionShape = null;
 
   try {
@@ -1929,11 +1961,6 @@ export default async function authMiddleware(request: NextRequest) {
 
   // API permission checks
   if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth/")) {
-    const matchedApiRule = findMatchedRule(
-      pathname,
-      method,
-      apiPermissionRules,
-    );
     if (!matchedApiRule) {
       return NextResponse.next();
     }

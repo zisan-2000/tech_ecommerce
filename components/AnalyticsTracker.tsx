@@ -29,7 +29,15 @@ const VISITOR_KEY = "boe_vid";
 const SESSION_KEY = "boe_sid";
 const LAST_ACTIVITY_KEY = "boe_last_activity";
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 min GA-like
-const HEARTBEAT_SEC = 10;
+// One row per active visitor every 10 seconds becomes 10,000 writes/second at
+// 100k concurrency. A five-minute default keeps engagement useful while
+// reducing analytics write pressure by 30x; production can tune it if needed.
+const configuredHeartbeatSeconds = Number(
+  process.env.NEXT_PUBLIC_ANALYTICS_HEARTBEAT_SECONDS,
+);
+const HEARTBEAT_SEC = Number.isFinite(configuredHeartbeatSeconds)
+  ? Math.max(60, Math.min(300, Math.floor(configuredHeartbeatSeconds)))
+  : 300;
 
 // ✅ exclude these pages from analytics (no count, no show)
 const EXCLUDED_PATH_PREFIXES = ["/auth/signin", "/auth/signup", "/admin"];
