@@ -15,6 +15,7 @@ interface PaymentGatewayData {
   accountNumbers?: string[];
   storeId?: string;
   storePassword?: string;
+  hasStorePassword?: boolean;
   sandbox?: boolean;
   successUrl?: string;
   failUrl?: string;
@@ -154,7 +155,7 @@ export default function PaymentGatewayManager() {
           accountNumbers: validAccounts,
         };
       } else {
-        if (!sslStoreId.trim() || !sslStorePassword.trim()) {
+        if (!sslStoreId.trim() || (!editingId && !sslStorePassword.trim())) {
           toast.error("Store ID and Store Password are required");
           return;
         }
@@ -217,8 +218,8 @@ export default function PaymentGatewayManager() {
           accountNumbers: validAccounts,
         };
       } else {
-        if (!sslStoreId.trim() || !sslStorePassword.trim()) {
-          toast.error("Store ID and Store Password are required");
+        if (!sslStoreId.trim()) {
+          toast.error("Store ID is required");
           return;
         }
 

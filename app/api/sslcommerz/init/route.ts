@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  callbackUrls,
+  createSslcommerzTransactionId,
+  findSslcommerzGateway,
+  gatewayIdFromMethod,
+  isSslcommerzMethod,
+  sslcommerzEndpoint,
+} from "@/lib/sslcommerz";
 
 export const runtime = "nodejs";
 
 type SslcommerzInitBody = {
   orderId: number;
+  gatewayId?: number;
 };
 
 export async function POST(request: NextRequest) {
@@ -24,36 +33,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    const gateway = await prisma.payment.findFirst({
-      where: {
-        paymentGatewayData: {
-          path: ["type"],
-          equals: "SSLCOMMERZ",
-        },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
+    if (!isSslcommerzMethod(order.payment_method) || order.paymentStatus === "PAID") {
+      return NextResponse.json({ error: "Order is not eligible for SSLCommerz payment" }, { status: 409 });
+    }
 
-    const data: any = gateway?.paymentGatewayData || {};
+    const methodGatewayId = gatewayIdFromMethod(order.payment_method);
+    const requestedGatewayId = Number(body?.gatewayId || methodGatewayId || 0) || null;
+    if (methodGatewayId && requestedGatewayId !== methodGatewayId) {
+      return NextResponse.json({ error: "Payment gateway does not match the order" }, { status: 400 });
+    }
+
+    const found = await findSslcommerzGateway(requestedGatewayId);
+    const gateway = found?.gateway;
+    const data: any = found?.data || {};
 
     const storeId = String(data.storeId || "").trim();
     const storePassword = String(data.storePassword || "").trim();
     const sandbox = Boolean(data.sandbox);
-    const successUrl = String(data.successUrl || "").trim();
-    const failUrl = String(data.failUrl || "").trim();
-    const cancelUrl = String(data.cancelUrl || "").trim();
-    const ipnUrl = String(data.ipnUrl || "").trim();
 
     if (!storeId || !storePassword) {
       return NextResponse.json(
         { error: "SSLCommerz credentials are not configured" },
-        { status: 400 },
-      );
-    }
-
-    if (!successUrl || !failUrl || !cancelUrl) {
-      return NextResponse.json(
-        { error: "SSLCommerz success/fail/cancel URLs are not configured" },
         { status: 400 },
       );
     }
@@ -63,18 +63,74 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid order amount" }, { status: 400 });
     }
 
-    const tranId = `order_${order.id}`;
+    const activePayment = await prisma.payment.findFirst({
+      where: {
+        orderId: order.id,
+        provider: "SSLCOMMERZ",
+        status: { in: ["INITIATED", "AUTHORIZED"] },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (activePayment) {
+      const sessionIsFresh =
+        Date.now() - activePayment.createdAt.getTime() < 30 * 60 * 1000;
+      const activeMeta = activePayment.paymentGatewayData &&
+        typeof activePayment.paymentGatewayData === "object" &&
+        !Array.isArray(activePayment.paymentGatewayData)
+        ? activePayment.paymentGatewayData as Record<string, unknown>
+        : {};
+      const redirectUrl = String(activeMeta.redirectUrl || "");
+      if (redirectUrl && activePayment.status === "INITIATED" && sessionIsFresh) {
+        return NextResponse.json({
+          redirectUrl,
+          tranId: activePayment.externalId,
+          reused: true,
+        });
+      }
+      if (activePayment.status === "AUTHORIZED" || sessionIsFresh) {
+        return NextResponse.json(
+          { error: "A payment attempt is already in progress for this order" },
+          { status: 409 },
+        );
+      }
+      await prisma.payment.update({
+        where: { id: activePayment.id },
+        data: { status: "FAILED" },
+      });
+    }
+
+    const tranId = createSslcommerzTransactionId(order.id);
+    const urls = callbackUrls(request, data);
+
+    const payment = await prisma.payment.create({
+      data: {
+        orderId: order.id,
+        amount,
+        currency: order.currency || "BDT",
+        provider: "SSLCOMMERZ",
+        status: "INITIATED",
+        externalId: tranId,
+        paymentGatewayData: {
+          type: "SSLCOMMERZ_TRANSACTION",
+          gatewayId: gateway!.id,
+          sandbox,
+          initiatedAt: new Date().toISOString(),
+        },
+      },
+    });
 
     const form = new URLSearchParams();
     form.set("store_id", storeId);
     form.set("store_passwd", storePassword);
     form.set("total_amount", String(amount));
-    form.set("currency", "BDT");
+    form.set("currency", order.currency || "BDT");
     form.set("tran_id", tranId);
-    form.set("success_url", successUrl);
-    form.set("fail_url", failUrl);
-    form.set("cancel_url", cancelUrl);
-    if (ipnUrl) form.set("ipn_url", ipnUrl);
+    form.set("success_url", urls.successUrl);
+    form.set("fail_url", urls.failUrl);
+    form.set("cancel_url", urls.cancelUrl);
+    form.set("ipn_url", urls.ipnUrl);
+    form.set("value_a", String(order.id));
+    form.set("value_b", String(gateway!.id));
 
     form.set("cus_name", String((order as any).name || "Customer"));
     form.set("cus_email", String((order as any).email || ""));
@@ -88,18 +144,25 @@ export async function POST(request: NextRequest) {
     form.set("product_category", "Ecommerce");
     form.set("product_profile", "general");
 
-    const endpoint = sandbox
-      ? "https://sandbox.sslcommerz.com/gwprocess/v4/api.php"
-      : "https://securepay.sslcommerz.com/gwprocess/v4/api.php";
+    const endpoint = sslcommerzEndpoint(sandbox, "session");
 
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form.toString(),
-    });
+    let res: Response;
+    try {
+      res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString(),
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch (error) {
+      await prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } });
+      console.error("SSLCOMMERZ SESSION ERROR:", error);
+      return NextResponse.json({ error: "Could not connect to SSLCommerz" }, { status: 502 });
+    }
 
     const payload = await res.json().catch(() => null);
     if (!res.ok || !payload) {
+      await prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } });
       return NextResponse.json(
         { error: "Failed to initiate SSLCommerz payment" },
         { status: 502 },
@@ -108,11 +171,25 @@ export async function POST(request: NextRequest) {
 
     const gatewayPageUrl = String(payload.GatewayPageURL || "");
     if (!gatewayPageUrl) {
+      await prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } });
       return NextResponse.json(
         { error: payload.failedreason || "GatewayPageURL missing" },
         { status: 502 },
       );
     }
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        paymentGatewayData: {
+          type: "SSLCOMMERZ_TRANSACTION",
+          gatewayId: gateway!.id,
+          sandbox,
+          initiatedAt: new Date().toISOString(),
+          redirectUrl: gatewayPageUrl,
+          sessionKey: String(payload.sessionkey || "") || null,
+        },
+      },
+    });
 
     return NextResponse.json({ redirectUrl: gatewayPageUrl, tranId });
   } catch (error) {

@@ -17,10 +17,23 @@ function toPaymentLogSnapshot(payment: {
     id: payment.id,
     orderId: payment.orderId ?? null,
     amount: payment.amount === null || payment.amount === undefined ? null : Number(payment.amount),
-    paymentGatewayData: payment.paymentGatewayData,
+    paymentGatewayData: redactGatewayData(payment.paymentGatewayData),
     createdAt: payment.createdAt?.toISOString() ?? null,
     updatedAt: payment.updatedAt?.toISOString() ?? null,
   };
+}
+
+function gatewayObject(value: unknown): Record<string, any> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, any>
+    : {};
+}
+
+function redactGatewayData(value: unknown) {
+  const data = gatewayObject(value);
+  if (String(data.type || '').toUpperCase() !== 'SSLCOMMERZ') return data;
+  const { storePassword: _secret, ...safe } = data;
+  return { ...safe, hasStorePassword: Boolean(data.storePassword) };
 }
 
 // UPDATE payment
@@ -51,10 +64,27 @@ export async function PUT(
       return NextResponse.json({ error: 'Payment gateway not found' }, { status: 404 });
     }
 
+    const incoming = gatewayObject(paymentGatewayData);
+    const previous = gatewayObject(existing.paymentGatewayData);
+    const type = String(incoming.type || previous.type || '').toUpperCase();
+    if (!['MANUAL', 'SSLCOMMERZ'].includes(type)) {
+      return NextResponse.json({ error: 'Invalid payment gateway type' }, { status: 400 });
+    }
+    const mergedGatewayData: Record<string, any> = {
+      ...incoming,
+      type,
+      ...(type === 'SSLCOMMERZ' && !String(incoming.storePassword || '').trim()
+        ? { storePassword: previous.storePassword }
+        : {}),
+    };
+    if (type === 'SSLCOMMERZ' && (!String(mergedGatewayData.storeId || '').trim() || !String(mergedGatewayData.storePassword || '').trim())) {
+      return NextResponse.json({ error: 'Store ID and Store Password are required' }, { status: 400 });
+    }
+
     const payment = await prisma.payment.update({
       where: { id: paymentId },
       data: {
-        paymentGatewayData,
+        paymentGatewayData: mergedGatewayData,
         updatedAt: new Date(),
       },
     });
@@ -82,7 +112,7 @@ export async function PUT(
       after: toPaymentLogSnapshot(payment),
     });
 
-    return NextResponse.json(payment);
+    return NextResponse.json({ ...payment, paymentGatewayData: redactGatewayData(payment.paymentGatewayData) });
   } catch (error) {
     console.error('Error updating payment:', error);
     return NextResponse.json(

@@ -9,6 +9,7 @@ import { calculateShippingQuote } from "@/lib/shipping";
 import { calculateTaxForItems } from "@/lib/tax";
 import { resolveWarehouseScope } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
+import { findSslcommerzGateway, gatewayIdFromMethod } from "@/lib/sslcommerz";
 
 // GET /api/orders
 // - admin: all orders (with pagination & optional status filter)
@@ -184,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     const paymentMethod = String(payment_method || "");
     const isCOD = paymentMethod === "CashOnDelivery";
-    const isSSLCOMMERZ = paymentMethod === "SSLCOMMERZ";
+    const isSSLCOMMERZ = /^SSLCOMMERZ:\d+$/i.test(paymentMethod);
     const isManualPayment = !isCOD && !isSSLCOMMERZ;
 
     if (
@@ -207,6 +208,17 @@ export async function POST(request: NextRequest) {
         { error: "Order items required" },
         { status: 400 }
       );
+    }
+
+    if (isSSLCOMMERZ) {
+      const gatewayId = gatewayIdFromMethod(paymentMethod);
+      const gateway = await findSslcommerzGateway(gatewayId);
+      if (!gateway || gateway.gateway.id !== gatewayId) {
+        return NextResponse.json(
+          { error: "Selected SSLCommerz gateway is unavailable" },
+          { status: 400 },
+        );
+      }
     }
 
     // Only MANUAL payment requires screenshot proof

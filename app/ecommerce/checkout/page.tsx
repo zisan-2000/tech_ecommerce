@@ -649,7 +649,7 @@ export default function CheckoutPage() {
     }
 
     const isCOD = paymentMethod === "CashOnDelivery";
-    const isSSLCOMMERZ = paymentMethod === "SSLCOMMERZ";
+    const isSSLCOMMERZ = paymentMethod.startsWith("SSLCOMMERZ:");
     const isManualPayment = !isCOD && !isSSLCOMMERZ;
 
     if (
@@ -733,11 +733,12 @@ export default function CheckoutPage() {
       const createdOrder = await res.json();
       setPlacedOrder({ ...uiOrderData, orderId: createdOrder.id });
 
-      if (paymentMethod === "SSLCOMMERZ") {
+      if (isSSLCOMMERZ) {
+        const gatewayId = Number(paymentMethod.split(":")[1]);
         const initRes = await fetch("/api/sslcommerz/init", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: createdOrder.id }),
+          body: JSON.stringify({ orderId: createdOrder.id, gatewayId }),
         });
 
         const initData = await initRes.json().catch(() => null);
