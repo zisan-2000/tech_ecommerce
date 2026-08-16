@@ -121,7 +121,7 @@ export default function ReviewCarousel() {
   const trackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/reviews/feature?featured=true")
+    fetch("/api/reviews/feature?featured=true&view=storefront")
       .then((r) => r.json())
       .then((data) => {
         const list: FeaturedReview[] =

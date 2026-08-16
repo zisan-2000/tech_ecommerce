@@ -77,7 +77,7 @@ export default function PublisherBooksPage() {
         setError(null);
 
         // 1) প্রকাশক ডেটা
-        const resPublisher = await fetch(`/api/publishers/${publisherId}`, {
+        const resPublisher = await fetch(`/api/publishers/${publisherId}?view=storefront`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -108,7 +108,10 @@ export default function PublisherBooksPage() {
         setPublisher(publisherData as PublisherFromApi);
 
         // 2) সব প্রোডাক্ট নিয়ে আসি, তারপর publisherId দিয়ে filter করি
-        const resProducts = await fetch("/api/products", { cache: "no-store", signal });
+        const resProducts = await fetch("/api/products?view=storefront", {
+          cache: "force-cache",
+          signal,
+        });
 
         if (!resProducts.ok) {
           console.error("Failed to fetch products:", resProducts.statusText);

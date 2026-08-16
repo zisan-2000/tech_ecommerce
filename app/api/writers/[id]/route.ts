@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
 
 type ParamsType = {
   params: Promise<{ id: string }>;
@@ -29,7 +30,9 @@ export async function GET(req: Request, context: ParamsType) {
     if (!writer)
       return NextResponse.json({ error: "Writer not found" }, { status: 404 });
 
-    return NextResponse.json(writer);
+    return isStorefrontRequest(req)
+      ? publicJson(writer, { maxAge: 300, staleWhileRevalidate: 1800 })
+      : privateJson(writer);
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to fetch writer" },

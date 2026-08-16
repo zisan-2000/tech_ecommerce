@@ -37,6 +37,8 @@ type ProductDTO = {
   originalPrice: number | null;
   currency: string;
   createdAt?: string;
+  ratingAvg: number;
+  ratingCount: number;
   totalSold?: number | null;
   rank?: number | null;
   variants?: ApiVariant[] | null;
@@ -175,14 +177,20 @@ export default function BestSelling({
           }));
         const rData =
           reviewsData ??
-          (await cachedFetchJson<any>("/api/reviews", { ttlMs: 60 * 1000 }));
+          (await cachedFetchJson<any>("/api/reviews?view=storefront", { ttlMs: 60 * 1000 }));
 
         if (!mounted) return;
 
         const pList: any[] = Array.isArray(pData) ? pData : (pData?.data ?? []);
         const rList = normalizeReviewsPayload(rData);
 
-        const mappedProducts: ProductDTO[] = pList.map((p) => {
+        const storefrontProducts = pList.filter(
+          (p) =>
+            p?.available !== false &&
+            p?.deleted !== true &&
+            toNumber(p?.totalSold ?? p?.soldCount, 0) > 0,
+        );
+        const mappedProducts: ProductDTO[] = storefrontProducts.map((p) => {
           const variants = Array.isArray(p?.variants) ? p.variants : [];
           const type = p?.type ? String(p.type) : undefined;
           const bundleStockLimit =
@@ -210,6 +218,8 @@ export default function BestSelling({
             originalPrice,
             currency: String(p.currency ?? "BDT"),
             createdAt: p.createdAt ? String(p.createdAt) : undefined,
+            ratingAvg: toNumber(p.ratingAvg, 0),
+            ratingCount: toNumber(p.ratingCount, 0),
             totalSold: p.totalSold ?? p.soldCount ?? null,
             rank: p.rank ?? null,
             variants,
@@ -349,8 +359,8 @@ export default function BestSelling({
                   );
 
                   const stats = reviewStats[String(p.id)] ?? {
-                    avg: 0,
-                    count: 0,
+                    avg: p.ratingAvg,
+                    count: p.ratingCount,
                   };
 
                   const isWishlisted = isInWishlist(p.id);

@@ -41,7 +41,10 @@ export default function AuthorCategoriesPage() {
     const fetchWriters = async () => {
       try {
         console.log('Fetching writers...');
-        const res = await fetch("/api/writers", { signal });
+        const res = await fetch("/api/writers?view=storefront", {
+          cache: "force-cache",
+          signal,
+        });
         
         if (!res.ok) {
           const errorText = await res.text();

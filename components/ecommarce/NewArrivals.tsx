@@ -50,6 +50,8 @@ type ProductDTO = {
   originalPrice: number | null;
   currency: string;
   createdAt: string;
+  ratingAvg: number;
+  ratingCount: number;
   variants?: ApiVariant[] | null;
   type?: string;
   bundleStockLimit?: number | string | null;
@@ -194,17 +196,17 @@ export default function NewArrivals({
 
         const pData =
           productsData ??
-          (await cachedFetchJson<any>("/api/products", {
+          (await cachedFetchJson<any>("/api/products?view=storefront", {
             ttlMs: 2 * 60 * 1000,
           }));
         const cData =
           categoriesData ??
-          (await cachedFetchJson<any>("/api/categories", {
+          (await cachedFetchJson<any>("/api/categories?view=storefront", {
             ttlMs: 5 * 60 * 1000,
           }));
         const rData =
           reviewsData ??
-          (await cachedFetchJson<any>("/api/reviews", { ttlMs: 60 * 1000 }));
+          (await cachedFetchJson<any>("/api/reviews?view=storefront", { ttlMs: 60 * 1000 }));
 
         if (!mounted) return;
 
@@ -218,7 +220,10 @@ export default function NewArrivals({
           slug: c.slug ? String(c.slug) : undefined,
         }));
 
-        const mappedProducts: ProductDTO[] = pList.map((p) => {
+        const storefrontProducts = pList.filter(
+          (p) => p?.available !== false && p?.deleted !== true,
+        );
+        const mappedProducts: ProductDTO[] = storefrontProducts.map((p) => {
           const variants = Array.isArray(p?.variants) ? p.variants : [];
           const type = p?.type ? String(p.type) : undefined;
           const bundleStockLimit =
@@ -247,6 +252,8 @@ export default function NewArrivals({
             originalPrice,
             currency: String(p.currency ?? "BDT"),
             createdAt: String(p.createdAt ?? ""),
+            ratingAvg: toNumber(p.ratingAvg, 0),
+            ratingCount: toNumber(p.ratingCount, 0),
             variants,
             type,
             bundleStockLimit,
@@ -571,8 +578,8 @@ export default function NewArrivals({
                   );
 
                   const stats = reviewStats[String(p.id)] ?? {
-                    avg: 0,
-                    count: 0,
+                    avg: p.ratingAvg,
+                    count: p.ratingCount,
                   };
 
                   const isWishlisted = isInWishlist(p.id);

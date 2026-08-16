@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  compress: true,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -18,6 +19,32 @@ const nextConfig: NextConfig = {
   },
   // Additional build optimizations
   poweredByHeader: false,
+  images: {
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 86400,
+  },
+  async headers() {
+    return [
+      {
+        source: "/upload/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/assets/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
+  },
   // Disable file system access during build
   serverExternalPackages: ['fs', 'path', 'os'],
 };

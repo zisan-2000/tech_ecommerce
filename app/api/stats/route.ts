@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@/generated/prisma";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
+import { publicJson } from "@/lib/public-cache";
 
 export async function GET() {
   try {
@@ -26,11 +25,11 @@ export async function GET() {
       where: { status: "DELIVERED" }
     });
 
-    return NextResponse.json({
+    return publicJson({
       totalBooks,
       totalWriters,
       totalDelivered,
-    });
+    }, { maxAge: 300, staleWhileRevalidate: 1800 });
   } catch (error) {
     console.error("Stats API Error:", error);
     return NextResponse.json(

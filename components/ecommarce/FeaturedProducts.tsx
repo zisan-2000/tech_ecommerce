@@ -51,6 +51,8 @@ type ProductDTO = {
   currency: string;
   featured: boolean;
   createdAt: string;
+  ratingAvg: number;
+  ratingCount: number;
   variants?: ApiVariant[] | null;
   type?: string;
   bundleStockLimit?: number | string | null;
@@ -194,17 +196,17 @@ export default function FeaturedProducts({
 
         const pData =
           productsData ??
-          (await cachedFetchJson<any>("/api/products", {
+          (await cachedFetchJson<any>("/api/products?view=storefront", {
             ttlMs: 2 * 60 * 1000,
           }));
         const cData =
           categoriesData ??
-          (await cachedFetchJson<any>("/api/categories", {
+          (await cachedFetchJson<any>("/api/categories?view=storefront", {
             ttlMs: 5 * 60 * 1000,
           }));
         const rData =
           reviewsData ??
-          (await cachedFetchJson<any>("/api/reviews", { ttlMs: 60 * 1000 }));
+          (await cachedFetchJson<any>("/api/reviews?view=storefront", { ttlMs: 60 * 1000 }));
 
         if (!mounted) return;
 
@@ -248,6 +250,8 @@ export default function FeaturedProducts({
             currency: String(p.currency ?? "BDT"),
             featured: Boolean(p.featured),
             createdAt: String(p.createdAt ?? ""),
+            ratingAvg: toNumber(p.ratingAvg, 0),
+            ratingCount: toNumber(p.ratingCount, 0),
             variants,
             type,
             bundleStockLimit,
@@ -560,8 +564,8 @@ export default function FeaturedProducts({
                   );
 
                   const stats = reviewStats[String(p.id)] ?? {
-                    avg: 0,
-                    count: 0,
+                    avg: p.ratingAvg,
+                    count: p.ratingCount,
                   };
 
                   const isWishlisted = isInWishlist(p.id);

@@ -107,7 +107,7 @@ export default function FeaturedCategories({
 
         const data =
           categoriesData ??
-          ((await cachedFetchJson<any>("/api/categories", {
+          ((await cachedFetchJson<any>("/api/categories?view=storefront", {
             ttlMs: 5 * 60 * 1000,
           })) as any);
 

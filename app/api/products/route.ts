@@ -14,6 +14,11 @@ import { Prisma } from "@/generated/prisma";
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
+import {
+  isStorefrontRequest,
+  privateJson,
+  publicJson,
+} from "@/lib/public-cache";
 
 const createVariantSku = (slug: string, index: number) =>
   `${slug.substring(0, 20)}-V${index + 1}-${Math.random()
@@ -94,6 +99,26 @@ const productInclude = {
   },
 } as const;
 
+const storefrontProductInclude = {
+  category: true,
+  brand: true,
+  writer: true,
+  publisher: true,
+  variantOptions: {
+    orderBy: { position: "asc" },
+    include: { values: { orderBy: { position: "asc" } } },
+  },
+  variants: { orderBy: { id: "asc" } },
+  bundleItems: {
+    orderBy: { sortOrder: "asc" },
+    include: {
+      product: {
+        select: { id: true, name: true, image: true, available: true },
+      },
+    },
+  },
+} as const;
+
 function toProductLogSnapshot(product: any) {
   return {
     id: product.id,
@@ -143,11 +168,13 @@ function toProductLogSnapshot(product: any) {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
+    const storefront = isStorefrontRequest(req);
     const brandId = searchParams.get('brandId');
     const brandSlug = searchParams.get('brandSlug');
 
     let whereClause: any = {
       deleted: false,
+      ...(storefront ? { available: true } : {}),
     };
 
     // Filter by brand if brandId or brandSlug is provided
@@ -171,7 +198,7 @@ export async function GET(req: Request) {
       where: whereClause,
       orderBy: { id: "desc" },
       include: {
-        ...productInclude,
+        ...(storefront ? storefrontProductInclude : productInclude),
         _count: {
           select: {
             reviews: true,
@@ -187,23 +214,23 @@ export async function GET(req: Request) {
       ),
     );
 
-    // Calculate rating averages and bundle stats for each product
-    const productsWithRatings = await Promise.all(
-      products.map(async (product) => {
-        const ratingAggregation = await prisma.review.aggregate({
-          _avg: { rating: true },
-          where: { productId: product.id },
-        });
-
-        return {
-          ...attachVariantColorImages(product, colorImageMap),
-          ratingAvg: ratingAggregation._avg.rating || 0,
-          ratingCount: product._count.reviews,
-        };
-      })
+    const ratingAggregates = await prisma.review.groupBy({
+      by: ["productId"],
+      where: { productId: { in: products.map((product) => product.id) } },
+      _avg: { rating: true },
+    });
+    const ratingByProduct = new Map(
+      ratingAggregates.map((row) => [row.productId, row._avg.rating ?? 0]),
     );
+    const productsWithRatings = products.map((product) => ({
+      ...attachVariantColorImages(product, colorImageMap),
+      ratingAvg: ratingByProduct.get(product.id) ?? 0,
+      ratingCount: product._count.reviews,
+    }));
 
-    return NextResponse.json(productsWithRatings);
+    return storefront
+      ? publicJson(productsWithRatings, { maxAge: 60, staleWhileRevalidate: 300 })
+      : privateJson(productsWithRatings);
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to load products" },

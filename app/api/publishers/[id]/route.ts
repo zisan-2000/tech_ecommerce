@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
 
 type ParamsType = {
   params: Promise<{ id: string }>;
@@ -16,7 +17,9 @@ export async function GET(req: Request, context: ParamsType) {
     if (!publisher)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    return NextResponse.json(publisher);
+    return isStorefrontRequest(req)
+      ? publicJson(publisher, { maxAge: 300, staleWhileRevalidate: 1800 })
+      : privateJson(publisher);
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to load publisher" },

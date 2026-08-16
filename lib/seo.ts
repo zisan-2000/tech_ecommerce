@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 type SiteSettingsSeo = {
@@ -52,7 +53,7 @@ export function truncateText(text: string, maxLength = 160) {
   return `${shortened.slice(0, lastSpace > 0 ? lastSpace : maxLength).trim()}...`;
 }
 
-export async function getSiteSettingsForSeo(): Promise<SiteSettingsSeo> {
+const loadSiteSettingsForSeo = unstable_cache(async (): Promise<SiteSettingsSeo> => {
   try {
     const settings = await prisma.sitesettings.findFirst({
       orderBy: { id: "asc" },
@@ -85,6 +86,10 @@ export async function getSiteSettingsForSeo(): Promise<SiteSettingsSeo> {
       address: null,
     };
   }
+}, ["site-settings-seo"], { revalidate: 3600, tags: ["site-settings"] });
+
+export async function getSiteSettingsForSeo(): Promise<SiteSettingsSeo> {
+  return loadSiteSettingsForSeo();
 }
 
 export async function buildDefaultMetadata(): Promise<Metadata> {

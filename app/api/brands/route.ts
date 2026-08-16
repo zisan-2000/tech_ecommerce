@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import slugify from "slugify";
+import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
 
 function toBrandLogSnapshot(brand: {
   name: string;
@@ -23,7 +24,7 @@ function toBrandLogSnapshot(brand: {
 /* =========================
    GET ALL BRANDS
 ========================= */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const brands = await prisma.brand.findMany({
       where: { deleted: false },
@@ -39,8 +40,7 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(
-      brands.map((b) => ({
+    const data = brands.map((b) => ({
         id: b.id,
         name: b.name,
         slug: b.slug,
@@ -48,8 +48,10 @@ export async function GET() {
         productCount: b._count.products,
         createdAt: b.createdAt,
         updatedAt: b.updatedAt,
-      }))
-    );
+      }));
+    return isStorefrontRequest(req)
+      ? publicJson(data, { maxAge: 300, staleWhileRevalidate: 1800 })
+      : privateJson(data);
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to fetch brands" },

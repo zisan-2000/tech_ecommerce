@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import slugify from "slugify";
+import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
 
 function toCategoryLogSnapshot(category: {
   name: string;
@@ -25,7 +26,7 @@ function toCategoryLogSnapshot(category: {
 /* =========================
    GET ALL CATEGORIES
 ========================= */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const categories = await prisma.category.findMany({
       where: { deleted: false },
@@ -93,7 +94,9 @@ export async function GET() {
       deleted: c.deleted,
     }));
 
-    return NextResponse.json(formatted);
+    return isStorefrontRequest(req)
+      ? publicJson(formatted, { maxAge: 300, staleWhileRevalidate: 1800 })
+      : privateJson(formatted);
   } catch (error) {
     console.error(error);
     return NextResponse.json(

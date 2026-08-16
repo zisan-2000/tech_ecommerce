@@ -368,6 +368,13 @@ model Product {
   wishlist                Wishlist[]
   bundleItems             ProductBundleItem[]               @relation("BundleProducts")
   includedInBundles       ProductBundleItem[]               @relation("IncludedProducts")
+
+  @@index([deleted, available, createdAt])
+  @@index([deleted, available, soldCount])
+  @@index([categoryId, deleted, available])
+  @@index([brandId, deleted, available])
+  @@index([writerId, deleted, available])
+  @@index([publisherId, deleted, available])
 }
 
 model ProductBundleItem {
@@ -431,6 +438,7 @@ model ProductVariant {
   investorCapitalTransactions  InvestorCapitalTransaction[]
   investorProfitRunVariants    InvestorProfitRunVariant[]
   investorProfitRunAllocations InvestorProfitRunAllocation[]
+
 }
 
 model ProductVariantOption {

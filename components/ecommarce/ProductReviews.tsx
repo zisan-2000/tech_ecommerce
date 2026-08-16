@@ -109,7 +109,7 @@ export default function ProductReviews({ productId }: { productId: number }) {
       try {
         setLoading(true);
         const res = await fetch(
-          `/api/reviews?productId=${productId}&page=${page}&limit=${limit}`,
+          `/api/reviews?view=storefront&productId=${productId}&page=${page}&limit=${limit}`,
           { cache: "no-store" }
         );
         if (!res.ok) throw new Error("Failed to load reviews");
@@ -177,7 +177,7 @@ export default function ProductReviews({ productId }: { productId: number }) {
       // refresh list (stay on same page)
       // best: reload current page reviews
       const reload = await fetch(
-        `/api/reviews?productId=${productId}&page=${page}&limit=${limit}`,
+        `/api/reviews?view=storefront&productId=${productId}&page=${page}&limit=${limit}`,
         { cache: "no-store" }
       );
       const payload = (await reload.json()) as ReviewResponse;

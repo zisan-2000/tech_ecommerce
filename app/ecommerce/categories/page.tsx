@@ -233,9 +233,9 @@ export default function CategoriesPage() {
         setError(null);
 
         const [categoriesRes, productsRes, reviewsRes] = await Promise.all([
-          fetch("/api/categories", { cache: "no-store" }),
-          fetch("/api/products", { cache: "no-store" }),
-          fetch("/api/reviews", { cache: "no-store" }),
+          fetch("/api/categories?view=storefront", { cache: "force-cache" }),
+          fetch("/api/products?view=storefront", { cache: "force-cache" }),
+          fetch("/api/reviews?view=storefront", { cache: "force-cache" }),
         ]);
 
         if (!categoriesRes.ok || !productsRes.ok || !reviewsRes.ok) {

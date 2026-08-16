@@ -55,6 +55,8 @@ type ApiProduct = {
   currency?: string | null;
   available?: boolean | null;
   featured?: boolean | null;
+  ratingAvg?: number | string | null;
+  ratingCount?: number | string | null;
   image?: string | null;
   brandId?: number | null;
   brand?: { id: number; name: string; slug: string } | null;
@@ -234,7 +236,9 @@ export default function ProductsPage() {
         setLoading(true);
         setError(null);
 
-        const productsRes = await fetch("/api/products", { cache: "no-store" });
+        const productsRes = await fetch("/api/products?view=storefront", {
+          cache: "force-cache",
+        });
         if (!productsRes.ok) {
           throw new Error(
             `Failed to load products: ${productsRes.status} ${productsRes.statusText}`,
@@ -297,8 +301,10 @@ export default function ProductsPage() {
             price,
             originalPrice,
             discountPct,
-            ratingAvg: rating.count ? rating.sum / rating.count : 0,
-            ratingCount: rating.count,
+            ratingAvg: rating.count
+              ? rating.sum / rating.count
+              : toNumber(product.ratingAvg),
+            ratingCount: rating.count || toNumber(product.ratingCount),
             categoryId,
             brandId,
             categoryName: String(product.category?.name ?? ""),

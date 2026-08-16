@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import ProductManager from "@/components/management/ProductManager";
+import { clearCachedFetch } from "@/lib/client-cache-fetch";
 
 interface Product {
   id: number;
@@ -78,6 +79,13 @@ interface ProductsPageCache {
 }
 
 let productsPageCache: ProductsPageCache | null = null;
+
+function invalidateStorefrontProductCache() {
+  clearCachedFetch("GET:/api/products");
+  if (typeof window !== "undefined") {
+    window.sessionStorage.removeItem("home_page_processed_data");
+  }
+}
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>(
@@ -177,6 +185,7 @@ export default function ProductsPage() {
         products: [newProduct, ...productsPageCache.products],
       };
     }
+    invalidateStorefrontProductCache();
   }, []);
 
   const updateProduct = useCallback(async (id: number, data: unknown) => {
@@ -202,6 +211,7 @@ export default function ProductsPage() {
         ),
       };
     }
+    invalidateStorefrontProductCache();
 
     return updated;
   }, []);
@@ -216,6 +226,7 @@ export default function ProductsPage() {
         products: productsPageCache.products.filter((p) => p.id !== id),
       };
     }
+    invalidateStorefrontProductCache();
   }, []);
 
   const memoizedProducts = useMemo(() => products, [products]);

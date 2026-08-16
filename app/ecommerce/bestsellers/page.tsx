@@ -525,7 +525,7 @@ export default function BestSellingPage() {
         setLoading(true);
         setError(null);
 
-        const res = await fetch("/api/products/top-selling", { cache: "no-store" });
+        const res = await fetch("/api/products/top-selling", { cache: "force-cache" });
         if (!res.ok) throw new Error("Failed to load best-selling products");
 
         const data = (await res.json()) as ApiProduct[];
@@ -593,7 +593,7 @@ export default function BestSellingPage() {
     const loadCategories = async () => {
       try {
         setCatLoading(true);
-        const res = await fetch("/api/categories", { cache: "no-store" });
+        const res = await fetch("/api/categories?view=storefront", { cache: "force-cache" });
         if (!res.ok) {
           setCatTree([]);
           return;

@@ -168,7 +168,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const res = await fetch("/api/products", { cache: "no-store" });
+        const res = await fetch("/api/products?view=storefront", {
+          cache: "force-cache",
+        });
         if (!res.ok) {
           console.error("Failed to fetch products for cart:", res.statusText);
           return;

@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isStorefrontRequest, publicJson } from "@/lib/public-cache";
 
 // GET: get all featured reviews OR by productId
 export async function GET(req: NextRequest) {
@@ -34,14 +35,19 @@ export async function GET(req: NextRequest) {
       prisma.review.count({ where }),
     ]);
 
-    return NextResponse.json({ 
+    const payload = {
       success: true, 
       data: reviews,
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit)
-    });
+      totalPages: Math.ceil(total / limit),
+    };
+    return isStorefrontRequest(req)
+      ? publicJson(payload, { maxAge: 60, staleWhileRevalidate: 300 })
+      : NextResponse.json(payload, {
+          headers: { "Cache-Control": "private, no-store" },
+        });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: "Failed to fetch reviews" },

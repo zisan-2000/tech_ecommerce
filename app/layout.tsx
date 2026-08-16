@@ -50,8 +50,6 @@ const lexend = Lexend({
   display: "swap",
 });
 
-export const dynamic = "force-dynamic";
-
 export async function generateMetadata(): Promise<Metadata> {
   return buildDefaultMetadata();
 }

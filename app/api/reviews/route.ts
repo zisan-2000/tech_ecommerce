@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isStorefrontRequest, publicJson } from "@/lib/public-cache";
 
 // GET /api/reviews?productId=1&page=1&limit=10
 // পাবলিকলি অ্যাক্সেসযোগ্য (শুধু রিভিউ দেখার জন্য)
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    return NextResponse.json({
+    const payload = {
       reviews,
       pagination: {
         page,
@@ -69,7 +70,12 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit),
       },
       averageRating: aggregated._avg.rating ?? 0,
-    });
+    };
+    return isStorefrontRequest(request)
+      ? publicJson(payload, { maxAge: 30, staleWhileRevalidate: 120 })
+      : NextResponse.json(payload, {
+          headers: { "Cache-Control": "private, no-store" },
+        });
   } catch (error) {
     console.error("Error fetching reviews:", error);
     return NextResponse.json(
@@ -154,6 +160,19 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+
+    const ratingStats = await prisma.review.aggregate({
+      where: { productId: numericProductId },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+    await prisma.product.update({
+      where: { id: numericProductId },
+      data: {
+        ratingAvg: ratingStats._avg.rating ?? 0,
+        ratingCount: ratingStats._count.rating,
+      },
+    });
 
     return NextResponse.json(review, { status: existing ? 200 : 201 });
   } catch (error) {

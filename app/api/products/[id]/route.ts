@@ -14,6 +14,7 @@ import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import { Prisma, type ProductType } from "@/generated/prisma";
 import slugify from "slugify";
+import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
 
 const productInclude = {
   category: true,
@@ -143,6 +144,7 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
+    const storefront = isStorefrontRequest(req);
     const { id: idParam } = await ctx.params;
     const id = Number(idParam);
 
@@ -157,6 +159,7 @@ export async function GET(
       where: {
         id,
         deleted: false,
+        ...(storefront ? { available: true } : {}),
       },
       include: productInclude,
     });
@@ -174,7 +177,10 @@ export async function GET(
         : [],
     );
 
-    return NextResponse.json(attachVariantColorImages(product, colorImageMap));
+    const data = attachVariantColorImages(product, colorImageMap);
+    return storefront
+      ? publicJson(data, { maxAge: 60, staleWhileRevalidate: 300 })
+      : privateJson(data);
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to fetch product" },

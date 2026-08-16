@@ -135,7 +135,7 @@ export default function CategoryBooks({
       try {
         setLoadingProducts(true);
 
-        const res = await fetch("/api/products", {
+        const res = await fetch("/api/products?view=storefront", {
           cache: "force-cache",
           next: { revalidate: 300 }, // Cache for 5 minutes
         });
@@ -226,7 +226,7 @@ export default function CategoryBooks({
           ids.map(async (id) => {
             try {
               const res = await fetch(
-                `/api/reviews?productId=${id}&page=1&limit=1`,
+                `/api/reviews?view=storefront&productId=${id}&page=1&limit=1`,
                 { cache: "force-cache" }
               );
 

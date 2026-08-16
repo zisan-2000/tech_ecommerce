@@ -402,7 +402,7 @@ export default function FloatingCartButton() {
     
     try {
       console.log('Fetching variants for product:', item.productId);
-      const res = await fetch(`/api/products/${item.productId}`);
+      const res = await fetch(`/api/products/${item.productId}?view=storefront`);
       const product = await res.json();
       console.log('Product data:', product);
       

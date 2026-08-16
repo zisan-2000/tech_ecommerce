@@ -214,8 +214,8 @@ function ProductDetailsContent({ routeProductId }: { routeProductId: string }) {
         setErr(null);
         setShow3D(false); // reset 3D view on product change
         const [detailRes, allRes] = await Promise.all([
-          fetch(`/api/products/${routeProductId}`, { cache: "no-store" }),
-          fetch("/api/products", { cache: "no-store" }),
+          fetch(`/api/products/${routeProductId}?view=storefront`, { cache: "force-cache" }),
+          fetch("/api/products?view=storefront", { cache: "force-cache" }),
         ]);
         if (!detailRes.ok) throw new Error("Failed to load product");
         if (!allRes.ok) throw new Error("Failed to load products");

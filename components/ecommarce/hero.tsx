@@ -47,7 +47,7 @@ export default function Hero({
     const load = async () => {
       const data =
         bannersData ??
-        (await cachedFetchJson<Banner[]>("/api/banners", {
+        (await cachedFetchJson<Banner[]>("/api/banners?view=storefront&active=true", {
           ttlMs: 2 * 60 * 1000,
         }));
       setBanners((data as Banner[]).filter((b) => b.isActive && b.type !== "POPUP"));

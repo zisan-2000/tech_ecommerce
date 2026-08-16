@@ -39,7 +39,7 @@ export default function BrandSlider({
         setLoading(true);
         setError(null);
 
-        const brandsData = await cachedFetchJson<Brand[]>("/api/brands", {
+        const brandsData = await cachedFetchJson<Brand[]>("/api/brands?view=storefront", {
           ttlMs: 5 * 60 * 1000,
         });
 

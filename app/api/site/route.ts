@@ -6,6 +6,8 @@ import { authOptions } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-log";
 import { getAccessContext } from "@/lib/rbac";
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
 
 function toSiteSettingsLogSnapshot(settings: {
   id: number;
@@ -40,7 +42,7 @@ function toSiteSettingsLogSnapshot(settings: {
 /* =========================
    GET SITE SETTINGS
 ========================= */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const settings = await prisma.sitesettings.findFirst({
       orderBy: { id: "asc" },
@@ -63,10 +65,14 @@ export async function GET() {
         },
       });
 
-      return NextResponse.json(created);
+      return isStorefrontRequest(req)
+        ? publicJson(created, { maxAge: 300, staleWhileRevalidate: 3600 })
+        : privateJson(created);
     }
 
-    return NextResponse.json(settings);
+    return isStorefrontRequest(req)
+      ? publicJson(settings, { maxAge: 300, staleWhileRevalidate: 3600 })
+      : privateJson(settings);
   } catch (error) {
     console.error("GET site settings error:", error);
     return NextResponse.json(
@@ -140,7 +146,8 @@ export async function POST(req: Request) {
         after: toSiteSettingsLogSnapshot(created),
       });
 
-      return NextResponse.json(created);
+      revalidateTag("site-settings", "max");
+      return privateJson(created);
     }
 
     const updated = await prisma.sitesettings.update({
@@ -173,7 +180,8 @@ export async function POST(req: Request) {
       after: toSiteSettingsLogSnapshot(updated),
     });
 
-    return NextResponse.json(updated);
+    revalidateTag("site-settings", "max");
+    return privateJson(updated);
   } catch (error) {
     console.error("POST site settings error:", error);
     return NextResponse.json(
@@ -237,7 +245,8 @@ export async function DELETE(req: Request) {
       after: toSiteSettingsLogSnapshot(updated),
     });
 
-    return NextResponse.json(updated);
+    revalidateTag("site-settings", "max");
+    return privateJson(updated);
   } catch (error) {
     console.error("DELETE site settings error:", error);
     return NextResponse.json(

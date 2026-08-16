@@ -63,7 +63,7 @@ export default function BookReviews({ bookId }: BookReviewsProps) {
 
     try {
       setLoading(true);
-      const res = await fetch(`/api/reviews?productId=${bookId}`, {
+      const res = await fetch(`/api/reviews?view=storefront&productId=${bookId}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

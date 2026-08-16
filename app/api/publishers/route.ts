@@ -2,8 +2,9 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const publishers = await prisma.publisher.findMany({
       where: { deleted: false },
@@ -35,7 +36,9 @@ export async function GET() {
       productCount: p._count.products,
     }));
 
-    return NextResponse.json(formatted);
+    return isStorefrontRequest(req)
+      ? publicJson(formatted, { maxAge: 300, staleWhileRevalidate: 1800 })
+      : privateJson(formatted);
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to load publishers" },

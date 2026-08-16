@@ -287,7 +287,7 @@ export default function BrandsPage() {
       slice.map(async (brand) => {
         try {
           const products = await cachedFetchJson<Product[]>(
-            `/api/products?brandSlug=${brand.slug}`,
+            `/api/products?brandSlug=${brand.slug}&view=storefront`,
             { ttlMs: 2 * 60 * 1000 },
           );
           return { brand, products: Array.isArray(products) ? products : [] };
@@ -316,7 +316,7 @@ export default function BrandsPage() {
     const init = async () => {
       try {
         setLoading(true);
-        const data = await cachedFetchJson<Brand[]>("/api/brands", {
+        const data = await cachedFetchJson<Brand[]>("/api/brands?view=storefront", {
           ttlMs: 5 * 60 * 1000,
         });
         if (!Array.isArray(data)) throw new Error("Invalid response");

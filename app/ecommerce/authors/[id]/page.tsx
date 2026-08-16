@@ -88,7 +88,7 @@ export default function AuthorBooksPage() {
         setError(null);
 
         // 1) writer info
-        const resWriter = await fetch(`/api/writers/${authorId}`, {
+        const resWriter = await fetch(`/api/writers/${authorId}?view=storefront`, {
           cache: "force-cache",
           next: { revalidate: 300 }, // Cache for 5 minutes
           signal,
@@ -107,7 +107,7 @@ export default function AuthorBooksPage() {
         setAuthor(writerData);
 
         // 2) সব product -> filter by writer (with caching)
-        const resProducts = await fetch("/api/products", {
+        const resProducts = await fetch("/api/products?view=storefront", {
           cache: "force-cache",
           next: { revalidate: 300 }, // Cache for 5 minutes
           signal,

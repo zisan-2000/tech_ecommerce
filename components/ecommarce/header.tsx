@@ -59,7 +59,7 @@ import {
   MapPin,
 } from "lucide-react";
 
-const CATEGORIES_API = "/api/categories";
+const CATEGORIES_API = "/api/categories?view=storefront";
 
 const THEME_OPTIONS = [
   { value: "light", label: "Light" },
@@ -583,7 +583,7 @@ export default function Header({
           return;
         }
 
-        const data = await cachedFetchJson<any>("/api/site", {
+        const data = await cachedFetchJson<any>("/api/site?view=storefront", {
           ttlMs: 5 * 60 * 1000,
         });
 
@@ -624,7 +624,7 @@ export default function Header({
 
         setSearchLoading(true);
 
-        const data = await cachedFetchJson<any[]>("/api/products", {
+        const data = await cachedFetchJson<any[]>("/api/products?view=storefront", {
           ttlMs: 2 * 60 * 1000,
         });
 

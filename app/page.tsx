@@ -276,14 +276,14 @@ const DataProvider = memo(function DataProvider({
           topSellingData,
           siteData,
         ] = await Promise.all([
-          cachedFetchJson<any[]>("/api/categories", { ttlMs: 5 * 60 * 1000 }),
-          cachedFetchJson<any[]>("/api/products", { ttlMs: 2 * 60 * 1000 }),
-          cachedFetchJson<any[]>("/api/banners", { ttlMs: 2 * 60 * 1000 }),
-          cachedFetchJson<any>("/api/reviews", { ttlMs: 60 * 1000 }),
+          cachedFetchJson<any[]>("/api/categories?view=storefront", { ttlMs: 5 * 60 * 1000 }),
+          cachedFetchJson<any[]>("/api/products?view=storefront", { ttlMs: 2 * 60 * 1000 }),
+          cachedFetchJson<any[]>("/api/banners?view=storefront&active=true", { ttlMs: 2 * 60 * 1000 }),
+          Promise.resolve({ reviews: [] }),
           cachedFetchJson<any[]>("/api/products/top-selling", {
             ttlMs: 2 * 60 * 1000,
           }),
-          cachedFetchJson<SiteSettings>("/api/site", { ttlMs: 5 * 60 * 1000 }),
+          cachedFetchJson<SiteSettings>("/api/site?view=storefront", { ttlMs: 5 * 60 * 1000 }),
         ]);
 
         // Use memoized processing functions

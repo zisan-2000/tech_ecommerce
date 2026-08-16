@@ -30,7 +30,7 @@ const PublisherCategoriesPage = memo(function PublisherCategoriesPage() {
         setLoading(true);
         setError(null);
 
-        const res = await fetch("/api/publishers", {
+        const res = await fetch("/api/publishers?view=storefront", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",

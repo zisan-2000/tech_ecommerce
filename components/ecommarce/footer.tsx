@@ -69,7 +69,7 @@ export default function Footer({
       try {
         const data =
           siteSettingsData ??
-          (await cachedFetchJson<any>("/api/site", {
+          (await cachedFetchJson<any>("/api/site?view=storefront", {
             ttlMs: 5 * 60 * 1000,
           }));
         setSiteSettings(data);
@@ -93,7 +93,7 @@ export default function Footer({
       try {
         const data =
           categoriesData ??
-          ((await cachedFetchJson<ApiCategory[]>("/api/categories", {
+          ((await cachedFetchJson<ApiCategory[]>("/api/categories?view=storefront", {
             ttlMs: 5 * 60 * 1000,
           })) as ApiCategory[]);
         if (!mounted) return;

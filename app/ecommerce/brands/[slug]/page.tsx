@@ -159,7 +159,7 @@ export default function BrandPage() {
         setError(null);
 
         // Load brand info
-        const brandData = await cachedFetchJson<Brand[]>(`/api/brands`, {
+        const brandData = await cachedFetchJson<Brand[]>(`/api/brands?view=storefront`, {
           ttlMs: 5 * 60 * 1000,
         });
         
@@ -173,7 +173,7 @@ export default function BrandPage() {
         }
 
         // Load products for this brand
-        const productsData = await cachedFetchJson<Product[]>(`/api/products?brandSlug=${brandSlug}`, {
+        const productsData = await cachedFetchJson<Product[]>(`/api/products?brandSlug=${brandSlug}&view=storefront`, {
           ttlMs: 2 * 60 * 1000,
         });
 

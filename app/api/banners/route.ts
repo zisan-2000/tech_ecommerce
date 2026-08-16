@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/activity-log";
 import { getAccessContext } from "@/lib/rbac";
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
+import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
 
 function toBannerLogSnapshot(banner: {
   id: number;
@@ -69,7 +70,9 @@ export async function GET(req: Request) {
       orderBy: { position: "asc" },
     });
 
-    return NextResponse.json(banners);
+    return isStorefrontRequest(req)
+      ? publicJson(banners, { maxAge: 120, staleWhileRevalidate: 600 })
+      : privateJson(banners);
   } catch (error) {
     console.error("GET banners error:", error);
     return NextResponse.json(
