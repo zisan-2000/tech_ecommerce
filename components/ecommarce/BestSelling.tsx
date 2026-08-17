@@ -6,6 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
+import {
+  normalizeStorefrontProducts,
+  normalizeStorefrontReviews,
+} from "@/lib/storefront-client-data";
 
 import {
   Dialog,
@@ -108,9 +112,17 @@ export default function BestSelling({
   reviewsData?: any[];
   isAuthenticated?: boolean;
 }) {
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<ProductDTO[]>([]);
-  const [reviews, setReviews] = useState<ReviewDTO[]>([]);
+  const hasPreloadedData =
+    topSellingData !== undefined && reviewsData !== undefined;
+  const [loading, setLoading] = useState(!hasPreloadedData);
+  const [items, setItems] = useState<ProductDTO[]>(() =>
+    topSellingData
+      ? normalizeStorefrontProducts(topSellingData, { requireSold: true })
+      : [],
+  );
+  const [reviews, setReviews] = useState<ReviewDTO[]>(() =>
+    reviewsData ? normalizeStorefrontReviews(reviewsData) : [],
+  );
   const [error, setError] = useState<string | null>(null);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
@@ -163,6 +175,8 @@ export default function BestSelling({
   );
 
   useEffect(() => {
+    if (hasPreloadedData) return;
+
     let mounted = true;
 
     const load = async () => {
@@ -254,7 +268,7 @@ export default function BestSelling({
     return () => {
       mounted = false;
     };
-  }, [topSellingData, reviewsData]);
+  }, [topSellingData, reviewsData, hasPreloadedData]);
 
   const reviewStats = useMemo(() => {
     const map: Record<string, { count: number; sum: number; avg: number }> = {};

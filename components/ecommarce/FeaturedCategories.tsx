@@ -93,11 +93,18 @@ export default function FeaturedCategories({
   title?: string;
   categoriesData?: CategoryDTO[];
 }) {
-  const [loading, setLoading] = useState(true);
-  const [cats, setCats] = useState<CategoryDTO[]>([]);
+  const [loading, setLoading] = useState(!categoriesData);
+  const [cats, setCats] = useState<CategoryDTO[]>(() => categoriesData ?? []);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (categoriesData) {
+      setCats(categoriesData);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     let mounted = true;
 
     const load = async () => {

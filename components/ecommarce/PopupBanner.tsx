@@ -17,7 +17,7 @@ interface Banner {
   isActive: boolean;
   startDate?: string | null;
   endDate?: string | null;
-  type: "HERO" | "BANNER1" | "BANNER2" | "POPUP";
+  type: string;
 }
 
 interface PopupBannerProps {

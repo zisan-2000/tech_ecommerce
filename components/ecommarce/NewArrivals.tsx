@@ -13,6 +13,11 @@ import { FaRobot } from "react-icons/fa";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
+import {
+  normalizeStorefrontCategories,
+  normalizeStorefrontProducts,
+  normalizeStorefrontReviews,
+} from "@/lib/storefront-client-data";
 
 import {
   Dialog,
@@ -121,10 +126,20 @@ export default function NewArrivals({
   reviewsData?: any[];
   isAuthenticated?: boolean;
 }) {
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<ProductDTO[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [reviews, setReviews] = useState<ReviewDTO[]>([]);
+  const hasPreloadedData =
+    productsData !== undefined &&
+    categoriesData !== undefined &&
+    reviewsData !== undefined;
+  const [loading, setLoading] = useState(!hasPreloadedData);
+  const [items, setItems] = useState<ProductDTO[]>(() =>
+    productsData ? normalizeStorefrontProducts(productsData) : [],
+  );
+  const [categories, setCategories] = useState<Category[]>(() =>
+    categoriesData ? normalizeStorefrontCategories(categoriesData) : [],
+  );
+  const [reviews, setReviews] = useState<ReviewDTO[]>(() =>
+    reviewsData ? normalizeStorefrontReviews(reviewsData) : [],
+  );
   const [error, setError] = useState<string | null>(null);
 
   const [active, setActive] = useState<"ALL" | string>("ALL");
@@ -187,6 +202,8 @@ export default function NewArrivals({
   );
 
   useEffect(() => {
+    if (hasPreloadedData) return;
+
     let mounted = true;
 
     const load = async () => {
@@ -287,7 +304,7 @@ export default function NewArrivals({
     return () => {
       mounted = false;
     };
-  }, [productsData, categoriesData, reviewsData]);
+  }, [productsData, categoriesData, reviewsData, hasPreloadedData]);
 
   const reviewStats = useMemo(() => {
     const map: Record<string, { count: number; sum: number; avg: number }> = {};

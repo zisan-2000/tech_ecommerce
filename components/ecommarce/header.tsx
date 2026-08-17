@@ -518,7 +518,9 @@ export default function Header({
 
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [allProducts, setAllProducts] = useState<ProductSummary[]>([]);
+  const [allProducts, setAllProducts] = useState<ProductSummary[]>(
+    () => productsData ?? [],
+  );
 
   const [searchResults, setSearchResults] = useState<ProductSummary[]>([]);
 
@@ -526,11 +528,17 @@ export default function Header({
 
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
-  const [hasLoadedProducts, setHasLoadedProducts] = useState(false);
+  const [hasLoadedProducts, setHasLoadedProducts] = useState(
+    Boolean(productsData),
+  );
 
-  const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
+  const [categoryTree, setCategoryTree] = useState<CategoryNode[]>(() =>
+    categoriesData
+      ? buildCategoryTree(normalizeCategoryList(categoriesData))
+      : [],
+  );
 
-  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categoryLoading, setCategoryLoading] = useState(!categoriesData);
 
   const [catOpen, setCatOpen] = useState(false);
 

@@ -10,7 +10,7 @@ interface Banner {
   id: number;
   title: string;
   image: string;
-  type: "HERO" | "BANNER1" | "BANNER2" | "POPUP";
+  type: string;
   position: number;
   isActive: boolean;
   href?: string;
@@ -31,7 +31,11 @@ export default function Hero({
   mobileAutoInterval = 4000,
   bannersData,
 }: Props) {
-  const [banners, setBanners] = useState<Banner[]>([]);
+  const [banners, setBanners] = useState<Banner[]>(() =>
+    (bannersData ?? []).filter(
+      (banner) => banner.isActive && banner.type !== "POPUP",
+    ),
+  );
   const [currentHero, setCurrentHero] = useState(0);
   const [currentBanner1, setCurrentBanner1] = useState(0);
   const [currentBanner2, setCurrentBanner2] = useState(0);
