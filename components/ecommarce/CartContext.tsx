@@ -8,6 +8,7 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 
 // API থেকে যেটুকু লাগবে শুধু সেটার টাইপ
@@ -47,6 +48,7 @@ type CartAnimationOptions = {
   startY?: number;
   image?: string;
   imageRect?: CartAnimationRect;
+  product?: ProductApiItem;
 };
 
 interface CartContextType {
@@ -57,7 +59,7 @@ interface CartContextType {
     quantity?: number,
     variantId?: string | number | null,
     options?: CartAnimationOptions
-  ) => void;
+  ) => Promise<boolean>;
 
   // row-id based
   removeFromCart: (id: string | number) => void;
@@ -113,8 +115,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return [];
   });
 
-  // 📚 API থেকে আনা প্রোডাক্ট লিস্ট
-  const [products, setProducts] = useState<ProductApiItem[]>([]);
+  // Product snapshots are populated only for products the shopper interacts with.
+  const productCacheRef = useRef(new Map<string, ProductApiItem>());
 
   // ✅ safer replace (also normalize + sanitize)
   const replaceCart = useCallback((items: CartItem[]) => {
@@ -164,51 +166,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  // 🧲 CartProvider মাউন্ট হলে একবারই /api/products থেকে প্রোডাক্ট লোড
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const res = await fetch("/api/products?view=storefront", {
-          cache: "force-cache",
-        });
-        if (!res.ok) {
-          console.error("Failed to fetch products for cart:", res.statusText);
-          return;
-        }
-
-        const data = await res.json();
-        if (!Array.isArray(data)) {
-          console.error("Invalid products response for cart:", data);
-          return;
-        }
-
-        const mapped: ProductApiItem[] = data.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          price: Number(p.basePrice ?? 0), // ✅ use basePrice instead of price
-          image: p.image ?? "/placeholder.svg",
-          variants: Array.isArray(p.variants)
-            ? p.variants.map((variant: any) => ({
-                id: variant.id,
-                price: Number(variant.price ?? p.basePrice ?? 0),
-                sku: variant.sku ?? null,
-                options:
-                  variant.options && typeof variant.options === "object"
-                    ? variant.options
-                    : null,
-              }))
-            : [],
-        }));
-
-        setProducts(mapped);
-      } catch (err) {
-        console.error("Error fetching products for cart:", err);
-      }
-    };
-
-    loadProducts();
-  }, []);
-
   const cartCount = useMemo(
     () => cartItems.reduce((total, item) => total + (Number(item.quantity) || 0), 0),
     [cartItems]
@@ -249,7 +206,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         // if not exists -> create (needs product)
         if (idx === -1) {
-          const product = products.find((p) => norm(p.id) === pid);
+          const product = productCacheRef.current.get(pid);
           if (!product) return prev;
           const variant =
             vid !== ""
@@ -281,7 +238,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return prev.map((it, i) => (i === idx ? { ...it, quantity: nextQty } : it));
       });
     },
-    [products]
+    []
   );
 
   const incProductQty = useCallback(
@@ -302,7 +259,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // ✅ FIXED: addToCart always INCREMENT, normalize ids
   const addToCart = useCallback(
-    (
+    async (
       productId: string | number,
       quantity: number = 1,
       variantId?: string | number | null,
@@ -311,18 +268,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const pid = norm(productId);
       const vid = normVariant(variantId);
       const add = clamp(Number(quantity) || 1);
-      if (add <= 0) return;
+      if (add <= 0) return false;
 
-      const product = products.find((p) => norm(p.id) === pid);
+      let product = options?.product ?? productCacheRef.current.get(pid);
       if (!product) {
-        console.warn(
-          "Product not found in CartProvider products state for id:",
-          productId,
-          "Available products:",
-          products.map((p) => ({ id: p.id, name: p.name, price: p.price }))
-        );
-        return;
+        try {
+          const response = await fetch(`/api/products/${encodeURIComponent(pid)}?view=storefront`, {
+            cache: "force-cache",
+          });
+          if (response.ok) {
+            const data = await response.json();
+            product = {
+              id: data.id,
+              name: String(data.name || "Product"),
+              price: Number(data.basePrice ?? 0),
+              image: data.image ?? "/placeholder.svg",
+              variants: Array.isArray(data.variants)
+                ? data.variants.map((variant: any) => ({
+                    id: variant.id,
+                    price: Number(variant.price ?? data.basePrice ?? 0),
+                    sku: variant.sku ?? null,
+                    options:
+                      variant.options && typeof variant.options === "object"
+                        ? variant.options
+                        : null,
+                  }))
+                : [],
+            };
+          }
+        } catch (error) {
+          console.error("Failed to load product for cart:", error);
+        }
       }
+      if (!product) {
+        console.warn("Product could not be loaded for cart:", productId);
+        return false;
+      }
+      productCacheRef.current.set(pid, product);
 
       const variant =
         vid !== ""
@@ -372,8 +354,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
           },
         }));
       }
+      return true;
     },
-    [products]
+    []
   );
 
   const removeFromCart = useCallback((id: string | number) => {

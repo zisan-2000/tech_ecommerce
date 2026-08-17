@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Flame, Heart, Loader2, ShoppingCart } from "lucide-react";
+import { Flame, GitCompareArrows, Heart, Loader2, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useMobile } from "@/hooks/use-mobile";
@@ -60,7 +60,9 @@ type Props = {
   showMeta?: boolean;
   addToCartLabel?: string;
   onWishlistClick?: () => void | Promise<void>;
-  onAddToCart?: () => void | Promise<void>;
+  onCompareClick?: () => void | Promise<void>;
+  compared?: boolean;
+  onAddToCart?: () => void | Promise<unknown>;
   formatPrice?: (value: number) => string;
   className?: string;
 };
@@ -203,6 +205,8 @@ export default function ProductCardCompact({
   product,
   wishlisted = false,
   onWishlistClick,
+  onCompareClick,
+  compared = false,
   onAddToCart,
   formatPrice = defaultFormatPrice,
   addToCartLabel = "Add To Cart",
@@ -374,6 +378,24 @@ export default function ProductCardCompact({
                 />
               </button>
             )}
+
+            {onCompareClick ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void onCompareClick();
+                }}
+                className={cn(
+                  "absolute left-3 top-12 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-border/50 bg-background/80 backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50",
+                  compared && "border-primary bg-primary/10 text-primary",
+                )}
+                aria-label={compared ? "Remove from comparison" : "Add to comparison"}
+              >
+                <GitCompareArrows className="h-4 w-4" />
+              </button>
+            ) : null}
 
             {/* Best Seller Badge */}
             {isBestSeller && (

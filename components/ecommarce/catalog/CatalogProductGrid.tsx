@@ -7,6 +7,7 @@ import ProductCard from "@/components/ecommarce/ProductCard";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { useSession } from "@/lib/auth-client";
+import { useProductCompare } from "@/hooks/use-product-compare";
 import type { StorefrontCatalogProduct } from "@/lib/storefront-catalog";
 import {
   Dialog,
@@ -28,6 +29,12 @@ export default function CatalogProductGrid({
   const { status } = useSession();
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const {
+    count: compareCount,
+    href: compareHref,
+    isCompared,
+    toggle: toggleComparedProduct,
+  } = useProductCompare();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   const toggleWishlist = useCallback(
@@ -67,19 +74,34 @@ export default function CatalogProductGrid({
   );
 
   const addProductToCart = useCallback(
-    (product: StorefrontCatalogProduct) => {
+    async (product: StorefrontCatalogProduct) => {
       if (product.stock <= 0) {
         toast.error("This product is out of stock.");
         return;
       }
-      addToCart(product.id);
-      toast.success(`“${product.name}” added to cart.`);
+      if (await addToCart(product.id)) toast.success(`“${product.name}” added to cart.`);
+      else toast.error("Product could not be added to cart.");
     },
     [addToCart],
   );
 
+  const toggleCompare = useCallback(
+    (productId: number) => {
+      const result = toggleComparedProduct(productId);
+      if (result.limitReached) toast.error("You can compare up to 4 products.");
+      else toast.success(result.added ? "Added to comparison." : "Removed from comparison.");
+    },
+    [toggleComparedProduct],
+  );
+
   return (
     <>
+      {compareCount > 0 ? (
+        <div className="mb-4 flex items-center justify-between rounded-xl border bg-card px-4 py-3 text-sm">
+          <span><strong>{compareCount}</strong> product(s) selected for comparison</span>
+          <Link href={compareHref} className="font-bold text-primary hover:underline">Compare now</Link>
+        </div>
+      ) : null}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
         {products.map((product) => (
           <ProductCard
@@ -105,6 +127,8 @@ export default function CatalogProductGrid({
             }}
             wishlisted={isInWishlist(product.id)}
             onWishlistClick={() => toggleWishlist(product)}
+            onCompareClick={() => toggleCompare(product.id)}
+            compared={isCompared(product.id)}
             onAddToCart={() => addProductToCart(product)}
             formatPrice={formatBDT}
           />

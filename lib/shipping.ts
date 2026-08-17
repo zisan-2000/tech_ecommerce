@@ -8,6 +8,7 @@ type ShippingRateRow = {
   freeMinOrder: any;
   isActive: boolean;
   priority: number;
+  estimatedDays: number | null;
 };
 
 export type ShippingQuoteInput = {
@@ -28,6 +29,7 @@ export type ShippingQuoteResult = {
     baseCost: number;
     freeMinOrder: number | null;
     priority: number;
+    estimatedDays: number | null;
   } | null;
   reason: string;
 };
@@ -133,6 +135,7 @@ export async function calculateShippingQuote(input: ShippingQuoteInput): Promise
       baseCost,
       freeMinOrder,
       priority: matched.priority,
+      estimatedDays: matched.estimatedDays,
     },
     reason:
       scored.length > 0

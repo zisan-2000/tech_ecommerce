@@ -34,7 +34,8 @@ export default function AddToCartButton({
       setLoading(true);
 
       // ✅ Your existing CartContext function (localStorage cart)
-      addToCart(productId, quantity, variantId);
+      const added = await addToCart(productId, quantity, variantId);
+      if (!added) throw new Error("Product could not be added to cart");
     } catch (e) {
       console.error(e);
       alert("Failed to add to cart");

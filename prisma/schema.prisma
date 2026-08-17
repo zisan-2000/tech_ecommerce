@@ -9,182 +9,184 @@ datasource db {
 }
 
 model User {
-  id                            String                  @id @default(cuid())
-  email                         String                  @unique
-  name                          String?
-  role                          String                  @default("user")
-  phone                         String?
-  passwordHash                  String?                 @map("password")
-  emailVerified                 DateTime?
-  image                         String?
-  createdAt                     DateTime                @default(now())
-  updatedAt                     DateTime                @updatedAt
-  banned                        Boolean?
-  banReason                     String?
-  banExpires                    Int?
-  note                          String?
-  activityLogs                  ActivityLog[]
-  cart                          CartItem[]
-  assignedChats                 ChatConversation[]      @relation("AssignedChats")
-  userChats                     ChatConversation[]      @relation("UserChats")
-  chatMessages                  ChatMessage[]
-  deliveryProofs                DeliveryProof[]
-  inventoryReservations         InventoryReservation[]
-  orders                        Order[]
-  payrollEntries                PayrollEntry[]
-  payrollProfile                PayrollProfile?
-  refunds                       Refund[]
-  reviews                       Review[]
-  serviceBookings               ServiceBooking[]
-  assignedShipments             Shipment[]              @relation("AssignedShipments")
-  shipmentAssignmentsBy         ShipmentAssignment[]    @relation("ShipmentAssignmentBy")
-  shipmentAssignmentsTo         ShipmentAssignment[]    @relation("ShipmentAssignmentTo")
-  shipmentCostLogsCreated       ShipmentCostLog[]
-  addresses                     UserAddress[]
-  assignedUserRoles             UserRole[]              @relation("AssignedUserRoles")
-  userRoles                     UserRole[]              @relation("UserRoles")
-  assignedWarehouseMemberships  WarehouseMembership[]   @relation("AssignedWarehouseMemberships")
-  warehouseMemberships          WarehouseMembership[]   @relation("WarehouseMemberships")
-  purchaseOrdersCreated         PurchaseOrder[]         @relation("PurchaseOrdersCreated")
-  purchaseOrdersApproved        PurchaseOrder[]         @relation("PurchaseOrdersApproved")
-  purchaseOrdersManagerApproved PurchaseOrder[]         @relation("PurchaseOrdersManagerApproved")
-  purchaseOrdersCommitteeApproved PurchaseOrder[]       @relation("PurchaseOrdersCommitteeApproved")
-  purchaseOrdersFinalApproved   PurchaseOrder[]         @relation("PurchaseOrdersFinalApproved")
-  purchaseOrdersRejected        PurchaseOrder[]         @relation("PurchaseOrdersRejected")
-  purchaseOrderApprovalEvents   PurchaseOrderApprovalEvent[] @relation("PurchaseOrderApprovalEvents")
-  purchaseOrderNotificationsReceived PurchaseOrderNotification[] @relation("PurchaseOrderNotificationsReceived")
-  purchaseOrderTermsTemplatesCreated PurchaseOrderTermsTemplate[] @relation("PurchaseOrderTermsTemplatesCreated")
-  purchaseOrderTermsTemplatesUpdated PurchaseOrderTermsTemplate[] @relation("PurchaseOrderTermsTemplatesUpdated")
-  purchaseOrderLandedCostsCreated PurchaseOrderLandedCost[] @relation("PurchaseOrderLandedCostsCreated")
-  purchaseRequisitionsCreated   PurchaseRequisition[]   @relation("PurchaseRequisitionsCreated")
-  purchaseRequisitionsApproved  PurchaseRequisition[]   @relation("PurchaseRequisitionsApproved")
-  purchaseRequisitionsConverted PurchaseRequisition[]   @relation("PurchaseRequisitionsConverted")
-  purchaseRequisitionsBudgetCleared PurchaseRequisition[] @relation("PurchaseRequisitionsBudgetCleared")
-  purchaseRequisitionsEndorsed PurchaseRequisition[] @relation("PurchaseRequisitionsEndorsed")
-  purchaseRequisitionsAssignedProcurement PurchaseRequisition[] @relation("PurchaseRequisitionsAssignedProcurement")
-  purchaseRequisitionAttachmentsUploaded PurchaseRequisitionAttachment[] @relation("PurchaseRequisitionAttachmentsUploaded")
-  purchaseRequisitionApprovalEvents PurchaseRequisitionApprovalEvent[] @relation("PurchaseRequisitionApprovalEvents")
-  purchaseRequisitionVersionsCreated PurchaseRequisitionVersion[] @relation("PurchaseRequisitionVersionsCreated")
-  purchaseRequisitionNotificationsReceived PurchaseRequisitionNotification[] @relation("PurchaseRequisitionNotificationsReceived")
-  materialRequestsCreated                   MaterialRequest[]                   @relation("MaterialRequestsCreated")
-  materialRequestsSupervisorEndorsed        MaterialRequest[]                   @relation("MaterialRequestsSupervisorEndorsed")
-  materialRequestsProjectManagerEndorsed    MaterialRequest[]                   @relation("MaterialRequestsProjectManagerEndorsed")
-  materialRequestsAdminApproved             MaterialRequest[]                   @relation("MaterialRequestsAdminApproved")
-  materialRequestsRejected                  MaterialRequest[]                   @relation("MaterialRequestsRejected")
-  materialRequestAttachmentsUploaded        MaterialRequestAttachment[]         @relation("MaterialRequestAttachmentsUploaded")
-  materialRequestApprovalEvents             MaterialRequestApprovalEvent[]      @relation("MaterialRequestApprovalEvents")
-  materialReleasesIssued                    MaterialReleaseNote[]               @relation("MaterialReleasesIssued")
-  assetRegistersCreated                     AssetRegister[]                     @relation("AssetRegistersCreated")
-  inventoryVerificationsCreated            InventoryVerification[]             @relation("InventoryVerificationsCreated")
-  inventoryVerificationsApproved           InventoryVerification[]             @relation("InventoryVerificationsApproved")
-  inventoryVerificationEvents              InventoryVerificationApprovalEvent[] @relation("InventoryVerificationApprovalEvents")
+  id                                        String                                 @id @default(cuid())
+  email                                     String                                 @unique
+  name                                      String?
+  role                                      String                                 @default("user")
+  phone                                     String?
+  passwordHash                              String?                                @map("password")
+  emailVerified                             DateTime?
+  image                                     String?
+  createdAt                                 DateTime                               @default(now())
+  updatedAt                                 DateTime                               @updatedAt
+  banned                                    Boolean?
+  banReason                                 String?
+  banExpires                                Int?
+  note                                      String?
+  activityLogs                              ActivityLog[]
+  cart                                      CartItem[]
+  assignedChats                             ChatConversation[]                     @relation("AssignedChats")
+  userChats                                 ChatConversation[]                     @relation("UserChats")
+  chatMessages                              ChatMessage[]
+  deliveryProofs                            DeliveryProof[]
+  inventoryReservations                     InventoryReservation[]
+  orders                                    Order[]
+  payrollEntries                            PayrollEntry[]
+  payrollProfile                            PayrollProfile?
+  refunds                                   Refund[]
+  reviews                                   Review[]
+  productQuestions                          ProductQuestion[]                      @relation("ProductQuestionsAsked")
+  productQuestionAnswers                    ProductQuestion[]                      @relation("ProductQuestionsAnswered")
+  serviceBookings                           ServiceBooking[]
+  assignedShipments                         Shipment[]                             @relation("AssignedShipments")
+  shipmentAssignmentsBy                     ShipmentAssignment[]                   @relation("ShipmentAssignmentBy")
+  shipmentAssignmentsTo                     ShipmentAssignment[]                   @relation("ShipmentAssignmentTo")
+  shipmentCostLogsCreated                   ShipmentCostLog[]
+  addresses                                 UserAddress[]
+  assignedUserRoles                         UserRole[]                             @relation("AssignedUserRoles")
+  userRoles                                 UserRole[]                             @relation("UserRoles")
+  assignedWarehouseMemberships              WarehouseMembership[]                  @relation("AssignedWarehouseMemberships")
+  warehouseMemberships                      WarehouseMembership[]                  @relation("WarehouseMemberships")
+  purchaseOrdersCreated                     PurchaseOrder[]                        @relation("PurchaseOrdersCreated")
+  purchaseOrdersApproved                    PurchaseOrder[]                        @relation("PurchaseOrdersApproved")
+  purchaseOrdersManagerApproved             PurchaseOrder[]                        @relation("PurchaseOrdersManagerApproved")
+  purchaseOrdersCommitteeApproved           PurchaseOrder[]                        @relation("PurchaseOrdersCommitteeApproved")
+  purchaseOrdersFinalApproved               PurchaseOrder[]                        @relation("PurchaseOrdersFinalApproved")
+  purchaseOrdersRejected                    PurchaseOrder[]                        @relation("PurchaseOrdersRejected")
+  purchaseOrderApprovalEvents               PurchaseOrderApprovalEvent[]           @relation("PurchaseOrderApprovalEvents")
+  purchaseOrderNotificationsReceived        PurchaseOrderNotification[]            @relation("PurchaseOrderNotificationsReceived")
+  purchaseOrderTermsTemplatesCreated        PurchaseOrderTermsTemplate[]           @relation("PurchaseOrderTermsTemplatesCreated")
+  purchaseOrderTermsTemplatesUpdated        PurchaseOrderTermsTemplate[]           @relation("PurchaseOrderTermsTemplatesUpdated")
+  purchaseOrderLandedCostsCreated           PurchaseOrderLandedCost[]              @relation("PurchaseOrderLandedCostsCreated")
+  purchaseRequisitionsCreated               PurchaseRequisition[]                  @relation("PurchaseRequisitionsCreated")
+  purchaseRequisitionsApproved              PurchaseRequisition[]                  @relation("PurchaseRequisitionsApproved")
+  purchaseRequisitionsConverted             PurchaseRequisition[]                  @relation("PurchaseRequisitionsConverted")
+  purchaseRequisitionsBudgetCleared         PurchaseRequisition[]                  @relation("PurchaseRequisitionsBudgetCleared")
+  purchaseRequisitionsEndorsed              PurchaseRequisition[]                  @relation("PurchaseRequisitionsEndorsed")
+  purchaseRequisitionsAssignedProcurement   PurchaseRequisition[]                  @relation("PurchaseRequisitionsAssignedProcurement")
+  purchaseRequisitionAttachmentsUploaded    PurchaseRequisitionAttachment[]        @relation("PurchaseRequisitionAttachmentsUploaded")
+  purchaseRequisitionApprovalEvents         PurchaseRequisitionApprovalEvent[]     @relation("PurchaseRequisitionApprovalEvents")
+  purchaseRequisitionVersionsCreated        PurchaseRequisitionVersion[]           @relation("PurchaseRequisitionVersionsCreated")
+  purchaseRequisitionNotificationsReceived  PurchaseRequisitionNotification[]      @relation("PurchaseRequisitionNotificationsReceived")
+  materialRequestsCreated                   MaterialRequest[]                      @relation("MaterialRequestsCreated")
+  materialRequestsSupervisorEndorsed        MaterialRequest[]                      @relation("MaterialRequestsSupervisorEndorsed")
+  materialRequestsProjectManagerEndorsed    MaterialRequest[]                      @relation("MaterialRequestsProjectManagerEndorsed")
+  materialRequestsAdminApproved             MaterialRequest[]                      @relation("MaterialRequestsAdminApproved")
+  materialRequestsRejected                  MaterialRequest[]                      @relation("MaterialRequestsRejected")
+  materialRequestAttachmentsUploaded        MaterialRequestAttachment[]            @relation("MaterialRequestAttachmentsUploaded")
+  materialRequestApprovalEvents             MaterialRequestApprovalEvent[]         @relation("MaterialRequestApprovalEvents")
+  materialReleasesIssued                    MaterialReleaseNote[]                  @relation("MaterialReleasesIssued")
+  assetRegistersCreated                     AssetRegister[]                        @relation("AssetRegistersCreated")
+  inventoryVerificationsCreated             InventoryVerification[]                @relation("InventoryVerificationsCreated")
+  inventoryVerificationsApproved            InventoryVerification[]                @relation("InventoryVerificationsApproved")
+  inventoryVerificationEvents               InventoryVerificationApprovalEvent[]   @relation("InventoryVerificationApprovalEvents")
   inventoryVerificationCommitteeMemberships InventoryVerificationCommitteeMember[] @relation("InventoryVerificationCommitteeMemberships")
-  stockAlertsCreated                        ReorderAlert[]                      @relation("ReorderAlertsCreated")
-  goodsReceiptsReceived         GoodsReceipt[]          @relation("GoodsReceiptsReceived")
-  goodsReceiptsRequesterConfirmed GoodsReceipt[]        @relation("GoodsReceiptsRequesterConfirmed")
-  goodsReceiptAttachmentsUploaded GoodsReceiptAttachment[] @relation("GoodsReceiptAttachmentsUploaded")
-  goodsReceiptVendorEvaluations  GoodsReceiptVendorEvaluation[] @relation("GoodsReceiptVendorEvaluationsBy")
-  supplierReturnsCreated        SupplierReturn[]        @relation("SupplierReturnsCreated")
-  supplierReturnsApproved       SupplierReturn[]        @relation("SupplierReturnsApproved")
-  supplierReturnsDispatched     SupplierReturn[]        @relation("SupplierReturnsDispatched")
-  supplierReturnsClosed         SupplierReturn[]        @relation("SupplierReturnsClosed")
-  supplierInvoicesCreated       SupplierInvoice[]       @relation("SupplierInvoicesCreated")
-  supplierInvoicesMatched       SupplierInvoice[]       @relation("SupplierInvoicesMatched")
-  supplierInvoicePaymentHoldsReleased SupplierInvoice[] @relation("SupplierInvoicePaymentHoldsReleased")
-  supplierPaymentsCreated       SupplierPayment[]       @relation("SupplierPaymentsCreated")
-  supplierLedgerEntriesCreated  SupplierLedgerEntry[]   @relation("SupplierLedgerEntriesCreated")
-  paymentRequestsCreated                 PaymentRequest[]             @relation("PaymentRequestsCreated")
-  paymentRequestsManagerApproved         PaymentRequest[]             @relation("PaymentRequestsManagerApproved")
-  paymentRequestsFinanceApproved         PaymentRequest[]             @relation("PaymentRequestsFinanceApproved")
-  paymentRequestsTreasuryProcessed       PaymentRequest[]             @relation("PaymentRequestsTreasuryProcessed")
-  paymentRequestsRejected                PaymentRequest[]             @relation("PaymentRequestsRejected")
-  paymentRequestsCancelled               PaymentRequest[]             @relation("PaymentRequestsCancelled")
-  paymentRequestApprovalEvents           PaymentRequestApprovalEvent[] @relation("PaymentRequestApprovalEvents")
-  paymentRequestNotificationsReceived    PaymentRequestNotification[]  @relation("PaymentRequestNotificationsReceived")
-  paymentRequestNotificationsCreated     PaymentRequestNotification[]  @relation("PaymentRequestNotificationsCreatedBy")
-  warehouseTransfersCreated     WarehouseTransfer[]     @relation("WarehouseTransfersCreated")
-  warehouseTransfersApproved    WarehouseTransfer[]     @relation("WarehouseTransfersApproved")
-  warehouseTransfersDispatched  WarehouseTransfer[]     @relation("WarehouseTransfersDispatched")
-  warehouseTransfersReceived    WarehouseTransfer[]     @relation("WarehouseTransfersReceived")
-  rfqsCreated                   Rfq[]                   @relation("RfqsCreated")
-  rfqsApproved                  Rfq[]                   @relation("RfqsApproved")
-  rfqAttachmentsUploaded        RfqAttachment[]         @relation("RfqAttachmentsUploaded")
-  rfqCategoryTargetsCreated     RfqCategoryTarget[]     @relation("RfqCategoryTargetsCreated")
-  rfqNotificationsCreated       RfqNotification[]       @relation("RfqNotificationsCreated")
-  rfqSupplierInvitesCreated     RfqSupplierInvite[]     @relation("RfqSupplierInvitesCreated")
-  supplierQuotationsSubmitted   SupplierQuotation[]     @relation("SupplierQuotationsSubmitted")
-  supplierQuotationAttachmentsUploaded SupplierQuotationAttachment[] @relation("SupplierQuotationAttachmentsUploaded")
-  rfqAwardsGranted              RfqAward[]              @relation("RfqAwardsGranted")
-  comparativeStatementsCreated  ComparativeStatement[]  @relation("ComparativeStatementsCreated")
-  comparativeStatementsUpdated  ComparativeStatement[]  @relation("ComparativeStatementsUpdated")
-  comparativeStatementsManagerApproved ComparativeStatement[] @relation("ComparativeStatementsManagerApproved")
-  comparativeStatementsCommitteeApproved ComparativeStatement[] @relation("ComparativeStatementsCommitteeApproved")
-  comparativeStatementsFinalApproved ComparativeStatement[] @relation("ComparativeStatementsFinalApproved")
-  comparativeStatementsRejected ComparativeStatement[]  @relation("ComparativeStatementsRejected")
-  comparativeStatementApprovalEvents ComparativeStatementApprovalEvent[] @relation("ComparativeStatementApprovalEvents")
-  comparativeStatementNotificationsReceived ComparativeStatementNotification[] @relation("ComparativeStatementNotificationsReceived")
-  supplierCategoriesCreated     SupplierCategory[]      @relation("SupplierCategoriesCreated")
-  supplierCategorySuppliersCreated SupplierCategorySupplier[] @relation("SupplierCategorySuppliersCreated")
-  replenishmentRulesCreated     ReplenishmentRule[]     @relation("ReplenishmentRulesCreated")
-  replenishmentRulesUpdated     ReplenishmentRule[]     @relation("ReplenishmentRulesUpdated")
-  supplierSlaPoliciesCreated    SupplierSlaPolicy[]     @relation("SupplierSlaPoliciesCreated")
-  supplierSlaPoliciesUpdated    SupplierSlaPolicy[]     @relation("SupplierSlaPoliciesUpdated")
-  supplierSlaBreachesEvaluated  SupplierSlaBreach[]     @relation("SupplierSlaBreachesEvaluated")
-  supplierSlaBreachesOwned      SupplierSlaBreach[]     @relation("SupplierSlaBreachesOwned")
-  supplierSlaBreachesResolved   SupplierSlaBreach[]     @relation("SupplierSlaBreachesResolved")
-  supplierSlaBreachesDisputeRaised SupplierSlaBreach[]  @relation("SupplierSlaBreachesDisputeRaised")
-  supplierSlaBreachesDisputeResolved SupplierSlaBreach[] @relation("SupplierSlaBreachesDisputeResolved")
-  supplierSlaFinancialRulesCreated SupplierSlaFinancialRule[] @relation("SupplierSlaFinancialRulesCreated")
-  supplierSlaFinancialRulesUpdated SupplierSlaFinancialRule[] @relation("SupplierSlaFinancialRulesUpdated")
-  supplierSlaTerminationCasesCreated SupplierSlaTerminationCase[] @relation("SupplierSlaTerminationCasesCreated")
-  supplierSlaTerminationCasesOwned SupplierSlaTerminationCase[] @relation("SupplierSlaTerminationCasesOwned")
-  supplierSlaTerminationCasesResolved SupplierSlaTerminationCase[] @relation("SupplierSlaTerminationCasesResolved")
-  verifiedSupplierDocuments      SupplierDocument[]       @relation("SupplierDocumentsVerifiedBy")
-  supplierProfileUpdateRequestsSubmitted SupplierProfileUpdateRequest[] @relation("SupplierProfileUpdateRequestsSubmitted")
-  supplierProfileUpdateRequestsReviewed SupplierProfileUpdateRequest[] @relation("SupplierProfileUpdateRequestsReviewed")
-  supplierFeedbackCreated        SupplierFeedback[]       @relation("SupplierFeedbackCreated")
-  supplierPortalNotificationsCreated SupplierPortalNotification[] @relation("SupplierPortalNotificationsCreatedBy")
-  supplierPortalNotifications    SupplierPortalNotification[] @relation("SupplierPortalNotificationsUser")
-  wishlist                      Wishlist[]
-  analyticsEvents               AnalyticsEvent[]
-  deliveryManProfile            DeliveryManProfile?
-  verifiedDeliveryMen           DeliveryManProfile[]    @relation("VerifiedDeliveryMen")
-  assignedDeliveryMen           DeliveryManProfile[]    @relation("AssignedDeliveryMen")
-  verifiedDeliveryManDocuments  DeliveryManDocument[]   @relation("VerifiedDeliveryManDocuments")
-  createdDeliveryAssignments    DeliveryAssignment[]    @relation("CreatedDeliveryAssignments")
-  deliveryAssignmentLogsCreated DeliveryAssignmentLog[] @relation("DeliveryAssignmentLogsCreated")
-  pickupProofsCreated           WarehousePickupProof[]  @relation("WarehousePickupProofsCreated")
-  supplierPortalAccess          SupplierPortalAccess?   @relation("SupplierPortalAccessUser")
-  createdSupplierPortalAccesses SupplierPortalAccess[]  @relation("SupplierPortalAccessCreatedBy")
-  investorPortalAccess          InvestorPortalAccess?   @relation("InvestorPortalAccessUser")
-  createdInvestorPortalAccesses InvestorPortalAccess[]  @relation("InvestorPortalAccessCreatedBy")
-  investorsCreated              Investor[]              @relation("InvestorsCreated")
-  investorCapitalTransactionsCreated InvestorCapitalTransaction[] @relation("InvestorCapitalTransactionsCreated")
-  investorProductAllocationsCreated InvestorProductAllocation[] @relation("InvestorProductAllocationsCreated")
-  investorProfitRunsCreated     InvestorProfitRun[]     @relation("InvestorProfitRunsCreated")
-  investorProfitRunsApproved    InvestorProfitRun[]     @relation("InvestorProfitRunsApproved")
-  investorProfitRunsPosted      InvestorProfitRun[]     @relation("InvestorProfitRunsPosted")
-  investorProfitPayoutsCreated  InvestorProfitPayout[]  @relation("InvestorProfitPayoutsCreated")
-  investorProfitPayoutsApproved InvestorProfitPayout[]  @relation("InvestorProfitPayoutsApproved")
-  investorProfitPayoutsRejected InvestorProfitPayout[]  @relation("InvestorProfitPayoutsRejected")
-  investorProfitPayoutsPaid     InvestorProfitPayout[]  @relation("InvestorProfitPayoutsPaid")
-  investorProfitPayoutsReleased InvestorProfitPayout[]  @relation("InvestorProfitPayoutsReleased")
-  investorProfitPayoutsVoided   InvestorProfitPayout[]  @relation("InvestorProfitPayoutsVoided")
-  investorDocumentsUploaded     InvestorDocument[]      @relation("InvestorDocumentsUploadedBy")
-  investorDocumentsReviewed     InvestorDocument[]      @relation("InvestorDocumentsReviewedBy")
-  investorMasterChangeRequestsRequested InvestorMasterChangeRequest[] @relation("InvestorMasterChangeRequestsRequestedBy")
-  investorMasterChangeRequestsReviewed  InvestorMasterChangeRequest[] @relation("InvestorMasterChangeRequestsReviewedBy")
-  investorsBeneficiaryVerified          Investor[]        @relation("InvestorBeneficiaryVerifiedBy")
-  investorProfileUpdateRequestsSubmitted InvestorProfileUpdateRequest[] @relation("InvestorProfileUpdateRequestsSubmittedBy")
-  investorProfileUpdateRequestsReviewed  InvestorProfileUpdateRequest[] @relation("InvestorProfileUpdateRequestsReviewedBy")
-  investorWithdrawalRequestsSubmitted    InvestorWithdrawalRequest[]     @relation("InvestorWithdrawalRequestsSubmittedBy")
-  investorWithdrawalRequestsReviewed     InvestorWithdrawalRequest[]     @relation("InvestorWithdrawalRequestsReviewedBy")
-  investorWithdrawalRequestsSettled      InvestorWithdrawalRequest[]     @relation("InvestorWithdrawalRequestsSettledBy")
-  investorPortalNotificationsCreated     InvestorPortalNotification[]   @relation("InvestorPortalNotificationsCreatedBy")
-  investorInternalNotifications          InvestorInternalNotification[] @relation("InvestorInternalNotificationsUser")
-  investorInternalNotificationsCreated   InvestorInternalNotification[] @relation("InvestorInternalNotificationsCreatedBy")
-  investorStatementSchedulesCreated      InvestorStatementSchedule[]     @relation("InvestorStatementSchedulesCreatedBy")
-  investorStatementSchedulesUpdated      InvestorStatementSchedule[]     @relation("InvestorStatementSchedulesUpdatedBy")
+  stockAlertsCreated                        ReorderAlert[]                         @relation("ReorderAlertsCreated")
+  goodsReceiptsReceived                     GoodsReceipt[]                         @relation("GoodsReceiptsReceived")
+  goodsReceiptsRequesterConfirmed           GoodsReceipt[]                         @relation("GoodsReceiptsRequesterConfirmed")
+  goodsReceiptAttachmentsUploaded           GoodsReceiptAttachment[]               @relation("GoodsReceiptAttachmentsUploaded")
+  goodsReceiptVendorEvaluations             GoodsReceiptVendorEvaluation[]         @relation("GoodsReceiptVendorEvaluationsBy")
+  supplierReturnsCreated                    SupplierReturn[]                       @relation("SupplierReturnsCreated")
+  supplierReturnsApproved                   SupplierReturn[]                       @relation("SupplierReturnsApproved")
+  supplierReturnsDispatched                 SupplierReturn[]                       @relation("SupplierReturnsDispatched")
+  supplierReturnsClosed                     SupplierReturn[]                       @relation("SupplierReturnsClosed")
+  supplierInvoicesCreated                   SupplierInvoice[]                      @relation("SupplierInvoicesCreated")
+  supplierInvoicesMatched                   SupplierInvoice[]                      @relation("SupplierInvoicesMatched")
+  supplierInvoicePaymentHoldsReleased       SupplierInvoice[]                      @relation("SupplierInvoicePaymentHoldsReleased")
+  supplierPaymentsCreated                   SupplierPayment[]                      @relation("SupplierPaymentsCreated")
+  supplierLedgerEntriesCreated              SupplierLedgerEntry[]                  @relation("SupplierLedgerEntriesCreated")
+  paymentRequestsCreated                    PaymentRequest[]                       @relation("PaymentRequestsCreated")
+  paymentRequestsManagerApproved            PaymentRequest[]                       @relation("PaymentRequestsManagerApproved")
+  paymentRequestsFinanceApproved            PaymentRequest[]                       @relation("PaymentRequestsFinanceApproved")
+  paymentRequestsTreasuryProcessed          PaymentRequest[]                       @relation("PaymentRequestsTreasuryProcessed")
+  paymentRequestsRejected                   PaymentRequest[]                       @relation("PaymentRequestsRejected")
+  paymentRequestsCancelled                  PaymentRequest[]                       @relation("PaymentRequestsCancelled")
+  paymentRequestApprovalEvents              PaymentRequestApprovalEvent[]          @relation("PaymentRequestApprovalEvents")
+  paymentRequestNotificationsReceived       PaymentRequestNotification[]           @relation("PaymentRequestNotificationsReceived")
+  paymentRequestNotificationsCreated        PaymentRequestNotification[]           @relation("PaymentRequestNotificationsCreatedBy")
+  warehouseTransfersCreated                 WarehouseTransfer[]                    @relation("WarehouseTransfersCreated")
+  warehouseTransfersApproved                WarehouseTransfer[]                    @relation("WarehouseTransfersApproved")
+  warehouseTransfersDispatched              WarehouseTransfer[]                    @relation("WarehouseTransfersDispatched")
+  warehouseTransfersReceived                WarehouseTransfer[]                    @relation("WarehouseTransfersReceived")
+  rfqsCreated                               Rfq[]                                  @relation("RfqsCreated")
+  rfqsApproved                              Rfq[]                                  @relation("RfqsApproved")
+  rfqAttachmentsUploaded                    RfqAttachment[]                        @relation("RfqAttachmentsUploaded")
+  rfqCategoryTargetsCreated                 RfqCategoryTarget[]                    @relation("RfqCategoryTargetsCreated")
+  rfqNotificationsCreated                   RfqNotification[]                      @relation("RfqNotificationsCreated")
+  rfqSupplierInvitesCreated                 RfqSupplierInvite[]                    @relation("RfqSupplierInvitesCreated")
+  supplierQuotationsSubmitted               SupplierQuotation[]                    @relation("SupplierQuotationsSubmitted")
+  supplierQuotationAttachmentsUploaded      SupplierQuotationAttachment[]          @relation("SupplierQuotationAttachmentsUploaded")
+  rfqAwardsGranted                          RfqAward[]                             @relation("RfqAwardsGranted")
+  comparativeStatementsCreated              ComparativeStatement[]                 @relation("ComparativeStatementsCreated")
+  comparativeStatementsUpdated              ComparativeStatement[]                 @relation("ComparativeStatementsUpdated")
+  comparativeStatementsManagerApproved      ComparativeStatement[]                 @relation("ComparativeStatementsManagerApproved")
+  comparativeStatementsCommitteeApproved    ComparativeStatement[]                 @relation("ComparativeStatementsCommitteeApproved")
+  comparativeStatementsFinalApproved        ComparativeStatement[]                 @relation("ComparativeStatementsFinalApproved")
+  comparativeStatementsRejected             ComparativeStatement[]                 @relation("ComparativeStatementsRejected")
+  comparativeStatementApprovalEvents        ComparativeStatementApprovalEvent[]    @relation("ComparativeStatementApprovalEvents")
+  comparativeStatementNotificationsReceived ComparativeStatementNotification[]     @relation("ComparativeStatementNotificationsReceived")
+  supplierCategoriesCreated                 SupplierCategory[]                     @relation("SupplierCategoriesCreated")
+  supplierCategorySuppliersCreated          SupplierCategorySupplier[]             @relation("SupplierCategorySuppliersCreated")
+  replenishmentRulesCreated                 ReplenishmentRule[]                    @relation("ReplenishmentRulesCreated")
+  replenishmentRulesUpdated                 ReplenishmentRule[]                    @relation("ReplenishmentRulesUpdated")
+  supplierSlaPoliciesCreated                SupplierSlaPolicy[]                    @relation("SupplierSlaPoliciesCreated")
+  supplierSlaPoliciesUpdated                SupplierSlaPolicy[]                    @relation("SupplierSlaPoliciesUpdated")
+  supplierSlaBreachesEvaluated              SupplierSlaBreach[]                    @relation("SupplierSlaBreachesEvaluated")
+  supplierSlaBreachesOwned                  SupplierSlaBreach[]                    @relation("SupplierSlaBreachesOwned")
+  supplierSlaBreachesResolved               SupplierSlaBreach[]                    @relation("SupplierSlaBreachesResolved")
+  supplierSlaBreachesDisputeRaised          SupplierSlaBreach[]                    @relation("SupplierSlaBreachesDisputeRaised")
+  supplierSlaBreachesDisputeResolved        SupplierSlaBreach[]                    @relation("SupplierSlaBreachesDisputeResolved")
+  supplierSlaFinancialRulesCreated          SupplierSlaFinancialRule[]             @relation("SupplierSlaFinancialRulesCreated")
+  supplierSlaFinancialRulesUpdated          SupplierSlaFinancialRule[]             @relation("SupplierSlaFinancialRulesUpdated")
+  supplierSlaTerminationCasesCreated        SupplierSlaTerminationCase[]           @relation("SupplierSlaTerminationCasesCreated")
+  supplierSlaTerminationCasesOwned          SupplierSlaTerminationCase[]           @relation("SupplierSlaTerminationCasesOwned")
+  supplierSlaTerminationCasesResolved       SupplierSlaTerminationCase[]           @relation("SupplierSlaTerminationCasesResolved")
+  verifiedSupplierDocuments                 SupplierDocument[]                     @relation("SupplierDocumentsVerifiedBy")
+  supplierProfileUpdateRequestsSubmitted    SupplierProfileUpdateRequest[]         @relation("SupplierProfileUpdateRequestsSubmitted")
+  supplierProfileUpdateRequestsReviewed     SupplierProfileUpdateRequest[]         @relation("SupplierProfileUpdateRequestsReviewed")
+  supplierFeedbackCreated                   SupplierFeedback[]                     @relation("SupplierFeedbackCreated")
+  supplierPortalNotificationsCreated        SupplierPortalNotification[]           @relation("SupplierPortalNotificationsCreatedBy")
+  supplierPortalNotifications               SupplierPortalNotification[]           @relation("SupplierPortalNotificationsUser")
+  wishlist                                  Wishlist[]
+  analyticsEvents                           AnalyticsEvent[]
+  deliveryManProfile                        DeliveryManProfile?
+  verifiedDeliveryMen                       DeliveryManProfile[]                   @relation("VerifiedDeliveryMen")
+  assignedDeliveryMen                       DeliveryManProfile[]                   @relation("AssignedDeliveryMen")
+  verifiedDeliveryManDocuments              DeliveryManDocument[]                  @relation("VerifiedDeliveryManDocuments")
+  createdDeliveryAssignments                DeliveryAssignment[]                   @relation("CreatedDeliveryAssignments")
+  deliveryAssignmentLogsCreated             DeliveryAssignmentLog[]                @relation("DeliveryAssignmentLogsCreated")
+  pickupProofsCreated                       WarehousePickupProof[]                 @relation("WarehousePickupProofsCreated")
+  supplierPortalAccess                      SupplierPortalAccess?                  @relation("SupplierPortalAccessUser")
+  createdSupplierPortalAccesses             SupplierPortalAccess[]                 @relation("SupplierPortalAccessCreatedBy")
+  investorPortalAccess                      InvestorPortalAccess?                  @relation("InvestorPortalAccessUser")
+  createdInvestorPortalAccesses             InvestorPortalAccess[]                 @relation("InvestorPortalAccessCreatedBy")
+  investorsCreated                          Investor[]                             @relation("InvestorsCreated")
+  investorCapitalTransactionsCreated        InvestorCapitalTransaction[]           @relation("InvestorCapitalTransactionsCreated")
+  investorProductAllocationsCreated         InvestorProductAllocation[]            @relation("InvestorProductAllocationsCreated")
+  investorProfitRunsCreated                 InvestorProfitRun[]                    @relation("InvestorProfitRunsCreated")
+  investorProfitRunsApproved                InvestorProfitRun[]                    @relation("InvestorProfitRunsApproved")
+  investorProfitRunsPosted                  InvestorProfitRun[]                    @relation("InvestorProfitRunsPosted")
+  investorProfitPayoutsCreated              InvestorProfitPayout[]                 @relation("InvestorProfitPayoutsCreated")
+  investorProfitPayoutsApproved             InvestorProfitPayout[]                 @relation("InvestorProfitPayoutsApproved")
+  investorProfitPayoutsRejected             InvestorProfitPayout[]                 @relation("InvestorProfitPayoutsRejected")
+  investorProfitPayoutsPaid                 InvestorProfitPayout[]                 @relation("InvestorProfitPayoutsPaid")
+  investorProfitPayoutsReleased             InvestorProfitPayout[]                 @relation("InvestorProfitPayoutsReleased")
+  investorProfitPayoutsVoided               InvestorProfitPayout[]                 @relation("InvestorProfitPayoutsVoided")
+  investorDocumentsUploaded                 InvestorDocument[]                     @relation("InvestorDocumentsUploadedBy")
+  investorDocumentsReviewed                 InvestorDocument[]                     @relation("InvestorDocumentsReviewedBy")
+  investorMasterChangeRequestsRequested     InvestorMasterChangeRequest[]          @relation("InvestorMasterChangeRequestsRequestedBy")
+  investorMasterChangeRequestsReviewed      InvestorMasterChangeRequest[]          @relation("InvestorMasterChangeRequestsReviewedBy")
+  investorsBeneficiaryVerified              Investor[]                             @relation("InvestorBeneficiaryVerifiedBy")
+  investorProfileUpdateRequestsSubmitted    InvestorProfileUpdateRequest[]         @relation("InvestorProfileUpdateRequestsSubmittedBy")
+  investorProfileUpdateRequestsReviewed     InvestorProfileUpdateRequest[]         @relation("InvestorProfileUpdateRequestsReviewedBy")
+  investorWithdrawalRequestsSubmitted       InvestorWithdrawalRequest[]            @relation("InvestorWithdrawalRequestsSubmittedBy")
+  investorWithdrawalRequestsReviewed        InvestorWithdrawalRequest[]            @relation("InvestorWithdrawalRequestsReviewedBy")
+  investorWithdrawalRequestsSettled         InvestorWithdrawalRequest[]            @relation("InvestorWithdrawalRequestsSettledBy")
+  investorPortalNotificationsCreated        InvestorPortalNotification[]           @relation("InvestorPortalNotificationsCreatedBy")
+  investorInternalNotifications             InvestorInternalNotification[]         @relation("InvestorInternalNotificationsUser")
+  investorInternalNotificationsCreated      InvestorInternalNotification[]         @relation("InvestorInternalNotificationsCreatedBy")
+  investorStatementSchedulesCreated         InvestorStatementSchedule[]            @relation("InvestorStatementSchedulesCreatedBy")
+  investorStatementSchedulesUpdated         InvestorStatementSchedule[]            @relation("InvestorStatementSchedulesUpdatedBy")
 }
 
 model UserAddress {
@@ -364,6 +366,7 @@ model Product {
   variants                ProductVariant[]
   variantOptions          ProductVariantOption[]
   reviews                 Review[]
+  questions               ProductQuestion[]
   serviceSlots            ServiceSlot[]
   wishlist                Wishlist[]
   bundleItems             ProductBundleItem[]               @relation("BundleProducts")
@@ -438,7 +441,6 @@ model ProductVariant {
   investorCapitalTransactions  InvestorCapitalTransaction[]
   investorProfitRunVariants    InvestorProfitRunVariant[]
   investorProfitRunAllocations InvestorProfitRunAllocation[]
-
 }
 
 model ProductVariantOption {
@@ -700,6 +702,24 @@ model Review {
   createdAt DateTime @default(now())
   product   Product  @relation(fields: [productId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+}
+
+model ProductQuestion {
+  id           Int       @id @default(autoincrement())
+  question     String
+  answer       String?
+  productId    Int
+  userId       String
+  answeredById String?
+  createdAt    DateTime  @default(now())
+  answeredAt   DateTime?
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user         User      @relation("ProductQuestionsAsked", fields: [userId], references: [id], onDelete: Cascade)
+  answeredBy   User?     @relation("ProductQuestionsAnswered", fields: [answeredById], references: [id], onDelete: SetNull)
+
+  @@index([productId, createdAt])
+  @@index([userId])
+  @@index([answeredById])
 }
 
 model CartItem {
@@ -1386,15 +1406,15 @@ model PurchaseRequisitionNotification {
 }
 
 model WarehouseZone {
-  id          Int       @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   warehouseId Int
   code        String
   name        String
   description String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  warehouse   Warehouse        @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
   aisles      WarehouseAisle[]
   bins        WarehouseBin[]
 
@@ -1403,17 +1423,17 @@ model WarehouseZone {
 }
 
 model WarehouseAisle {
-  id          Int       @id @default(autoincrement())
+  id          Int            @id @default(autoincrement())
   warehouseId Int
   zoneId      Int
   code        String
   name        String
   description String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  zone        WarehouseZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  warehouse   Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  zone        WarehouseZone  @relation(fields: [zoneId], references: [id], onDelete: Cascade)
   bins        WarehouseBin[]
 
   @@unique([zoneId, code])
@@ -1422,20 +1442,20 @@ model WarehouseAisle {
 }
 
 model WarehouseBin {
-  id          Int       @id @default(autoincrement())
-  warehouseId Int
-  zoneId      Int
-  aisleId     Int
-  code        String
-  name        String
-  description String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  zone        WarehouseZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-  aisle       WarehouseAisle @relation(fields: [aisleId], references: [id], onDelete: Cascade)
-  stockLevels StockBinLevel[]
+  id                Int                         @id @default(autoincrement())
+  warehouseId       Int
+  zoneId            Int
+  aisleId           Int
+  code              String
+  name              String
+  description       String?
+  isActive          Boolean                     @default(true)
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  warehouse         Warehouse                   @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  zone              WarehouseZone               @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  aisle             WarehouseAisle              @relation(fields: [aisleId], references: [id], onDelete: Cascade)
+  stockLevels       StockBinLevel[]
   verificationLines InventoryVerificationLine[]
 
   @@unique([aisleId, code])
@@ -1444,16 +1464,16 @@ model WarehouseBin {
 }
 
 model StockBinLevel {
-  id               Int       @id @default(autoincrement())
+  id               Int            @id @default(autoincrement())
   warehouseId      Int
   binId            Int
   productVariantId Int
-  quantity         Int       @default(0)
-  reserved         Int       @default(0)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  warehouse        Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  bin              WarehouseBin @relation(fields: [binId], references: [id], onDelete: Cascade)
+  quantity         Int            @default(0)
+  reserved         Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  warehouse        Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  bin              WarehouseBin   @relation(fields: [binId], references: [id], onDelete: Cascade)
   variant          ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
 
   @@unique([binId, productVariantId])
@@ -1461,26 +1481,26 @@ model StockBinLevel {
 }
 
 model InventoryVerification {
-  id              Int                          @id @default(autoincrement())
-  warehouseId     Int
-  frequency       InventoryVerificationFrequency
-  periodStart     DateTime
-  periodEnd       DateTime
-  status          InventoryVerificationStatus  @default(DRAFT)
-  note            String?
-  submittedAt     DateTime?
-  approvedAt      DateTime?
-  rejectedAt      DateTime?
-  createdById     String?
-  approvedById    String?
-  createdAt       DateTime                     @default(now())
-  updatedAt       DateTime                     @updatedAt
-  warehouse       Warehouse                    @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  createdBy       User?                        @relation("InventoryVerificationsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  approvedBy      User?                        @relation("InventoryVerificationsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  id               Int                                    @id @default(autoincrement())
+  warehouseId      Int
+  frequency        InventoryVerificationFrequency
+  periodStart      DateTime
+  periodEnd        DateTime
+  status           InventoryVerificationStatus            @default(DRAFT)
+  note             String?
+  submittedAt      DateTime?
+  approvedAt       DateTime?
+  rejectedAt       DateTime?
+  createdById      String?
+  approvedById     String?
+  createdAt        DateTime                               @default(now())
+  updatedAt        DateTime                               @updatedAt
+  warehouse        Warehouse                              @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  createdBy        User?                                  @relation("InventoryVerificationsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy       User?                                  @relation("InventoryVerificationsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
   committeeMembers InventoryVerificationCommitteeMember[]
-  lines           InventoryVerificationLine[]
-  approvalEvents  InventoryVerificationApprovalEvent[]
+  lines            InventoryVerificationLine[]
+  approvalEvents   InventoryVerificationApprovalEvent[]
 
   @@index([warehouseId, periodStart, periodEnd])
   @@index([status])
@@ -1488,20 +1508,20 @@ model InventoryVerification {
 }
 
 model InventoryVerificationCommitteeMember {
-  id              Int       @id @default(autoincrement())
-  verificationId  Int
-  userId          String
-  role            String?
-  assignedAt      DateTime  @default(now())
-  verification    InventoryVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
-  user            User      @relation("InventoryVerificationCommitteeMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  id             Int                   @id @default(autoincrement())
+  verificationId Int
+  userId         String
+  role           String?
+  assignedAt     DateTime              @default(now())
+  verification   InventoryVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  user           User                  @relation("InventoryVerificationCommitteeMemberships", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([verificationId, userId])
   @@index([userId])
 }
 
 model InventoryVerificationLine {
-  id               Int       @id @default(autoincrement())
+  id               Int                   @id @default(autoincrement())
   verificationId   Int
   productVariantId Int
   binId            Int?
@@ -1510,8 +1530,8 @@ model InventoryVerificationLine {
   variance         Int
   note             String?
   verification     InventoryVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
-  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  bin              WarehouseBin? @relation(fields: [binId], references: [id], onDelete: SetNull)
+  productVariant   ProductVariant        @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  bin              WarehouseBin?         @relation(fields: [binId], references: [id], onDelete: SetNull)
 
   @@index([verificationId])
   @@index([productVariantId])
@@ -1519,35 +1539,35 @@ model InventoryVerificationLine {
 }
 
 model InventoryVerificationApprovalEvent {
-  id              Int       @id @default(autoincrement())
-  verificationId  Int
-  stage           InventoryVerificationApprovalStage
-  decision        InventoryVerificationApprovalDecision
-  note            String?
-  actedById       String?
-  actedAt         DateTime  @default(now())
-  verification    InventoryVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
-  actedBy         User?     @relation("InventoryVerificationApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
+  id             Int                                   @id @default(autoincrement())
+  verificationId Int
+  stage          InventoryVerificationApprovalStage
+  decision       InventoryVerificationApprovalDecision
+  note           String?
+  actedById      String?
+  actedAt        DateTime                              @default(now())
+  verification   InventoryVerification                 @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  actedBy        User?                                 @relation("InventoryVerificationApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
 
   @@index([verificationId, stage])
   @@index([actedById])
 }
 
 model ReorderAlert {
-  id               Int                      @id @default(autoincrement())
+  id               Int                @id @default(autoincrement())
   warehouseId      Int
   productVariantId Int
   stockOnHand      Int
   threshold        Int
   suggestedQty     Int
-  status           ReorderAlertStatus       @default(OPEN)
+  status           ReorderAlertStatus @default(OPEN)
   note             String?
   createdById      String?
-  createdAt        DateTime                 @default(now())
+  createdAt        DateTime           @default(now())
   resolvedAt       DateTime?
-  warehouse        Warehouse                @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  productVariant   ProductVariant           @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  createdBy        User?                    @relation("ReorderAlertsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  warehouse        Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  productVariant   ProductVariant     @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  createdBy        User?              @relation("ReorderAlertsCreated", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([warehouseId, status])
   @@index([productVariantId, status])
@@ -1828,42 +1848,42 @@ model InvestorPortalAccess {
 }
 
 model Investor {
-  id                   Int                           @id @default(autoincrement())
-  code                 String                        @unique
-  name                 String
-  legalName            String?
-  email                String?
-  phone                String?
-  taxNumber            String?
-  nationalIdNumber     String?
-  passportNumber       String?
-  bankName             String?
-  bankAccountName      String?
-  bankAccountNumber    String?
-  beneficiaryVerifiedAt DateTime?
-  beneficiaryVerifiedById String?
+  id                          Int                            @id @default(autoincrement())
+  code                        String                         @unique
+  name                        String
+  legalName                   String?
+  email                       String?
+  phone                       String?
+  taxNumber                   String?
+  nationalIdNumber            String?
+  passportNumber              String?
+  bankName                    String?
+  bankAccountName             String?
+  bankAccountNumber           String?
+  beneficiaryVerifiedAt       DateTime?
+  beneficiaryVerifiedById     String?
   beneficiaryVerificationNote String?
-  status               InvestorStatus                @default(ACTIVE)
-  kycStatus            InvestorKycStatus             @default(PENDING)
-  kycVerifiedAt        DateTime?
-  kycReference         String?
-  notes                String?
-  createdById          String?
-  createdAt            DateTime                      @default(now())
-  updatedAt            DateTime                      @updatedAt
-  createdBy            User?                         @relation("InvestorsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  transactions         InvestorCapitalTransaction[]
-  allocations          InvestorProductAllocation[]
-  profitRunAllocations InvestorProfitRunAllocation[]
-  payouts              InvestorProfitPayout[]
-  portalAccesses       InvestorPortalAccess[]
-  documents            InvestorDocument[]
-  changeRequests       InvestorMasterChangeRequest[]
-  profileUpdateRequests InvestorProfileUpdateRequest[]
-  withdrawalRequests    InvestorWithdrawalRequest[]
-  portalNotifications   InvestorPortalNotification[]
-  statementSchedules    InvestorStatementSchedule[]
-  beneficiaryVerifiedBy User?                         @relation("InvestorBeneficiaryVerifiedBy", fields: [beneficiaryVerifiedById], references: [id], onDelete: SetNull)
+  status                      InvestorStatus                 @default(ACTIVE)
+  kycStatus                   InvestorKycStatus              @default(PENDING)
+  kycVerifiedAt               DateTime?
+  kycReference                String?
+  notes                       String?
+  createdById                 String?
+  createdAt                   DateTime                       @default(now())
+  updatedAt                   DateTime                       @updatedAt
+  createdBy                   User?                          @relation("InvestorsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  transactions                InvestorCapitalTransaction[]
+  allocations                 InvestorProductAllocation[]
+  profitRunAllocations        InvestorProfitRunAllocation[]
+  payouts                     InvestorProfitPayout[]
+  portalAccesses              InvestorPortalAccess[]
+  documents                   InvestorDocument[]
+  changeRequests              InvestorMasterChangeRequest[]
+  profileUpdateRequests       InvestorProfileUpdateRequest[]
+  withdrawalRequests          InvestorWithdrawalRequest[]
+  portalNotifications         InvestorPortalNotification[]
+  statementSchedules          InvestorStatementSchedule[]
+  beneficiaryVerifiedBy       User?                          @relation("InvestorBeneficiaryVerifiedBy", fields: [beneficiaryVerifiedById], references: [id], onDelete: SetNull)
 
   @@index([name])
   @@index([status])
@@ -1873,24 +1893,24 @@ model Investor {
 }
 
 model InvestorCapitalTransaction {
-  id                Int                     @id @default(autoincrement())
-  transactionNumber String                  @unique
+  id                Int                        @id @default(autoincrement())
+  transactionNumber String                     @unique
   investorId        Int
-  transactionDate   DateTime                @default(now())
+  transactionDate   DateTime                   @default(now())
   type              InvestorTransactionType
   direction         InvestorLedgerDirection
-  amount            Decimal                 @db.Decimal(14, 2)
-  currency          String                  @default("BDT") @db.VarChar(3)
+  amount            Decimal                    @db.Decimal(14, 2)
+  currency          String                     @default("BDT") @db.VarChar(3)
   note              String?
   referenceType     String?
   referenceNumber   String?
   productVariantId  Int?
   createdById       String?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  createdBy         User?                   @relation("InvestorCapitalTransactionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  investor          Investor                @relation(fields: [investorId], references: [id], onDelete: Cascade)
-  productVariant    ProductVariant?         @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  createdBy         User?                      @relation("InvestorCapitalTransactionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  investor          Investor                   @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  productVariant    ProductVariant?            @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
   payout            InvestorProfitPayout?
   withdrawalRequest InvestorWithdrawalRequest?
 
@@ -2014,57 +2034,57 @@ model InvestorProfitRunAllocation {
 }
 
 model InvestorProfitPayout {
-  id                    Int                          @id @default(autoincrement())
-  payoutNumber          String                       @unique
-  runId                 Int
-  investorId            Int
-  transactionId         Int?                         @unique
-  currency              String                       @default("BDT") @db.VarChar(3)
-  payoutPercent         Decimal                      @default(100) @db.Decimal(5, 2)
-  holdbackPercent       Decimal                      @default(0) @db.Decimal(5, 2)
-  grossProfitAmount     Decimal                      @default(0) @db.Decimal(14, 2)
-  holdbackAmount        Decimal                      @default(0) @db.Decimal(14, 2)
-  payoutAmount          Decimal                      @default(0) @db.Decimal(14, 2)
-  beneficiaryNameSnapshot String?
-  beneficiaryBankNameSnapshot String?
+  id                               Int                          @id @default(autoincrement())
+  payoutNumber                     String                       @unique
+  runId                            Int
+  investorId                       Int
+  transactionId                    Int?                         @unique
+  currency                         String                       @default("BDT") @db.VarChar(3)
+  payoutPercent                    Decimal                      @default(100) @db.Decimal(5, 2)
+  holdbackPercent                  Decimal                      @default(0) @db.Decimal(5, 2)
+  grossProfitAmount                Decimal                      @default(0) @db.Decimal(14, 2)
+  holdbackAmount                   Decimal                      @default(0) @db.Decimal(14, 2)
+  payoutAmount                     Decimal                      @default(0) @db.Decimal(14, 2)
+  beneficiaryNameSnapshot          String?
+  beneficiaryBankNameSnapshot      String?
   beneficiaryAccountNumberSnapshot String?
-  beneficiaryVerifiedAt  DateTime?
-  beneficiaryVerificationNote String?
-  status                InvestorProfitPayoutStatus   @default(PENDING_APPROVAL)
-  approvalNote          String?
-  approvedById          String?
-  approvedAt            DateTime?
-  rejectedById          String?
-  rejectedAt            DateTime?
-  rejectionReason       String?
-  paymentMethod         InvestorPayoutPaymentMethod?
-  bankReference         String?
-  paidById              String?
-  note                  String?
-  holdReason            String?
-  heldAt                DateTime?
-  paidAt                DateTime?
-  releasedById          String?
-  releasedAt            DateTime?
-  releaseNote           String?
-  paymentProofUrl       String?
-  paymentProofUploadedAt DateTime?
-  voidedById            String?
-  voidedAt              DateTime?
-  voidReason            String?
-  voidReversalReference String?
-  createdById           String?
-  createdAt             DateTime                     @default(now())
-  updatedAt             DateTime                     @updatedAt
-  createdBy             User?                        @relation("InvestorProfitPayoutsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  approvedBy            User?                        @relation("InvestorProfitPayoutsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
-  rejectedBy            User?                        @relation("InvestorProfitPayoutsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
-  paidBy                User?                        @relation("InvestorProfitPayoutsPaid", fields: [paidById], references: [id], onDelete: SetNull)
-  releasedBy            User?                        @relation("InvestorProfitPayoutsReleased", fields: [releasedById], references: [id], onDelete: SetNull)
-  voidedBy              User?                        @relation("InvestorProfitPayoutsVoided", fields: [voidedById], references: [id], onDelete: SetNull)
-  investor              Investor                     @relation(fields: [investorId], references: [id], onDelete: Restrict)
-  run                   InvestorProfitRun            @relation(fields: [runId], references: [id], onDelete: Cascade)
-  transaction           InvestorCapitalTransaction?  @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  beneficiaryVerifiedAt            DateTime?
+  beneficiaryVerificationNote      String?
+  status                           InvestorProfitPayoutStatus   @default(PENDING_APPROVAL)
+  approvalNote                     String?
+  approvedById                     String?
+  approvedAt                       DateTime?
+  rejectedById                     String?
+  rejectedAt                       DateTime?
+  rejectionReason                  String?
+  paymentMethod                    InvestorPayoutPaymentMethod?
+  bankReference                    String?
+  paidById                         String?
+  note                             String?
+  holdReason                       String?
+  heldAt                           DateTime?
+  paidAt                           DateTime?
+  releasedById                     String?
+  releasedAt                       DateTime?
+  releaseNote                      String?
+  paymentProofUrl                  String?
+  paymentProofUploadedAt           DateTime?
+  voidedById                       String?
+  voidedAt                         DateTime?
+  voidReason                       String?
+  voidReversalReference            String?
+  createdById                      String?
+  createdAt                        DateTime                     @default(now())
+  updatedAt                        DateTime                     @updatedAt
+  createdBy                        User?                        @relation("InvestorProfitPayoutsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy                       User?                        @relation("InvestorProfitPayoutsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  rejectedBy                       User?                        @relation("InvestorProfitPayoutsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
+  paidBy                           User?                        @relation("InvestorProfitPayoutsPaid", fields: [paidById], references: [id], onDelete: SetNull)
+  releasedBy                       User?                        @relation("InvestorProfitPayoutsReleased", fields: [releasedById], references: [id], onDelete: SetNull)
+  voidedBy                         User?                        @relation("InvestorProfitPayoutsVoided", fields: [voidedById], references: [id], onDelete: SetNull)
+  investor                         Investor                     @relation(fields: [investorId], references: [id], onDelete: Restrict)
+  run                              InvestorProfitRun            @relation(fields: [runId], references: [id], onDelete: Cascade)
+  transaction                      InvestorCapitalTransaction?  @relation(fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@index([runId, investorId])
   @@index([status, paidAt])
@@ -2077,40 +2097,40 @@ model InvestorProfitPayout {
 }
 
 model InvestorWithdrawalRequest {
-  id                            Int                             @id @default(autoincrement())
-  requestNumber                 String                          @unique
-  investorId                    Int
-  transactionId                 Int?                            @unique
-  requestedAmount               Decimal                         @db.Decimal(14, 2)
-  approvedAmount                Decimal?                        @db.Decimal(14, 2)
-  currency                      String                          @default("BDT") @db.VarChar(3)
-  availableBalanceSnapshot      Decimal                         @default(0) @db.Decimal(14, 2)
-  activeCommittedAmountSnapshot Decimal                         @default(0) @db.Decimal(14, 2)
-  pendingPayoutAmountSnapshot   Decimal                         @default(0) @db.Decimal(14, 2)
-  withdrawableBalanceSnapshot   Decimal                         @default(0) @db.Decimal(14, 2)
-  beneficiaryNameSnapshot       String?
-  beneficiaryBankNameSnapshot   String?
+  id                               Int                             @id @default(autoincrement())
+  requestNumber                    String                          @unique
+  investorId                       Int
+  transactionId                    Int?                            @unique
+  requestedAmount                  Decimal                         @db.Decimal(14, 2)
+  approvedAmount                   Decimal?                        @db.Decimal(14, 2)
+  currency                         String                          @default("BDT") @db.VarChar(3)
+  availableBalanceSnapshot         Decimal                         @default(0) @db.Decimal(14, 2)
+  activeCommittedAmountSnapshot    Decimal                         @default(0) @db.Decimal(14, 2)
+  pendingPayoutAmountSnapshot      Decimal                         @default(0) @db.Decimal(14, 2)
+  withdrawableBalanceSnapshot      Decimal                         @default(0) @db.Decimal(14, 2)
+  beneficiaryNameSnapshot          String?
+  beneficiaryBankNameSnapshot      String?
   beneficiaryAccountNumberSnapshot String?
-  beneficiaryVerifiedAt         DateTime?
-  status                        InvestorWithdrawalRequestStatus @default(REQUESTED)
-  requestedSettlementDate       DateTime?
-  requestNote                   String?
-  reviewNote                    String?
-  rejectionReason               String?
-  settlementNote                String?
-  submittedById                 String?
-  submittedAt                   DateTime                        @default(now())
-  reviewedById                  String?
-  reviewedAt                    DateTime?
-  settledById                   String?
-  settledAt                     DateTime?
-  createdAt                     DateTime                        @default(now())
-  updatedAt                     DateTime                        @updatedAt
-  investor                      Investor                        @relation(fields: [investorId], references: [id], onDelete: Cascade)
-  submittedBy                   User?                           @relation("InvestorWithdrawalRequestsSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
-  reviewedBy                    User?                           @relation("InvestorWithdrawalRequestsReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  settledBy                     User?                           @relation("InvestorWithdrawalRequestsSettledBy", fields: [settledById], references: [id], onDelete: SetNull)
-  transaction                   InvestorCapitalTransaction?     @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  beneficiaryVerifiedAt            DateTime?
+  status                           InvestorWithdrawalRequestStatus @default(REQUESTED)
+  requestedSettlementDate          DateTime?
+  requestNote                      String?
+  reviewNote                       String?
+  rejectionReason                  String?
+  settlementNote                   String?
+  submittedById                    String?
+  submittedAt                      DateTime                        @default(now())
+  reviewedById                     String?
+  reviewedAt                       DateTime?
+  settledById                      String?
+  settledAt                        DateTime?
+  createdAt                        DateTime                        @default(now())
+  updatedAt                        DateTime                        @updatedAt
+  investor                         Investor                        @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  submittedBy                      User?                           @relation("InvestorWithdrawalRequestsSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  reviewedBy                       User?                           @relation("InvestorWithdrawalRequestsReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  settledBy                        User?                           @relation("InvestorWithdrawalRequestsSettledBy", fields: [settledById], references: [id], onDelete: SetNull)
+  transaction                      InvestorCapitalTransaction?     @relation(fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@index([investorId, status])
   @@index([status, submittedAt])
@@ -2519,63 +2539,63 @@ model ComparativeStatementNotification {
 }
 
 model PurchaseOrder {
-  id                    Int                       @id @default(autoincrement())
-  poNumber              String                    @unique
-  supplierId            Int
-  purchaseRequisitionId Int?
-  sourceComparativeStatementId Int?           @unique
-  warehouseId           Int
-  status                PurchaseOrderStatus   @default(DRAFT)
-  approvalStage         PurchaseOrderApprovalStage @default(DRAFT)
-  orderDate             DateTime              @default(now())
-  expectedAt            DateTime?
-  submittedAt           DateTime?
-  managerApprovedAt     DateTime?
-  committeeApprovedAt   DateTime?
-  finalApprovedAt       DateTime?
-  approvedAt            DateTime?
-  rejectedAt            DateTime?
-  receivedAt            DateTime?
-  createdById           String?
-  approvedById          String?
-  managerApprovedById   String?
-  committeeApprovedById String?
-  finalApprovedById     String?
-  rejectedById          String?
-  termsTemplateId       Int?
-  termsTemplateCode     String?
-  termsTemplateName     String?
-  termsAndConditions    String?
-  rejectionNote         String?
-  currency              String                @default("BDT") @db.VarChar(3)
-  subtotal              Decimal               @default(0) @db.Decimal(12, 2)
-  taxTotal              Decimal               @default(0) @db.Decimal(12, 2)
-  shippingTotal         Decimal               @default(0) @db.Decimal(12, 2)
-  grandTotal            Decimal               @default(0) @db.Decimal(12, 2)
-  notes                 String?
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  approvedBy            User?                 @relation("PurchaseOrdersApproved", fields: [approvedById], references: [id], onDelete: SetNull)
-  managerApprovedBy     User?                 @relation("PurchaseOrdersManagerApproved", fields: [managerApprovedById], references: [id], onDelete: SetNull)
-  committeeApprovedBy   User?                 @relation("PurchaseOrdersCommitteeApproved", fields: [committeeApprovedById], references: [id], onDelete: SetNull)
-  finalApprovedBy       User?                 @relation("PurchaseOrdersFinalApproved", fields: [finalApprovedById], references: [id], onDelete: SetNull)
-  rejectedBy            User?                 @relation("PurchaseOrdersRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
-  createdBy             User?                 @relation("PurchaseOrdersCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  purchaseRequisition   PurchaseRequisition?  @relation(fields: [purchaseRequisitionId], references: [id], onDelete: SetNull)
-  sourceComparativeStatement ComparativeStatement? @relation("PurchaseOrderSourceComparativeStatement", fields: [sourceComparativeStatementId], references: [id], onDelete: SetNull)
-  termsTemplate         PurchaseOrderTermsTemplate? @relation(fields: [termsTemplateId], references: [id], onDelete: SetNull)
-  supplier              Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  warehouse             Warehouse             @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  goodsReceipts         GoodsReceipt[]
-  supplierReturns       SupplierReturn[]
-  supplierInvoices      SupplierInvoice[]
-  supplierLedgerEntries SupplierLedgerEntry[]
-  rfqAward              RfqAward?
-  items                 PurchaseOrderItem[]
-  landedCosts           PurchaseOrderLandedCost[]
-  approvalEvents        PurchaseOrderApprovalEvent[]
-  notifications         PurchaseOrderNotification[]
-  paymentRequests       PaymentRequest[]
+  id                           Int                          @id @default(autoincrement())
+  poNumber                     String                       @unique
+  supplierId                   Int
+  purchaseRequisitionId        Int?
+  sourceComparativeStatementId Int?                         @unique
+  warehouseId                  Int
+  status                       PurchaseOrderStatus          @default(DRAFT)
+  approvalStage                PurchaseOrderApprovalStage   @default(DRAFT)
+  orderDate                    DateTime                     @default(now())
+  expectedAt                   DateTime?
+  submittedAt                  DateTime?
+  managerApprovedAt            DateTime?
+  committeeApprovedAt          DateTime?
+  finalApprovedAt              DateTime?
+  approvedAt                   DateTime?
+  rejectedAt                   DateTime?
+  receivedAt                   DateTime?
+  createdById                  String?
+  approvedById                 String?
+  managerApprovedById          String?
+  committeeApprovedById        String?
+  finalApprovedById            String?
+  rejectedById                 String?
+  termsTemplateId              Int?
+  termsTemplateCode            String?
+  termsTemplateName            String?
+  termsAndConditions           String?
+  rejectionNote                String?
+  currency                     String                       @default("BDT") @db.VarChar(3)
+  subtotal                     Decimal                      @default(0) @db.Decimal(12, 2)
+  taxTotal                     Decimal                      @default(0) @db.Decimal(12, 2)
+  shippingTotal                Decimal                      @default(0) @db.Decimal(12, 2)
+  grandTotal                   Decimal                      @default(0) @db.Decimal(12, 2)
+  notes                        String?
+  createdAt                    DateTime                     @default(now())
+  updatedAt                    DateTime                     @updatedAt
+  approvedBy                   User?                        @relation("PurchaseOrdersApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  managerApprovedBy            User?                        @relation("PurchaseOrdersManagerApproved", fields: [managerApprovedById], references: [id], onDelete: SetNull)
+  committeeApprovedBy          User?                        @relation("PurchaseOrdersCommitteeApproved", fields: [committeeApprovedById], references: [id], onDelete: SetNull)
+  finalApprovedBy              User?                        @relation("PurchaseOrdersFinalApproved", fields: [finalApprovedById], references: [id], onDelete: SetNull)
+  rejectedBy                   User?                        @relation("PurchaseOrdersRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
+  createdBy                    User?                        @relation("PurchaseOrdersCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  purchaseRequisition          PurchaseRequisition?         @relation(fields: [purchaseRequisitionId], references: [id], onDelete: SetNull)
+  sourceComparativeStatement   ComparativeStatement?        @relation("PurchaseOrderSourceComparativeStatement", fields: [sourceComparativeStatementId], references: [id], onDelete: SetNull)
+  termsTemplate                PurchaseOrderTermsTemplate?  @relation(fields: [termsTemplateId], references: [id], onDelete: SetNull)
+  supplier                     Supplier                     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  warehouse                    Warehouse                    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  goodsReceipts                GoodsReceipt[]
+  supplierReturns              SupplierReturn[]
+  supplierInvoices             SupplierInvoice[]
+  supplierLedgerEntries        SupplierLedgerEntry[]
+  rfqAward                     RfqAward?
+  items                        PurchaseOrderItem[]
+  landedCosts                  PurchaseOrderLandedCost[]
+  approvalEvents               PurchaseOrderApprovalEvent[]
+  notifications                PurchaseOrderNotification[]
+  paymentRequests              PaymentRequest[]
 
   @@index([supplierId, status])
   @@index([purchaseRequisitionId])
@@ -2592,18 +2612,18 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderTermsTemplate {
-  id          Int           @id @default(autoincrement())
-  code        String        @unique
-  name        String
-  body        String
-  isDefault   Boolean       @default(false)
-  isActive    Boolean       @default(true)
-  createdById String?
-  updatedById String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  createdBy   User?         @relation("PurchaseOrderTermsTemplatesCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy   User?         @relation("PurchaseOrderTermsTemplatesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+  id             Int             @id @default(autoincrement())
+  code           String          @unique
+  name           String
+  body           String
+  isDefault      Boolean         @default(false)
+  isActive       Boolean         @default(true)
+  createdById    String?
+  updatedById    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  createdBy      User?           @relation("PurchaseOrderTermsTemplatesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy      User?           @relation("PurchaseOrderTermsTemplatesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
   purchaseOrders PurchaseOrder[]
 
   @@index([isActive, isDefault])
@@ -2612,16 +2632,16 @@ model PurchaseOrderTermsTemplate {
 }
 
 model PurchaseOrderApprovalEvent {
-  id              Int                         @id @default(autoincrement())
+  id              Int                           @id @default(autoincrement())
   purchaseOrderId Int
   stage           PurchaseOrderApprovalStage
   decision        PurchaseOrderApprovalDecision
   note            String?
   metadata        Json?
   actedById       String?
-  actedAt         DateTime                    @default(now())
-  purchaseOrder   PurchaseOrder               @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  actedBy         User?                       @relation("PurchaseOrderApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
+  actedAt         DateTime                      @default(now())
+  purchaseOrder   PurchaseOrder                 @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  actedBy         User?                         @relation("PurchaseOrderApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
 
   @@index([purchaseOrderId, stage])
   @@index([actedById])
@@ -2689,28 +2709,28 @@ model PurchaseOrderLandedCost {
 }
 
 model GoodsReceipt {
-  id              Int                @id @default(autoincrement())
-  receiptNumber   String             @unique
-  purchaseOrderId Int
-  warehouseId     Int
-  status          GoodsReceiptStatus @default(RECEIVED)
-  receivedAt      DateTime           @default(now())
-  receivedById    String?
-  requesterConfirmedAt   DateTime?
-  requesterConfirmedById String?
+  id                        Int                            @id @default(autoincrement())
+  receiptNumber             String                         @unique
+  purchaseOrderId           Int
+  warehouseId               Int
+  status                    GoodsReceiptStatus             @default(RECEIVED)
+  receivedAt                DateTime                       @default(now())
+  receivedById              String?
+  requesterConfirmedAt      DateTime?
+  requesterConfirmedById    String?
   requesterConfirmationNote String?
-  note            String?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  purchaseOrder   PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
-  warehouse       Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  receivedBy      User?              @relation("GoodsReceiptsReceived", fields: [receivedById], references: [id], onDelete: SetNull)
-  requesterConfirmedBy User?         @relation("GoodsReceiptsRequesterConfirmed", fields: [requesterConfirmedById], references: [id], onDelete: SetNull)
-  items           GoodsReceiptItem[]
-  attachments     GoodsReceiptAttachment[]
-  vendorEvaluations GoodsReceiptVendorEvaluation[]
-  supplierReturns SupplierReturn[]
-  paymentRequests PaymentRequest[]
+  note                      String?
+  createdAt                 DateTime                       @default(now())
+  updatedAt                 DateTime                       @updatedAt
+  purchaseOrder             PurchaseOrder                  @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  warehouse                 Warehouse                      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  receivedBy                User?                          @relation("GoodsReceiptsReceived", fields: [receivedById], references: [id], onDelete: SetNull)
+  requesterConfirmedBy      User?                          @relation("GoodsReceiptsRequesterConfirmed", fields: [requesterConfirmedById], references: [id], onDelete: SetNull)
+  items                     GoodsReceiptItem[]
+  attachments               GoodsReceiptAttachment[]
+  vendorEvaluations         GoodsReceiptVendorEvaluation[]
+  supplierReturns           SupplierReturn[]
+  paymentRequests           PaymentRequest[]
 
   @@index([purchaseOrderId])
   @@index([warehouseId, receivedAt])
@@ -2757,7 +2777,7 @@ model GoodsReceiptAttachment {
 }
 
 model GoodsReceiptVendorEvaluation {
-  id                   Int                      @id @default(autoincrement())
+  id                   Int                       @id @default(autoincrement())
   goodsReceiptId       Int
   evaluatorRole        GoodsReceiptEvaluatorRole
   overallRating        Int
@@ -2766,10 +2786,10 @@ model GoodsReceiptVendorEvaluation {
   complianceRating     Int?
   comment              String?
   createdById          String?
-  createdAt            DateTime                 @default(now())
-  updatedAt            DateTime                 @updatedAt
-  createdBy            User?                    @relation("GoodsReceiptVendorEvaluationsBy", fields: [createdById], references: [id], onDelete: SetNull)
-  goodsReceipt         GoodsReceipt             @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  createdBy            User?                     @relation("GoodsReceiptVendorEvaluationsBy", fields: [createdById], references: [id], onDelete: SetNull)
+  goodsReceipt         GoodsReceipt              @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
 
   @@unique([goodsReceiptId, evaluatorRole])
   @@index([goodsReceiptId, createdAt])
@@ -2901,23 +2921,23 @@ model InvestorMasterChangeRequest {
 }
 
 model InvestorProfileUpdateRequest {
-  id               Int                                  @id @default(autoincrement())
+  id               Int                                @id @default(autoincrement())
   investorId       Int
-  status           InvestorProfileUpdateRequestStatus   @default(PENDING)
+  status           InvestorProfileUpdateRequestStatus @default(PENDING)
   requestedChanges Json
   currentSnapshot  Json?
   requestNote      String?
   reviewNote       String?
   submittedById    String?
   reviewedById     String?
-  submittedAt      DateTime                             @default(now())
+  submittedAt      DateTime                           @default(now())
   reviewedAt       DateTime?
   appliedAt        DateTime?
-  createdAt        DateTime                             @default(now())
-  updatedAt        DateTime                             @updatedAt
-  investor         Investor                             @relation(fields: [investorId], references: [id], onDelete: Cascade)
-  submittedBy      User?                                @relation("InvestorProfileUpdateRequestsSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
-  reviewedBy       User?                                @relation("InvestorProfileUpdateRequestsReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdAt        DateTime                           @default(now())
+  updatedAt        DateTime                           @updatedAt
+  investor         Investor                           @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  submittedBy      User?                              @relation("InvestorProfileUpdateRequestsSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  reviewedBy       User?                              @relation("InvestorProfileUpdateRequestsReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@index([investorId, status])
   @@index([submittedById])
@@ -2925,20 +2945,20 @@ model InvestorProfileUpdateRequest {
 }
 
 model InvestorPortalNotification {
-  id           Int                             @id @default(autoincrement())
-  investorId   Int
-  type         InvestorPortalNotificationType
-  title        String
-  message      String
-  status       InvestorPortalNotificationStatus @default(UNREAD)
-  targetUrl    String?
-  metadata     Json?
-  createdById  String?
-  readAt       DateTime?
-  createdAt    DateTime                        @default(now())
-  updatedAt    DateTime                        @updatedAt
-  investor     Investor                         @relation(fields: [investorId], references: [id], onDelete: Cascade)
-  createdBy    User?                            @relation("InvestorPortalNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  id          Int                              @id @default(autoincrement())
+  investorId  Int
+  type        InvestorPortalNotificationType
+  title       String
+  message     String
+  status      InvestorPortalNotificationStatus @default(UNREAD)
+  targetUrl   String?
+  metadata    Json?
+  createdById String?
+  readAt      DateTime?
+  createdAt   DateTime                         @default(now())
+  updatedAt   DateTime                         @updatedAt
+  investor    Investor                         @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  createdBy   User?                            @relation("InvestorPortalNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([investorId, status])
   @@index([createdById])
@@ -2946,7 +2966,7 @@ model InvestorPortalNotification {
 }
 
 model InvestorInternalNotification {
-  id          Int                              @id @default(autoincrement())
+  id          Int                                @id @default(autoincrement())
   userId      String
   type        InvestorInternalNotificationType
   title       String
@@ -2958,10 +2978,10 @@ model InvestorInternalNotification {
   metadata    Json?
   createdById String?
   readAt      DateTime?
-  createdAt   DateTime                         @default(now())
-  updatedAt   DateTime                         @updatedAt
-  user        User                             @relation("InvestorInternalNotificationsUser", fields: [userId], references: [id], onDelete: Cascade)
-  createdBy   User?                            @relation("InvestorInternalNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime                           @default(now())
+  updatedAt   DateTime                           @updatedAt
+  user        User                               @relation("InvestorInternalNotificationsUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy   User?                              @relation("InvestorInternalNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([userId, status])
   @@index([createdById])
@@ -2970,23 +2990,23 @@ model InvestorInternalNotification {
 }
 
 model InvestorStatementSchedule {
-  id                 Int                              @id @default(autoincrement())
-  investorId         Int
-  frequency          InvestorStatementScheduleFrequency
-  deliveryFormat     InvestorStatementDeliveryFormat  @default(PDF)
-  statementWindowDays Int                             @default(30)
-  status             InvestorStatementScheduleStatus  @default(ACTIVE)
-  nextRunAt          DateTime
-  lastRunAt          DateTime?
-  lastDispatchedAt   DateTime?
-  lastDispatchNote   String?
-  createdById        String?
-  updatedById        String?
-  createdAt          DateTime                         @default(now())
-  updatedAt          DateTime                         @updatedAt
-  investor           Investor                         @relation(fields: [investorId], references: [id], onDelete: Cascade)
-  createdBy          User?                            @relation("InvestorStatementSchedulesCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy          User?                            @relation("InvestorStatementSchedulesUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  id                  Int                                @id @default(autoincrement())
+  investorId          Int
+  frequency           InvestorStatementScheduleFrequency
+  deliveryFormat      InvestorStatementDeliveryFormat    @default(PDF)
+  statementWindowDays Int                                @default(30)
+  status              InvestorStatementScheduleStatus    @default(ACTIVE)
+  nextRunAt           DateTime
+  lastRunAt           DateTime?
+  lastDispatchedAt    DateTime?
+  lastDispatchNote    String?
+  createdById         String?
+  updatedById         String?
+  createdAt           DateTime                           @default(now())
+  updatedAt           DateTime                           @updatedAt
+  investor            Investor                           @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  createdBy           User?                              @relation("InvestorStatementSchedulesCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy           User?                              @relation("InvestorStatementSchedulesUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([investorId, status])
   @@index([status, nextRunAt])
@@ -2995,7 +3015,7 @@ model InvestorStatementSchedule {
 }
 
 model InvestorDocument {
-  id             Int                               @id @default(autoincrement())
+  id             Int                                @id @default(autoincrement())
   investorId     Int
   type           InvestorDocumentType
   fileUrl        String
@@ -3010,11 +3030,11 @@ model InvestorDocument {
   uploadedById   String?
   reviewedById   String?
   reviewedAt     DateTime?
-  createdAt      DateTime                          @default(now())
-  updatedAt      DateTime                          @updatedAt
-  investor       Investor                          @relation(fields: [investorId], references: [id], onDelete: Cascade)
-  uploadedBy     User?                             @relation("InvestorDocumentsUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
-  reviewedBy     User?                             @relation("InvestorDocumentsReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime                           @default(now())
+  updatedAt      DateTime                           @updatedAt
+  investor       Investor                           @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  uploadedBy     User?                              @relation("InvestorDocumentsUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  reviewedBy     User?                              @relation("InvestorDocumentsReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@unique([investorId, type])
   @@index([investorId, status])
@@ -3024,52 +3044,52 @@ model InvestorDocument {
 }
 
 model PaymentRequest {
-  id                    Int                         @id @default(autoincrement())
-  prfNumber             String                      @unique
-  supplierId            Int
-  warehouseId           Int?
-  purchaseOrderId       Int?
+  id                     Int                           @id @default(autoincrement())
+  prfNumber              String                        @unique
+  supplierId             Int
+  warehouseId            Int?
+  purchaseOrderId        Int?
   comparativeStatementId Int?
-  goodsReceiptId        Int?
-  supplierInvoiceId     Int?
-  supplierPaymentId     Int?
-  status                PaymentRequestStatus        @default(DRAFT)
-  approvalStage         PaymentRequestApprovalStage @default(DRAFT)
-  amount                Decimal                     @default(0) @db.Decimal(12, 2)
-  currency              String                      @default("BDT") @db.VarChar(3)
-  requestedAt           DateTime                    @default(now())
-  submittedAt           DateTime?
-  managerApprovedAt     DateTime?
-  financeApprovedAt     DateTime?
-  treasuryProcessedAt   DateTime?
-  paidAt                DateTime?
-  rejectedAt            DateTime?
-  cancelledAt           DateTime?
-  createdById           String?
-  managerApprovedById   String?
-  financeApprovedById   String?
-  treasuryProcessedById String?
-  rejectedById          String?
-  cancelledById         String?
-  note                  String?
-  referenceNumber       String?
-  createdAt             DateTime                    @default(now())
-  updatedAt             DateTime                    @updatedAt
-  supplier              Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  warehouse             Warehouse?                  @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
-  purchaseOrder         PurchaseOrder?              @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
-  comparativeStatement  ComparativeStatement?       @relation(fields: [comparativeStatementId], references: [id], onDelete: SetNull)
-  goodsReceipt          GoodsReceipt?               @relation(fields: [goodsReceiptId], references: [id], onDelete: SetNull)
-  supplierInvoice       SupplierInvoice?            @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
-  supplierPayment       SupplierPayment?            @relation(fields: [supplierPaymentId], references: [id], onDelete: SetNull)
-  createdBy             User?                        @relation("PaymentRequestsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  managerApprovedBy     User?                        @relation("PaymentRequestsManagerApproved", fields: [managerApprovedById], references: [id], onDelete: SetNull)
-  financeApprovedBy     User?                        @relation("PaymentRequestsFinanceApproved", fields: [financeApprovedById], references: [id], onDelete: SetNull)
-  treasuryProcessedBy   User?                        @relation("PaymentRequestsTreasuryProcessed", fields: [treasuryProcessedById], references: [id], onDelete: SetNull)
-  rejectedBy            User?                        @relation("PaymentRequestsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
-  cancelledBy           User?                        @relation("PaymentRequestsCancelled", fields: [cancelledById], references: [id], onDelete: SetNull)
-  approvalEvents        PaymentRequestApprovalEvent[]
-  notifications         PaymentRequestNotification[]
+  goodsReceiptId         Int?
+  supplierInvoiceId      Int?
+  supplierPaymentId      Int?
+  status                 PaymentRequestStatus          @default(DRAFT)
+  approvalStage          PaymentRequestApprovalStage   @default(DRAFT)
+  amount                 Decimal                       @default(0) @db.Decimal(12, 2)
+  currency               String                        @default("BDT") @db.VarChar(3)
+  requestedAt            DateTime                      @default(now())
+  submittedAt            DateTime?
+  managerApprovedAt      DateTime?
+  financeApprovedAt      DateTime?
+  treasuryProcessedAt    DateTime?
+  paidAt                 DateTime?
+  rejectedAt             DateTime?
+  cancelledAt            DateTime?
+  createdById            String?
+  managerApprovedById    String?
+  financeApprovedById    String?
+  treasuryProcessedById  String?
+  rejectedById           String?
+  cancelledById          String?
+  note                   String?
+  referenceNumber        String?
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
+  supplier               Supplier                      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  warehouse              Warehouse?                    @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  purchaseOrder          PurchaseOrder?                @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  comparativeStatement   ComparativeStatement?         @relation(fields: [comparativeStatementId], references: [id], onDelete: SetNull)
+  goodsReceipt           GoodsReceipt?                 @relation(fields: [goodsReceiptId], references: [id], onDelete: SetNull)
+  supplierInvoice        SupplierInvoice?              @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
+  supplierPayment        SupplierPayment?              @relation(fields: [supplierPaymentId], references: [id], onDelete: SetNull)
+  createdBy              User?                         @relation("PaymentRequestsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  managerApprovedBy      User?                         @relation("PaymentRequestsManagerApproved", fields: [managerApprovedById], references: [id], onDelete: SetNull)
+  financeApprovedBy      User?                         @relation("PaymentRequestsFinanceApproved", fields: [financeApprovedById], references: [id], onDelete: SetNull)
+  treasuryProcessedBy    User?                         @relation("PaymentRequestsTreasuryProcessed", fields: [treasuryProcessedById], references: [id], onDelete: SetNull)
+  rejectedBy             User?                         @relation("PaymentRequestsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
+  cancelledBy            User?                         @relation("PaymentRequestsCancelled", fields: [cancelledById], references: [id], onDelete: SetNull)
+  approvalEvents         PaymentRequestApprovalEvent[]
+  notifications          PaymentRequestNotification[]
 
   @@index([supplierId, status])
   @@index([warehouseId])
@@ -3087,37 +3107,37 @@ model PaymentRequest {
 }
 
 model PaymentRequestApprovalEvent {
-  id              Int                            @id @default(autoincrement())
+  id               Int                            @id @default(autoincrement())
   paymentRequestId Int
-  stage           PaymentRequestApprovalStage
-  decision        PaymentRequestApprovalDecision
-  note            String?
-  actedById       String?
-  actedAt         DateTime                       @default(now())
-  paymentRequest  PaymentRequest                 @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
-  actedBy         User?                          @relation("PaymentRequestApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
+  stage            PaymentRequestApprovalStage
+  decision         PaymentRequestApprovalDecision
+  note             String?
+  actedById        String?
+  actedAt          DateTime                       @default(now())
+  paymentRequest   PaymentRequest                 @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
+  actedBy          User?                          @relation("PaymentRequestApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
 
   @@index([paymentRequestId, stage])
   @@index([actedById])
 }
 
 model PaymentRequestNotification {
-  id               Int                            @id @default(autoincrement())
+  id               Int                         @id @default(autoincrement())
   paymentRequestId Int
   stage            PaymentRequestApprovalStage
   channel          WorkflowNotificationChannel
-  status           WorkflowNotificationStatus     @default(PENDING)
+  status           WorkflowNotificationStatus  @default(PENDING)
   recipientUserId  String?
   recipientEmail   String?
   message          String
   metadata         Json?
   sentAt           DateTime?
   readAt           DateTime?
-  createdAt        DateTime                       @default(now())
+  createdAt        DateTime                    @default(now())
   createdById      String?
-  paymentRequest   PaymentRequest                 @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
-  recipientUser    User?                          @relation("PaymentRequestNotificationsReceived", fields: [recipientUserId], references: [id], onDelete: SetNull)
-  createdBy        User?                          @relation("PaymentRequestNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  paymentRequest   PaymentRequest              @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
+  recipientUser    User?                       @relation("PaymentRequestNotificationsReceived", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  createdBy        User?                       @relation("PaymentRequestNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([paymentRequestId, stage, createdAt])
   @@index([recipientUserId])
