@@ -44,7 +44,7 @@ export type ProductCardData = {
     product: {
       id: number;
       name: string;
-      image?: string;
+      image?: string | null;
     };
     quantity: number;
   }>;
@@ -228,6 +228,7 @@ export default function ProductCardCompact({
   const isOutOfStock = effectiveStock === 0;
   const ratingAvg = Number(product.ratingAvg ?? 0);
   const ratingCount = Number(product.ratingCount ?? 0);
+  const totalSold = Number(product.totalSold ?? 0);
   const isBestSeller = Boolean(product.rank && product.rank <= 3);
   const colorSwatches = getColorSwatches(product.variants);
   const visibleColorSwatches = colorSwatches.slice(0, 4);
@@ -501,11 +502,11 @@ export default function ProductCardCompact({
                     ({ratingCount})
                   </span>
                 )}
-                {product.totalSold && product.totalSold > 0 && (
+                {totalSold > 0 ? (
                   <span className="text-[11px] text-muted-foreground sm:text-[12px]">
-                    • {product.totalSold.toLocaleString()} sold
+                    • {totalSold.toLocaleString()} sold
                   </span>
-                )}
+                ) : null}
               </div>
               {colorSwatches.length > 0 && (
                 <div className="mt-1 flex items-center gap-1.5">

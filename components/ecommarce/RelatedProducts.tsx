@@ -76,7 +76,7 @@ export default function RelatedProducts({
         {/* View Category Button */}
         <div className="mt-8 flex">
           <Link
-            href={`/ecommerce/categories/${categoryId}`}
+            href={`/ecommerce/products?category=${categoryId}`}
             className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm transition hover:bg-muted"
           >
             View Category

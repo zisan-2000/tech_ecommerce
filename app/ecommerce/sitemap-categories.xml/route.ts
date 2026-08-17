@@ -23,7 +23,7 @@ export async function GET() {
     .map(
       (cat: any) => `
       <url>
-        <loc>${siteUrl}/ecommerce/categories/${cat.id}</loc>
+        <loc>${siteUrl}/ecommerce/products?category=${encodeURIComponent(String(cat.slug ?? cat.id))}</loc>
         <lastmod>${new Date().toISOString()}</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.7</priority>

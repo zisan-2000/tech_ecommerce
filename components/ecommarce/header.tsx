@@ -231,7 +231,7 @@ function DesktopCategoryDropdown({
   }, [categories.length]);
 
   const go = (slug: string) => {
-    router.push(`/ecommerce/categories?slug=${encodeURIComponent(slug)}`);
+    router.push(`/ecommerce/products?category=${encodeURIComponent(slug)}`);
 
     onClose();
   };
@@ -781,9 +781,18 @@ export default function Header({
     router.push(`/ecommerce/products/${p.id}`);
   };
 
+  const submitCatalogSearch = () => {
+    const query = searchTerm.trim();
+    if (!query) return;
+    setShowSearchDropdown(false);
+    setMobileSearchOpen(false);
+    router.push(`/ecommerce/products?q=${encodeURIComponent(query)}`);
+  };
+
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && searchResults.length > 0) {
-      handleSelectProduct(searchResults[0]);
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitCatalogSearch();
     }
   };
 
@@ -829,11 +838,11 @@ export default function Header({
   const goCategoryFromMobile = (slug: string) => {
     setMobileMenuOpen(false);
 
-    router.push(`/ecommerce/categories?slug=${encodeURIComponent(slug)}`);
+    router.push(`/ecommerce/products?category=${encodeURIComponent(slug)}`);
   };
 
   const goCategoryFromDesktop = (slug: string) => {
-    router.push(`/ecommerce/categories?slug=${encodeURIComponent(slug)}`);
+    router.push(`/ecommerce/products?category=${encodeURIComponent(slug)}`);
   };
 
   const getDesktopNavMenuPosition = (rect: DOMRect) => {
@@ -946,10 +955,7 @@ export default function Header({
 
             <button
               type="button"
-              onClick={() => {
-                if (searchResults.length > 0)
-                  handleSelectProduct(searchResults[0]);
-              }}
+              onClick={submitCatalogSearch}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground"
               aria-label="Search"
             >

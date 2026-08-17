@@ -183,7 +183,7 @@ export default function FeaturedCategories({
             {featuredCategory && (
               <Link
                 key={featuredCategory.id}
-                href={`/ecommerce/categories?slug=${featuredCategory.slug}`}
+                href={`/ecommerce/products?category=${encodeURIComponent(featuredCategory.slug)}`}
                 className={cn(
                   "group relative min-h-[200px] overflow-hidden rounded-[20px] border border-border sm:min-h-[320px] sm:rounded-[32px]",
                   "bg-background gradient-soft",
@@ -240,7 +240,7 @@ export default function FeaturedCategories({
             {regularCategories.map((category, index) => (
               <Link
                 key={category.id}
-                href={`/ecommerce/categories?slug=${category.slug}`}
+                href={`/ecommerce/products?category=${encodeURIComponent(category.slug)}`}
                 className={cn(
                   "group relative min-h-[160px] overflow-hidden rounded-[20px] border border-border/60 sm:min-h-[220px] sm:rounded-[28px]",
                   "shadow-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/10",

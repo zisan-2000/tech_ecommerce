@@ -112,7 +112,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const [products, blogs, brands, authors, publishers] = await Promise.all([
+    const [products, blogs, brands, categories, authors, publishers] =
+      await Promise.all([
       prisma.product.findMany({
         where: { deleted: false, available: true },
         select: { id: true, updatedAt: true },
@@ -123,6 +124,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         orderBy: { updatedAt: "desc" },
       }),
       prisma.brand.findMany({
+        where: { deleted: false },
+        select: { slug: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.category.findMany({
         where: { deleted: false },
         select: { slug: true, updatedAt: true },
         orderBy: { updatedAt: "desc" },
@@ -154,10 +160,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.75,
       })),
       ...brands.map((brand) => ({
-        url: `${siteUrl}/ecommerce/brands/${brand.slug}`,
+        url: `${siteUrl}/ecommerce/products?brand=${encodeURIComponent(brand.slug)}`,
         lastModified: brand.updatedAt,
         changeFrequency: "weekly" as const,
         priority: 0.7,
+      })),
+      ...categories.map((category) => ({
+        url: `${siteUrl}/ecommerce/products?category=${encodeURIComponent(category.slug)}`,
+        lastModified: category.updatedAt,
+        changeFrequency: "weekly" as const,
+        priority: 0.75,
       })),
       ...authors.map((author) => ({
         url: `${siteUrl}/ecommerce/authors/${author.id}`,

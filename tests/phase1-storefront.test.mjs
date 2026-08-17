@@ -5,6 +5,10 @@ import {
   normalizeStorefrontProducts,
   normalizeStorefrontReviews,
 } from "../lib/storefront-client-data.ts";
+import {
+  catalogUrl,
+  parseCatalogFilters,
+} from "../lib/storefront-catalog.ts";
 
 test("storefront categories are normalized into stable tab values", () => {
   assert.deepEqual(
@@ -68,4 +72,45 @@ test("review payloads accept the API wrapper shape", () => {
 
   assert.equal(reviews[0].productId, 2);
   assert.equal(reviews[0].rating, "5");
+});
+
+test("catalog filters normalize repeated brands and bounded paging", () => {
+  const filters = parseCatalogFilters({
+    q: "  laptop  ",
+    brand: ["asus", "asus,msi"],
+    type: "physical",
+    page: "-2",
+    perPage: "999",
+    inStock: "1",
+  });
+
+  assert.equal(filters.q, "laptop");
+  assert.deepEqual(filters.brands, ["asus", "msi"]);
+  assert.equal(filters.type, "PHYSICAL");
+  assert.equal(filters.page, 1);
+  assert.equal(filters.perPage, 24);
+  assert.equal(filters.inStock, true);
+});
+
+test("catalog filters correct an inverted price range", () => {
+  const filters = parseCatalogFilters({ minPrice: "5000", maxPrice: "1000" });
+  assert.equal(filters.minPrice, 1000);
+  assert.equal(filters.maxPrice, 5000);
+});
+
+test("catalog URLs preserve filters and omit defaults", () => {
+  const filters = parseCatalogFilters({
+    category: "laptops",
+    brand: ["asus", "msi"],
+    sort: "popular",
+    page: "3",
+  });
+  const url = catalogUrl(filters, { page: 1 });
+
+  assert.match(url, /^\/ecommerce\/products\?/);
+  assert.match(url, /category=laptops/);
+  assert.match(url, /brand=asus/);
+  assert.match(url, /brand=msi/);
+  assert.match(url, /sort=popular/);
+  assert.doesNotMatch(url, /page=/);
 });

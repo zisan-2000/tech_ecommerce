@@ -152,7 +152,7 @@ export default function BrandSlider({
                     className="min-w-[96px] max-w-[96px] flex-shrink-0 snap-start sm:min-w-[160px] sm:max-w-[160px]"
                   >
                     <Link
-                      href={`/ecommerce/brands/${brand.slug}`}
+                      href={`/ecommerce/products?brand=${encodeURIComponent(brand.slug)}`}
                       className="block h-[130px] rounded-2xl border border-border bg-card px-2 py-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-xl sm:h-[200px] sm:rounded-[22px] sm:border-2 sm:px-3 sm:py-5"
                     >
                       <div className="mx-auto flex h-[58px] w-[58px] items-center justify-center rounded-full border-[3px] border-primary bg-background p-1 sm:h-[100px] sm:w-[100px] sm:border-[4px] sm:p-1.5">

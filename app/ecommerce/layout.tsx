@@ -1,48 +1,49 @@
-"use client";
-
-import React from "react";
-import Footer from "@/components/ecommarce/footer";
+import { cache, Suspense, type ReactNode } from "react";
 import Header from "@/components/ecommarce/header";
-import { useEffect, useState } from "react";
+import Footer from "@/components/ecommarce/footer";
 import FloatingCartButton from "@/components/ecommarce/FloatingCartButton";
+import { getStorefrontCatalogFacets } from "@/lib/storefront-catalog";
 
-const EcommerceLayout = ({ children }: { children: React.ReactNode }) => {
-  const [isClient, setIsClient] = useState(false);
+const getNavigation = cache(getStorefrontCatalogFacets);
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+async function StorefrontHeader() {
+  const navigation = await getNavigation();
+  return (
+    <Header
+      siteSettingsData={navigation.siteSettings}
+      productsData={[]}
+      categoriesData={navigation.categories}
+    />
+  );
+}
 
-  if (!isClient) {
-    return (
-      <div className="min-h-full">
-        <div className="min-h-screen flex flex-col">
-          {/* Header placeholder to maintain layout structure */}
-          <div className="h-20 bg-background border-b border-border"></div>
-          <div key="layout-children-loading">
-            {children}
-          </div>
-          {/* Footer placeholder to maintain layout structure */}
-          <div className="h-96 bg-card border-t border-border"></div>
-        </div>
-      </div>
-    );
-  }
+async function StorefrontFooter() {
+  const navigation = await getNavigation();
+  return (
+    <Footer
+      siteSettingsData={navigation.siteSettings}
+      categoriesData={navigation.categories}
+    />
+  );
+}
 
+export default function EcommerceLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-full">
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <div key="layout-children">
-          {React.Children.map(children, (child, index) => 
-            React.isValidElement(child) ? React.cloneElement(child, { key: `child-${index}` }) : child
-          )}
-          <FloatingCartButton />
-        </div>
-        <Footer />
+      <div className="flex min-h-screen flex-col">
+        <Suspense
+          fallback={<div className="h-20 border-b bg-background" aria-hidden />}
+        >
+          <StorefrontHeader />
+        </Suspense>
+        <div className="flex-1">{children}</div>
+        <FloatingCartButton />
+        <Suspense
+          fallback={<div className="h-72 border-t bg-card" aria-hidden />}
+        >
+          <StorefrontFooter />
+        </Suspense>
       </div>
     </div>
   );
-};
-
-export default EcommerceLayout;
+}

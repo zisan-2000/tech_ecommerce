@@ -1,126 +1,425 @@
-// app/ecommerce/books/page.tsx
-import { Metadata } from "next";
-import ProductsPage from "./AllProducts";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Filter, PackageSearch, Search, SlidersHorizontal } from "lucide-react";
+import CatalogProductGrid from "@/components/ecommarce/catalog/CatalogProductGrid";
+import {
+  catalogUrl,
+  getStorefrontCatalog,
+  parseCatalogFilters,
+  type CatalogSearchParams,
+  type CatalogSort,
+} from "@/lib/storefront-catalog";
+import { getSiteUrl } from "@/lib/seo";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  "http://localhost:3000";
-
-export const metadata: Metadata = {
-  title: "All Products - BOED E-COMMERCE",
-  description:
-    "Explore all products on BOED E-COMMERCE. Browse categories, compare prices, and shop your favorite items.",
-  keywords: [
-    "all products",
-    "products",
-    "BOED E-COMMERCE",
-    "ecommerce",
-    "online shop",
-    "bangladesh ecommerce",
-    "bdt products",
-  ],
-
-  metadataBase: new URL(siteUrl),
-
-  alternates: {
-    canonical: "/ecommerce/products",
-    languages: {
-      "en-US": "/ecommerce/products",
-    },
-  },
-
-  openGraph: {
-    title: "All Products - BOED E-COMMERCE",
-    description:
-      "Discover BOED E-COMMERCE’s full product collection—shop by category, compare prices, and find the best deals.",
-    url: `${siteUrl}/ecommerce/products`,
-    siteName: "BOED E-COMMERCE",
-    locale: "en_US",
-    type: "website",
-    images: [
-      {
-        url: `${siteUrl}/assets/favicon.png`,
-        width: 1200,
-        height: 630,
-        alt: "Universal Ecommerce - All Products",
-      },
-    ],
-  },
-
-  twitter: {
-    card: "summary_large_image",
-    title: "All Products - BOED E-COMMERCE",
-    description:
-      "Browse BOED E-COMMERCE’s complete product collection—categories, pricing, and featured items.",
-    images: [`${siteUrl}/assets/favicon.png`],
-  },
-
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-image-preview": "large",
-    },
-  },
+type ProductsPageProps = {
+  searchParams: Promise<CatalogSearchParams>;
 };
 
-export default function BooksPage() {
+const SORT_LABELS: Array<{ value: CatalogSort; label: string }> = [
+  { value: "newest", label: "Newest" },
+  { value: "popular", label: "Popular" },
+  { value: "price-asc", label: "Price: Low to High" },
+  { value: "price-desc", label: "Price: High to Low" },
+  { value: "name-asc", label: "Name: A–Z" },
+];
+
+export async function generateMetadata({
+  searchParams,
+}: ProductsPageProps): Promise<Metadata> {
+  const filters = parseCatalogFilters(await searchParams);
+  const qualifier = filters.q
+    ? `Search results for “${filters.q}”`
+    : filters.category
+      ? `${filters.category.replaceAll("-", " ")} products`
+      : "All Products";
+
+  return {
+    title: `${qualifier} — Tech Ecommerce`,
+    description:
+      "Browse computers, components, accessories and gadgets with category, brand, price and stock filters.",
+    alternates: {
+      canonical: catalogUrl(filters, {
+        page: 1,
+        perPage: 24,
+        sort: "newest",
+      }),
+    },
+    robots:
+      filters.q || filters.page > 1 ? { index: false, follow: true } : undefined,
+  };
+}
+
+function paginationPages(page: number, totalPages: number) {
+  const pages = new Set([1, totalPages, page - 1, page, page + 1]);
+  return Array.from(pages)
+    .filter((value) => value >= 1 && value <= totalPages)
+    .sort((left, right) => left - right);
+}
+
+export default async function ProductsPage({ searchParams }: ProductsPageProps) {
+  const filters = parseCatalogFilters(await searchParams);
+  const data = await getStorefrontCatalog(filters);
+  const { products, facets, pagination } = data;
+  if (pagination.total > 0 && pagination.page > pagination.totalPages) {
+    redirect(catalogUrl(filters, { page: pagination.totalPages }));
+  }
+  const selectedCategory = facets.categories.find(
+    (category) =>
+      category.slug === filters.category ||
+      String(category.id) === filters.category,
+  );
+  const selectedBrandNames = facets.brands
+    .filter((brand) => filters.brands.includes(brand.slug))
+    .map((brand) => brand.name);
+  const activeFilterCount = [
+    Boolean(filters.q),
+    Boolean(filters.category),
+    filters.brands.length > 0,
+    Boolean(filters.type),
+    filters.minPrice !== null || filters.maxPrice !== null,
+    filters.inStock,
+    filters.featured,
+  ].filter(Boolean).length;
+  const pages = paginationPages(pagination.page, pagination.totalPages);
+  const firstResult = pagination.total
+    ? (pagination.page - 1) * pagination.perPage + 1
+    : 0;
+  const lastResult = Math.min(
+    pagination.page * pagination.perPage,
+    pagination.total,
+  );
+
+  const collectionJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Tech Ecommerce product catalog",
+    numberOfItems: pagination.total,
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: products.map((product, index) => ({
+        "@type": "ListItem",
+        position: firstResult + index,
+        url: `${getSiteUrl()}/ecommerce/products/${product.id}`,
+        name: product.name,
+      })),
+    },
+  };
+
   return (
-    <>
-      {/* Schema.org: Products Collection */}
+    <div className="min-h-screen bg-background text-foreground">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "CollectionPage",
-            name: "All Products - BOED E-COMMERCE",
-            url: `${siteUrl}/ecommerce/products`,
-            description:
-              "BOED E-COMMERCE all products collection—browse categories, compare prices, and shop confidently.",
-            inLanguage: "en-US",
-            breadcrumb: {
-              "@type": "BreadcrumbList",
-              itemListElement: [
-                {
-                  "@type": "ListItem",
-                  position: 1,
-                  name: "Home",
-                  item: `${siteUrl}/`,
-                },
-                {
-                  "@type": "ListItem",
-                  position: 2,
-                  name: "BOED E-COMMERCE",
-                  item: `${siteUrl}/`,
-                },
-                {
-                  "@type": "ListItem",
-                  position: 3,
-                  name: "All Products",
-                  item: `${siteUrl}/ecommerce/products`,
-                },
-              ],
-            },
-            publisher: {
-              "@type": "Organization",
-              name: "BOED E-COMMERCE",
-              url: `${siteUrl}/`,
-              logo: {
-                "@type": "ImageObject",
-                url: `${siteUrl}/assets/favicon.png`,
-                width: 512,
-                height: 512,
-              },
-            },
-          }),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
       />
+      <div className="container px-3 py-5 sm:px-6 lg:py-8">
+        <section className="overflow-hidden rounded-3xl border bg-gradient-to-br from-primary/10 via-background to-accent/10 px-5 py-7 sm:px-8 sm:py-10">
+          <div className="max-w-3xl">
+            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-primary">
+              <PackageSearch className="h-4 w-4" aria-hidden="true" />
+              Product catalog
+            </span>
+            <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+              Find the right tech for you
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+              Search the complete catalog, compare current prices and narrow the
+              results by category, brand, product type or availability.
+            </p>
+          </div>
+        </section>
 
-      <ProductsPage />
-    </>
+        <div className="mt-6 grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="rounded-2xl border bg-card shadow-sm lg:sticky lg:top-24">
+            <div className="flex items-center justify-between border-b px-4 py-4">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
+                <h2 className="font-bold">Filters</h2>
+                {activeFilterCount ? (
+                  <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </div>
+              {activeFilterCount ? (
+                <Link
+                  href="/ecommerce/products"
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  Clear
+                </Link>
+              ) : null}
+            </div>
+
+            <form method="get" action="/ecommerce/products" className="space-y-5 p-4">
+              <label className="block space-y-2 text-sm font-semibold">
+                Search
+                <span className="relative block">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    name="q"
+                    defaultValue={filters.q}
+                    placeholder="Name, SKU or brand"
+                    maxLength={100}
+                    className="h-10 w-full rounded-lg border bg-background pl-9 pr-3 text-sm font-normal outline-none focus:border-primary"
+                  />
+                </span>
+              </label>
+
+              <label className="block space-y-2 text-sm font-semibold">
+                Category
+                <select
+                  name="category"
+                  defaultValue={filters.category}
+                  className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-normal"
+                >
+                  <option value="">All categories</option>
+                  {facets.categories.map((category) => (
+                    <option key={category.id} value={category.slug}>
+                      {category.parentId ? "— " : ""}
+                      {category.name} ({category.productCount})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-semibold">Brands</legend>
+                <div className="max-h-44 space-y-1 overflow-y-auto pr-1">
+                  {facets.brands
+                    .filter((brand) => brand.productCount > 0)
+                    .map((brand) => (
+                      <label
+                        key={brand.id}
+                        className="flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <input
+                            type="checkbox"
+                            name="brand"
+                            value={brand.slug}
+                            defaultChecked={filters.brands.includes(brand.slug)}
+                            className="h-4 w-4 rounded border-border accent-primary"
+                          />
+                          <span className="truncate">{brand.name}</span>
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {brand.productCount}
+                        </span>
+                      </label>
+                    ))}
+                </div>
+              </fieldset>
+
+              <label className="block space-y-2 text-sm font-semibold">
+                Product type
+                <select
+                  name="type"
+                  defaultValue={filters.type}
+                  className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-normal"
+                >
+                  <option value="">All types</option>
+                  {facets.productTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type.charAt(0) + type.slice(1).toLowerCase()}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-semibold">Price range</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    name="minPrice"
+                    min="0"
+                    defaultValue={filters.minPrice ?? ""}
+                    placeholder={`Min ${facets.priceRange.min}`}
+                    aria-label="Minimum price"
+                    className="h-10 rounded-lg border bg-background px-3 text-sm"
+                  />
+                  <input
+                    type="number"
+                    name="maxPrice"
+                    min="0"
+                    defaultValue={filters.maxPrice ?? ""}
+                    placeholder={`Max ${facets.priceRange.max}`}
+                    aria-label="Maximum price"
+                    className="h-10 rounded-lg border bg-background px-3 text-sm"
+                  />
+                </div>
+              </fieldset>
+
+              <div className="space-y-2 text-sm">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="inStock"
+                    value="1"
+                    defaultChecked={filters.inStock}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  In stock only
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="featured"
+                    value="1"
+                    defaultChecked={filters.featured}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Featured products
+                </label>
+              </div>
+
+              <label className="block space-y-2 text-sm font-semibold">
+                Sort by
+                <select
+                  name="sort"
+                  defaultValue={filters.sort}
+                  className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-normal"
+                >
+                  {SORT_LABELS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block space-y-2 text-sm font-semibold">
+                Products per page
+                <select
+                  name="perPage"
+                  defaultValue={String(filters.perPage)}
+                  className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-normal"
+                >
+                  <option value="12">12</option>
+                  <option value="24">24</option>
+                  <option value="36">36</option>
+                </select>
+              </label>
+
+              <button
+                type="submit"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary/90"
+              >
+                <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                Apply filters
+              </button>
+            </form>
+          </aside>
+
+          <main className="min-w-0">
+            <div className="mb-4 flex flex-col gap-3 rounded-2xl border bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-bold">
+                  {filters.q
+                    ? `Results for “${filters.q}”`
+                    : selectedCategory?.name ?? "All products"}
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Showing {firstResult}–{lastResult} of {pagination.total} products
+                  {selectedBrandNames.length
+                    ? ` · ${selectedBrandNames.join(", ")}`
+                    : ""}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {SORT_LABELS.slice(0, 4).map((option) => (
+                  <Link
+                    key={option.value}
+                    href={catalogUrl(filters, { sort: option.value, page: 1 })}
+                    aria-current={filters.sort === option.value ? "page" : undefined}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      filters.sort === option.value
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "bg-background hover:border-primary hover:text-primary"
+                    }`}
+                  >
+                    {option.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {products.length ? (
+              <CatalogProductGrid products={products} />
+            ) : (
+              <div className="rounded-3xl border border-dashed bg-muted/20 px-6 py-16 text-center">
+                <PackageSearch className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h2 className="mt-4 text-xl font-bold">No products found</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                  Try a broader search or remove one or more filters.
+                </p>
+                <Link
+                  href="/ecommerce/products"
+                  className="mt-5 inline-flex rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground"
+                >
+                  View all products
+                </Link>
+              </div>
+            )}
+
+            {pagination.totalPages > 1 ? (
+              <nav
+                className="mt-8 flex flex-wrap items-center justify-center gap-2"
+                aria-label="Product catalog pagination"
+              >
+                <Link
+                  href={catalogUrl(filters, {
+                    page: Math.max(1, pagination.page - 1),
+                  })}
+                  aria-disabled={pagination.page <= 1}
+                  className={`rounded-lg border px-4 py-2 text-sm font-semibold ${
+                    pagination.page <= 1
+                      ? "pointer-events-none opacity-40"
+                      : "hover:border-primary hover:text-primary"
+                  }`}
+                >
+                  Previous
+                </Link>
+                {pages.map((page, index) => {
+                  const previous = pages[index - 1];
+                  return (
+                    <span key={page} className="contents">
+                      {previous && page - previous > 1 ? (
+                        <span className="px-1 text-muted-foreground">…</span>
+                      ) : null}
+                      <Link
+                        href={catalogUrl(filters, { page })}
+                        aria-current={pagination.page === page ? "page" : undefined}
+                        className={`inline-flex h-10 min-w-10 items-center justify-center rounded-lg border px-3 text-sm font-bold ${
+                          pagination.page === page
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "hover:border-primary hover:text-primary"
+                        }`}
+                      >
+                        {page}
+                      </Link>
+                    </span>
+                  );
+                })}
+                <Link
+                  href={catalogUrl(filters, {
+                    page: Math.min(pagination.totalPages, pagination.page + 1),
+                  })}
+                  aria-disabled={pagination.page >= pagination.totalPages}
+                  className={`rounded-lg border px-4 py-2 text-sm font-semibold ${
+                    pagination.page >= pagination.totalPages
+                      ? "pointer-events-none opacity-40"
+                      : "hover:border-primary hover:text-primary"
+                  }`}
+                >
+                  Next
+                </Link>
+              </nav>
+            ) : null}
+          </main>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -61,7 +61,9 @@ export default function Footer({
   const [isSubscribing, setIsSubscribing] = useState(false);
 
   // Site settings
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({});
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(
+    siteSettingsData ?? {},
+  );
 
   // Load site settings
   useEffect(() => {
@@ -84,7 +86,15 @@ export default function Footer({
   // ✅ categories from API
   const [categories, setCategories] = useState<
     Array<{ href: string; label: string }>
-  >([]);
+  >(() =>
+    (categoriesData ?? [])
+      .filter((category) => category.parentId === null)
+      .map((category) => ({
+        href: `/ecommerce/products?category=${encodeURIComponent(String(category.slug ?? category.id))}`,
+        label: String(category.name ?? ""),
+      }))
+      .filter((category) => category.label),
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -112,7 +122,7 @@ export default function Footer({
             if (!label || !Number.isFinite(id)) return null;
 
             return {
-              href: `/ecommerce/categories/${id}`,
+              href: `/ecommerce/products?category=${encodeURIComponent(String(c.slug ?? id))}`,
               label,
             };
           })

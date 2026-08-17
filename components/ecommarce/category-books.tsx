@@ -423,7 +423,7 @@ export default function CategoryBooks({
           </div>
         </div>
         {categoryBooks.length > 8 && (
-          <Link href={`/ecommerce/categories/${category.id}`}>
+          <Link href={`/ecommerce/products?category=${category.id}`}>
             <Button
               variant="outline"
               className="rounded-full border-[#5FA3A3] text-[#5FA3A3] hover:bg-[#5FA3A3] hover:text-white transition-all duration-300 px-6 group"
@@ -616,7 +616,7 @@ export default function CategoryBooks({
       {/* View All Bottom CTA */}
       {categoryBooks.length > 8 && (
         <div className="text-center mt-10">
-          <Link href={`/ecommerce/categories/${category.id}`}>
+          <Link href={`/ecommerce/products?category=${category.id}`}>
             <Button
               variant="ghost"
               className="rounded-full bg-[#F4F8F7] hover:bg-[#C0704D] text-[#0D1414] hover:text-white transition-all duration-300 px-8 py-6 group"
