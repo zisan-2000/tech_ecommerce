@@ -1,14 +1,11 @@
 // app/api/upload/route.ts
 import { NextResponse } from "next/server";
-import path from "path";
-import fs from "fs/promises";
 import { rateLimitRequest } from "@/lib/request-security";
 import { safeUploadFilename, validateUpload } from "@/lib/upload-security";
+import { storeUpload } from "@/lib/upload-storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const uploadsRoot = path.join(process.cwd(), "public", "upload", "general");
 
 export async function GET() {
   try {
@@ -27,7 +24,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const rateLimit = rateLimitRequest(request, {
+    const rateLimit = await rateLimitRequest(request, {
       scope: "general-upload",
       limit: 12,
       windowMs: 10 * 60 * 1000,
@@ -61,10 +58,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    await fs.mkdir(uploadsRoot, { recursive: true });
     const filename = safeUploadFilename(file.name, validation.extension);
-    const filePath = path.join(uploadsRoot, filename);
-    await fs.writeFile(filePath, buffer);
+    await storeUpload({
+      relPath: `general/${filename}`,
+      data: buffer,
+      contentType: file.type,
+    });
 
     // Return an API URL so files are served dynamically after build/deploy.
     // Note: this does not rely on the build output including the uploaded file.

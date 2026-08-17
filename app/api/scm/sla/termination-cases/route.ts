@@ -1,4 +1,8 @@
-import { Prisma } from "@/generated/prisma";
+import {
+  Prisma,
+  type SupplierSlaTerminationAction,
+  type SupplierSlaTerminationCaseStatus,
+} from "@/generated/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -20,7 +24,7 @@ function trimText(value: unknown, maxLength: number) {
   return trimmed.slice(0, maxLength);
 }
 
-function parseCaseStatus(value: unknown): Prisma.SupplierSlaTerminationCaseStatus | null {
+function parseCaseStatus(value: unknown): SupplierSlaTerminationCaseStatus | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase();
   if (
@@ -35,7 +39,7 @@ function parseCaseStatus(value: unknown): Prisma.SupplierSlaTerminationCaseStatu
   return null;
 }
 
-function parseTerminationAction(value: unknown): Prisma.SupplierSlaTerminationAction | null {
+function parseTerminationAction(value: unknown): SupplierSlaTerminationAction | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase();
   if (

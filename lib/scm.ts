@@ -1,4 +1,4 @@
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type PurchaseOrderStatus } from "@/generated/prisma";
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -398,6 +398,12 @@ export const purchaseOrderInclude = Prisma.validator<Prisma.PurchaseOrderInclude
       code: true,
       name: true,
       isActive: true,
+    },
+  },
+  rfqAward: {
+    select: {
+      id: true,
+      status: true,
     },
   },
   items: {
@@ -2397,7 +2403,7 @@ export async function refreshPurchaseOrderReceiptStatus(
 
   let status = purchaseOrder.status;
   let receivedAt = purchaseOrder.receivedAt;
-  const preReceiptStatus: Prisma.PurchaseOrderStatus =
+  const preReceiptStatus: PurchaseOrderStatus =
     purchaseOrder.approvedAt || purchaseOrder.finalApprovedAt
       ? "APPROVED"
       : purchaseOrder.committeeApprovedAt

@@ -1,4 +1,14 @@
-import { Prisma } from "@/generated/prisma";
+import {
+  Prisma,
+  type SupplierInvoicePaymentHoldStatus,
+  type SupplierInvoiceSlaCreditStatus,
+  type SupplierSlaActionStatus,
+  type SupplierSlaDisputeStatus,
+  type SupplierSlaEvaluationStatus,
+  type SupplierSlaSeverity,
+  type SupplierSlaTerminationCaseStatus,
+  type ThreeWayMatchStatus,
+} from "@/generated/prisma";
 import { logActivity } from "@/lib/activity-log";
 import { prisma } from "@/lib/prisma";
 import type { AccessContext } from "@/lib/rbac";
@@ -9,10 +19,10 @@ import {
   type SupplierLeadTimeIntelligence,
 } from "@/lib/supplier-intelligence";
 
-const ACTIVE_ACTION_STATUSES: Prisma.SupplierSlaActionStatus[] = ["OPEN", "IN_PROGRESS"];
-const ACTIVE_BREACH_STATUSES: Prisma.SupplierSlaEvaluationStatus[] = ["WARNING", "BREACH"];
-const ACTIVE_DISPUTE_STATUSES: Prisma.SupplierSlaDisputeStatus[] = ["OPEN", "UNDER_REVIEW"];
-const ACTIVE_TERMINATION_CASE_STATUSES: Prisma.SupplierSlaTerminationCaseStatus[] = [
+const ACTIVE_ACTION_STATUSES: SupplierSlaActionStatus[] = ["OPEN", "IN_PROGRESS"];
+const ACTIVE_BREACH_STATUSES: SupplierSlaEvaluationStatus[] = ["WARNING", "BREACH"];
+const ACTIVE_DISPUTE_STATUSES: SupplierSlaDisputeStatus[] = ["OPEN", "UNDER_REVIEW"];
+const ACTIVE_TERMINATION_CASE_STATUSES: SupplierSlaTerminationCaseStatus[] = [
   "OPEN",
   "IN_REVIEW",
   "APPROVED",
@@ -544,8 +554,8 @@ async function getSupplierSlaFinancialContext(
 
 function getSeverityPenaltyRate(
   rule: SupplierSlaFinancialRuleSnapshot,
-  status: Prisma.SupplierSlaEvaluationStatus,
-  severity: Prisma.SupplierSlaSeverity,
+  status: SupplierSlaEvaluationStatus,
+  severity: SupplierSlaSeverity,
 ) {
   if (status === "WARNING") {
     return clampPercent(Number(rule.warningPenaltyRatePercent), 0);
@@ -557,10 +567,10 @@ function getSeverityPenaltyRate(
 }
 
 type SupplierInvoiceApDecision = {
-  holdStatus: Prisma.SupplierInvoicePaymentHoldStatus;
+  holdStatus: SupplierInvoicePaymentHoldStatus;
   holdReason: string | null;
   recommendedCreditAmount: Prisma.Decimal;
-  creditStatus: Prisma.SupplierInvoiceSlaCreditStatus;
+  creditStatus: SupplierInvoiceSlaCreditStatus;
   creditReason: string | null;
   shouldUpdateHoldAt: boolean;
   shouldUpdateReleasedAt: boolean;
@@ -570,19 +580,19 @@ type SupplierInvoiceApDecision = {
 function decideInvoiceApControls(input: {
   invoice: {
     total: Prisma.Decimal;
-    matchStatus: Prisma.ThreeWayMatchStatus;
-    paymentHoldStatus: Prisma.SupplierInvoicePaymentHoldStatus;
+    matchStatus: ThreeWayMatchStatus;
+    paymentHoldStatus: SupplierInvoicePaymentHoldStatus;
     paymentHoldAt: Date | null;
     paymentHoldReleasedAt: Date | null;
     paymentHoldOverrideNote: string | null;
-    slaCreditStatus: Prisma.SupplierInvoiceSlaCreditStatus;
+    slaCreditStatus: SupplierInvoiceSlaCreditStatus;
     slaRecommendedCredit: Prisma.Decimal;
   };
   rule: SupplierSlaFinancialRuleSnapshot;
   latestOpenBreach: {
     id: number;
-    status: Prisma.SupplierSlaEvaluationStatus;
-    severity: Prisma.SupplierSlaSeverity;
+    status: SupplierSlaEvaluationStatus;
+    severity: SupplierSlaSeverity;
     breachCount: number;
     issues: Prisma.JsonValue | null;
   } | null;
@@ -600,7 +610,7 @@ function decideInvoiceApControls(input: {
   }
 
   const hasHoldReasons = holdReasons.length > 0;
-  let holdStatus: Prisma.SupplierInvoicePaymentHoldStatus = invoice.paymentHoldStatus;
+  let holdStatus: SupplierInvoicePaymentHoldStatus = invoice.paymentHoldStatus;
   if (!hasHoldReasons) {
     holdStatus = "CLEAR";
   } else if (invoice.paymentHoldStatus === "OVERRIDDEN") {
@@ -611,7 +621,7 @@ function decideInvoiceApControls(input: {
 
   let recommendedCreditAmount = new Prisma.Decimal(0);
   let creditReason: string | null = null;
-  let creditStatus: Prisma.SupplierInvoiceSlaCreditStatus = invoice.slaCreditStatus;
+  let creditStatus: SupplierInvoiceSlaCreditStatus = invoice.slaCreditStatus;
 
   if (
     rule.isActive &&
@@ -964,7 +974,7 @@ export async function runSupplierSlaEvaluation({
       select: { ownerUserId: true },
     });
 
-    const actionStatus: Prisma.SupplierSlaActionStatus =
+    const actionStatus: SupplierSlaActionStatus =
       evaluation.status === "OK" ? "NOT_REQUIRED" : "OPEN";
     const ownerUserId = actionStatus === "NOT_REQUIRED" ? null : previousOpenBreach?.ownerUserId ?? null;
     const dueDate = actionStatus === "NOT_REQUIRED" ? null : addDays(periodEnd, dueDays);

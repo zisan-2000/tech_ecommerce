@@ -383,11 +383,11 @@ export async function PATCH(
 
         if (termsTemplateRequested) {
           if (selectedTemplate) {
-            data.termsTemplateId = selectedTemplate.id;
+            data.termsTemplate = { connect: { id: selectedTemplate.id } };
             data.termsTemplateCode = selectedTemplate.code;
             data.termsTemplateName = selectedTemplate.name;
           } else {
-            data.termsTemplateId = null;
+            data.termsTemplate = { disconnect: true };
             data.termsTemplateCode = null;
             data.termsTemplateName = null;
           }

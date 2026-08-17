@@ -126,8 +126,11 @@ export default function BannerManager({
             key={banner.id}
             className="bg-card border border-border rounded-xl p-4 space-y-3"
           >
-            <img
+            <Image
               src={banner.image}
+              alt={banner.title || "Store banner"}
+              width={640}
+              height={320}
               className="h-40 w-full object-cover rounded-md"
             />
 

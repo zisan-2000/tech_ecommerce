@@ -1,4 +1,4 @@
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type PurchaseOrderLandedCostComponent } from "@/generated/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -133,7 +133,7 @@ export async function PATCH(
           { status: 400 },
         );
       }
-      data.component = component as Prisma.PurchaseOrderLandedCostComponent;
+      data.component = component as PurchaseOrderLandedCostComponent;
     }
 
     if (body.amount !== undefined) {
@@ -153,7 +153,14 @@ export async function PATCH(
     }
 
     if (body.incurredAt !== undefined) {
-      data.incurredAt = toDateOrNull(body.incurredAt, "Incurred date");
+      const incurredAt = toDateOrNull(body.incurredAt, "Incurred date");
+      if (!incurredAt) {
+        return NextResponse.json(
+          { error: "Incurred date is required." },
+          { status: 400 },
+        );
+      }
+      data.incurredAt = incurredAt;
     }
 
     if (Object.keys(data).length === 0) {

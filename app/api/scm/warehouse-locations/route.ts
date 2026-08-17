@@ -185,7 +185,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Id is required." }, { status: 400 });
     }
 
-    const data: Prisma.WarehouseZoneUpdateInput = {
+    const data = {
       code: body.code === undefined ? undefined : toCleanText(body.code, 40),
       name: body.name === undefined ? undefined : toCleanText(body.name, 120),
       description:

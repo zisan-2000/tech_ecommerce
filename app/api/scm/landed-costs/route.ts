@@ -1,4 +1,4 @@
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type PurchaseOrderLandedCostComponent } from "@/generated/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -372,7 +372,7 @@ export async function POST(request: NextRequest) {
     const created = await prisma.purchaseOrderLandedCost.create({
       data: {
         purchaseOrderId,
-        component: componentRaw as Prisma.PurchaseOrderLandedCostComponent,
+        component: componentRaw as PurchaseOrderLandedCostComponent,
         amount,
         currency,
         note,

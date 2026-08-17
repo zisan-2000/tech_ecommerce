@@ -5,7 +5,7 @@ import { rateLimitRequest } from "@/lib/request-security";
 
 export async function POST(req: Request) {
   try {
-    const rateLimit = rateLimitRequest(req, {
+    const rateLimit = await rateLimitRequest(req, {
       scope: "coupon-validation",
       limit: 30,
       windowMs: 10 * 60 * 1000,

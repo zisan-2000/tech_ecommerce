@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Boxes,
@@ -105,6 +106,7 @@ const formatDateTime = (value: string) =>
   });
 
 export default function WarehouseDashboardPage() {
+  const router = useRouter();
   const [warehouseId, setWarehouseId] = useState<string>("");
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -864,9 +866,7 @@ export default function WarehouseDashboardPage() {
                                 type="button"
                                 variant="outline"
                                 className="rounded-2xl"
-                                onClick={() => {
-                                  window.location.href = `/admin/warehouse/${warehouse.id}`;
-                                }}
+                                onClick={() => router.push(`/admin/warehouse/${warehouse.id}`)}
                               >
                                 Details
                               </Button>

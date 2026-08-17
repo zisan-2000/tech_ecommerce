@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import path from "path";
-import fs from "fs/promises";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getAccessContext } from "@/lib/rbac";
@@ -9,6 +8,7 @@ import { resolveInvestorPortalContext } from "@/lib/investor-portal";
 import { prisma } from "@/lib/prisma";
 import { isDeliveryConfirmationStatus } from "@/lib/delivery-proof";
 import { rateLimitRequest } from "@/lib/request-security";
+import { deleteUpload, readUpload, storeUpload } from "@/lib/upload-storage";
 import {
   createUploadAccessToken,
   safeUploadFilename,
@@ -20,7 +20,6 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const rootUploadDir = path.join(process.cwd(), "public", "upload");
 const SCM_PROPOSAL_PREFIX = "scm-proposals";
 const SCM_GRN_PREFIX = "scm-grn";
 const SCM_MATERIAL_PREFIX = "scm-material";
@@ -51,14 +50,6 @@ function validPathSegments(segments: string[]) {
         /^[a-zA-Z0-9_.-]+$/.test(segment),
     )
   );
-}
-
-function resolveUploadPath(relPath: string) {
-  const target = path.resolve(rootUploadDir, relPath);
-  if (target !== rootUploadDir && !target.startsWith(`${rootUploadDir}${path.sep}`)) {
-    return null;
-  }
-  return target;
 }
 
 function uploadKindForPrefix(prefix: string): UploadKind {
@@ -521,7 +512,7 @@ export async function POST(
       }
     }
 
-    const rateLimit = rateLimitRequest(req, {
+    const rateLimit = await rateLimitRequest(req, {
       scope: `scoped-upload:${prefix}`,
       limit: 20,
       windowMs: 10 * 60 * 1000,
@@ -560,24 +551,19 @@ export async function POST(
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    const targetDir = resolveUploadPath(relPath);
-    if (!targetDir) {
-      return NextResponse.json({ error: "Invalid upload path" }, { status: 400 });
-    }
-    await fs.mkdir(targetDir, { recursive: true });
-
     const filename = safeUploadFilename(file.name, validation.extension);
-    const filepath = path.join(targetDir, filename);
-
-    await fs.writeFile(filepath, buffer);
-
     const storedRelPath = `${relPath}/${filename}`;
+    await storeUpload({
+      relPath: storedRelPath,
+      data: buffer,
+      contentType: file.type,
+    });
     const paymentAccessToken =
       prefix === PAYMENT_SCREENSHOT_PREFIX
         ? createUploadAccessToken(storedRelPath)
         : null;
     if (prefix === PAYMENT_SCREENSHOT_PREFIX && !paymentAccessToken) {
-      await fs.unlink(filepath).catch(() => undefined);
+      await deleteUpload(storedRelPath).catch(() => undefined);
       return NextResponse.json(
         { error: "Secure upload signing is not configured" },
         { status: 503 },
@@ -628,12 +614,14 @@ export async function GET(
     const requiresScmMaterialScope = isScmMaterialPath(relPath);
     const requiresInvestorKycScope = isInvestorKycPath(relPath);
     const requiresInvestorPayoutProofScope = isInvestorPayoutProofPath(relPath);
+    const requiresDigitalAssetScope = slug[0] === "digital-assets";
     const requiresProtectedScope =
       requiresScmProposalScope ||
       requiresScmGrnScope ||
       requiresScmMaterialScope ||
       requiresInvestorKycScope ||
-      requiresInvestorPayoutProofScope;
+      requiresInvestorPayoutProofScope ||
+      requiresDigitalAssetScope;
 
     if (slug[0] === DELIVERY_PROOF_PREFIX) {
       const session = await getServerSession(authOptions);
@@ -680,21 +668,23 @@ export async function GET(
       const canReadInvestorPayoutProof = requiresInvestorPayoutProofScope
         ? await canReadInvestorPayoutProofFile(relPath, sessionUser)
         : true;
-      if (!canReadProposal || !canReadGrn || !canReadMaterial || !canReadInvestorKyc || !canReadInvestorPayoutProof) {
+      const canReadDigitalAsset = requiresDigitalAssetScope
+        ? (await getAccessContext(sessionUser)).has("products.manage")
+        : true;
+      if (!canReadProposal || !canReadGrn || !canReadMaterial || !canReadInvestorKyc || !canReadInvestorPayoutProof || !canReadDigitalAsset) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
 
-    const filePath = resolveUploadPath(relPath);
-    if (!filePath) {
-      return NextResponse.json({ error: "Bad path" }, { status: 400 });
+    const stored = await readUpload(relPath);
+    if (!stored) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
-    const data = await fs.readFile(filePath);
-    const ext = path.extname(filePath).toLowerCase();
+    const ext = path.extname(relPath).toLowerCase();
 
-    return new NextResponse(new Uint8Array(data), {
+    return new NextResponse(stored.body, {
       headers: {
-        "Content-Type": guessContentType(ext),
+        "Content-Type": stored.contentType || guessContentType(ext),
         "Cache-Control":
           requiresProtectedScope ||
           slug[0] === DELIVERY_PROOF_PREFIX ||

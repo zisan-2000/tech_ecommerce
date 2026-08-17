@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { AccessContext } from "@/lib/rbac";
+import type { PermissionKey } from "@/lib/rbac-config";
 
 type InvestorWorkspaceTone = "default" | "warning" | "critical";
 
@@ -66,7 +67,7 @@ export function canAccessInvestorWorkspace(access: AccessContext) {
   );
 }
 
-function hasAnyPermission(access: AccessContext, permissions: string[]) {
+function hasAnyPermission(access: AccessContext, permissions: readonly PermissionKey[]) {
   return permissions.some((permission) => access.hasGlobal(permission));
 }
 

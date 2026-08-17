@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@/generated/prisma";
+import {
+  Prisma,
+  type InventoryVerificationApprovalDecision,
+  type InventoryVerificationApprovalStage,
+} from "@/generated/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -159,8 +163,8 @@ export async function PATCH(
     }
 
     const updateData: Prisma.InventoryVerificationUpdateInput = {};
-    let stage: Prisma.InventoryVerificationApprovalStage | null = null;
-    let decision: Prisma.InventoryVerificationApprovalDecision | null = null;
+    let stage: InventoryVerificationApprovalStage | null = null;
+    let decision: InventoryVerificationApprovalDecision | null = null;
 
     if (action === "submit") {
       if (verification.status !== "DRAFT") {
@@ -197,7 +201,7 @@ export async function PATCH(
       }
       updateData.status = "APPROVED";
       updateData.approvedAt = new Date();
-      updateData.approvedById = access.userId;
+      updateData.approvedBy = { connect: { id: access.userId } };
       stage = "ADMIN";
       decision = "APPROVED";
     } else if (action === "admin_reject") {

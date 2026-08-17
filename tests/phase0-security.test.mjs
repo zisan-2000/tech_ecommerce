@@ -7,6 +7,8 @@ import {
 import { storefrontProductSelect } from "../lib/storefront-product.ts";
 import { redactCustomerOrder } from "../lib/order-public.ts";
 import { validateUpload } from "../lib/upload-security.ts";
+import { isPrivateUploadPath } from "../lib/upload-storage.ts";
+import { rateLimitRequest } from "../lib/request-security.ts";
 
 function couponClient(coupon) {
   return {
@@ -114,4 +116,22 @@ test("SCM document validation requires Office files to have a ZIP signature", ()
     }).ok,
     true,
   );
+});
+
+test("protected uploads are classified for private object storage", () => {
+  assert.equal(isPrivateUploadPath("paymentScreenshot/proof.png"), true);
+  assert.equal(isPrivateUploadPath("scm-proposals/quote.pdf"), true);
+  assert.equal(isPrivateUploadPath("digital-assets/software.zip"), true);
+  assert.equal(isPrivateUploadPath("products/desktop.webp"), false);
+});
+
+test("development rate limiter enforces a fixed-window limit", async () => {
+  const request = new Request("http://localhost/test", {
+    headers: { "x-forwarded-for": "203.0.113.9" },
+  });
+  const scope = `phase0-test-${Date.now()}`;
+  const first = await rateLimitRequest(request, { scope, limit: 1, windowMs: 60_000 });
+  const second = await rateLimitRequest(request, { scope, limit: 1, windowMs: 60_000 });
+  assert.equal(first.allowed, true);
+  assert.equal(second.allowed, false);
 });

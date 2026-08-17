@@ -33,7 +33,7 @@ export function ScmNextStepPanel({
         <CardTitle>Next Action</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <ScmSectionHeader title={title} subtitle={subtitle} />
+        <ScmSectionHeader title={title} description={subtitle} />
         {children}
         {actions.length === 0 ? (
           <p className="text-sm text-muted-foreground">{emptyMessage}</p>

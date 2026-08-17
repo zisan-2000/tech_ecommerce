@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
 // }
 export async function POST(request: NextRequest) {
   try {
-    const rateLimit = rateLimitRequest(request, {
+    const rateLimit = await rateLimitRequest(request, {
       scope: "order-create",
       limit: 12,
       windowMs: 10 * 60 * 1000,

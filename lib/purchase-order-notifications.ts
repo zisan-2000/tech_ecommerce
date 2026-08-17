@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type PurchaseOrderApprovalStage } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 
 type TransactionClient = Prisma.TransactionClient;
@@ -30,7 +30,7 @@ function createSmtpTransporter() {
 export async function createPurchaseOrderWorkflowNotifications(params: {
   tx: TransactionClient;
   purchaseOrderId: number;
-  stage: Prisma.PurchaseOrderApprovalStage;
+  stage: PurchaseOrderApprovalStage;
   recipients: PurchaseOrderNotificationRecipient[];
   message: string;
   metadata?: Prisma.InputJsonValue;

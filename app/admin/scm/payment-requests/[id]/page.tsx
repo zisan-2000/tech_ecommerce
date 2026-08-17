@@ -36,6 +36,11 @@ type PurchaseOrder = {
       id: number;
       rfqNumber: string;
       status: string;
+      purchaseRequisition?: {
+        id: number;
+        requisitionNumber: string;
+        status: string;
+      } | null;
     } | null;
   } | null;
 };

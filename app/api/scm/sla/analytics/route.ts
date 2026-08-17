@@ -1,4 +1,9 @@
-import { Prisma } from "@/generated/prisma";
+import {
+  Prisma,
+  type SupplierSlaActionStatus,
+  type SupplierSlaDisputeStatus,
+  type SupplierSlaTerminationCaseStatus,
+} from "@/generated/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -6,9 +11,9 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 
 const SLA_ANALYTICS_READ_PERMISSIONS = ["sla.read", "sla.manage"] as const;
-const ACTIVE_ACTION_STATUSES: Prisma.SupplierSlaActionStatus[] = ["OPEN", "IN_PROGRESS"];
-const ACTIVE_DISPUTE_STATUSES: Prisma.SupplierSlaDisputeStatus[] = ["OPEN", "UNDER_REVIEW"];
-const ACTIVE_TERMINATION_CASE_STATUSES: Prisma.SupplierSlaTerminationCaseStatus[] = [
+const ACTIVE_ACTION_STATUSES: SupplierSlaActionStatus[] = ["OPEN", "IN_PROGRESS"];
+const ACTIVE_DISPUTE_STATUSES: SupplierSlaDisputeStatus[] = ["OPEN", "UNDER_REVIEW"];
+const ACTIVE_TERMINATION_CASE_STATUSES: SupplierSlaTerminationCaseStatus[] = [
   "OPEN",
   "IN_REVIEW",
   "APPROVED",

@@ -31,7 +31,8 @@ async function resolveAccess() {
     session?.user as { id?: string; role?: string } | undefined,
   );
 
-  if (!access.userId) {
+  const userId = access.userId;
+  if (!userId) {
     return {
       ok: false as const,
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -45,7 +46,7 @@ async function resolveAccess() {
     };
   }
 
-  return { ok: true as const, access };
+  return { ok: true as const, access, userId };
 }
 
 export async function GET(request: NextRequest) {
@@ -57,12 +58,12 @@ export async function GET(request: NextRequest) {
     const limit = toPositiveInt(request.nextUrl.searchParams.get("limit"));
 
     const payload = await getScmInternalNotifications({
-      userId: resolved.access.userId,
+      userId: resolved.userId,
       unreadOnly,
       limit: limit ?? 50,
     });
 
-    const health = await getScmNotificationDeliveryHealth(resolved.access.userId);
+    const health = await getScmNotificationDeliveryHealth(resolved.userId);
 
     return NextResponse.json({
       ...payload,
@@ -122,7 +123,7 @@ export async function PATCH(request: NextRequest) {
     };
 
     if (Boolean(body.markAll)) {
-      await markAllScmInternalNotificationsRead(resolved.access.userId);
+      await markAllScmInternalNotificationsRead(resolved.userId);
       return NextResponse.json({ ok: true });
     }
 
@@ -135,7 +136,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const result = await markScmInternalNotificationRead({
-      userId: resolved.access.userId,
+      userId: resolved.userId,
       type: body.type,
       id,
     });

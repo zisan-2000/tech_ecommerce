@@ -212,7 +212,6 @@ export default function GalleryManagementPage() {
     setPage(1);
     setSelectedPaths(new Set());
     loadGallery({ nextPage: 1 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [folder, pageSize]);
 
   const filteredImages = useMemo(() => {

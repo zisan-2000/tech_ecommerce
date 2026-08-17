@@ -1,12 +1,17 @@
 import nodemailer from "nodemailer";
-import { Prisma } from "@/generated/prisma";
+import {
+  Prisma,
+  type SupplierSlaActionStatus,
+  type SupplierSlaEvaluationStatus,
+  type SupplierSlaTerminationCaseStatus,
+} from "@/generated/prisma";
 import { logActivity } from "@/lib/activity-log";
 import { prisma } from "@/lib/prisma";
 import type { AccessContext } from "@/lib/rbac";
 
-const ACTIVE_ACTION_STATUSES: Prisma.SupplierSlaActionStatus[] = ["OPEN", "IN_PROGRESS"];
-const ACTIVE_BREACH_STATUSES: Prisma.SupplierSlaEvaluationStatus[] = ["WARNING", "BREACH"];
-const ACTIVE_TERMINATION_CASE_STATUSES: Prisma.SupplierSlaTerminationCaseStatus[] = [
+const ACTIVE_ACTION_STATUSES: SupplierSlaActionStatus[] = ["OPEN", "IN_PROGRESS"];
+const ACTIVE_BREACH_STATUSES: SupplierSlaEvaluationStatus[] = ["WARNING", "BREACH"];
+const ACTIVE_TERMINATION_CASE_STATUSES: SupplierSlaTerminationCaseStatus[] = [
   "OPEN",
   "IN_REVIEW",
   "APPROVED",

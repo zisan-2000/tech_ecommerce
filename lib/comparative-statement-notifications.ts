@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type ComparativeStatementApprovalStage } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 
 type TransactionClient = Prisma.TransactionClient;
@@ -12,7 +12,7 @@ type ComparativeNotificationRecipient = {
 type CreateComparativeNotificationsInput = {
   tx: TransactionClient;
   comparativeStatementId: number;
-  stage: Prisma.ComparativeStatementApprovalStage;
+  stage: ComparativeStatementApprovalStage;
   recipients: ComparativeNotificationRecipient[];
   message: string;
   metadata?: Prisma.InputJsonValue;
@@ -174,4 +174,3 @@ export async function dispatchComparativeStatementEmailNotifications(
     skipped: notificationIds.length - rows.length,
   };
 }
-

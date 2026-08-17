@@ -2,9 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   compress: true,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   // Allow cross-origin requests from specific development origins
   allowedDevOrigins: ['192.168.0.114'],
   // Simple webpack config to prevent system directory scanning

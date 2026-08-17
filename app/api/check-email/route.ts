@@ -5,7 +5,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: Request) {
   try {
-    const rateLimit = rateLimitRequest(req, {
+    const rateLimit = await rateLimitRequest(req, {
       scope: "email-check",
       limit: 10,
       windowMs: 10 * 60 * 1000,

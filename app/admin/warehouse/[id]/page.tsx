@@ -291,9 +291,7 @@ export default function WarehouseDetailsPage() {
 
         <div className="flex gap-2">
           <button
-            onClick={() => {
-              window.location.href = "/admin/warehouse";
-            }}
+            onClick={() => router.push("/admin/warehouse")}
             className="btn-secondary rounded px-4 py-2"
           >
             Back

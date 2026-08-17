@@ -134,10 +134,11 @@ async function resolveSupplierPortalRecipients(
     }),
   ]);
 
-  const recipients = portalAccesses.map((row) => ({
+  const recipients: Array<{ userId: string | null; recipientEmail: string | null }> =
+    portalAccesses.map((row) => ({
     userId: row.userId,
     recipientEmail: row.user?.email ?? null,
-  }));
+    }));
 
   if (supplier?.email && !recipients.some((row) => row.recipientEmail === supplier.email)) {
     recipients.push({ userId: null, recipientEmail: supplier.email });

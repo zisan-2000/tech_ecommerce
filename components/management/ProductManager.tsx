@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { getInventoryStatus } from "@/lib/stock-status";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,7 @@ export default function ProductManager({
   vatClasses,
   digitalAssets,
 }: any) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [productTypeFilter, setProductTypeFilter] = useState("");
@@ -597,10 +599,7 @@ export default function ProductManager({
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() =>
-                      (window.location.href =
-                        "/admin/operations/products/bundles")
-                    }
+                    onClick={() => router.push("/admin/operations/products/bundles")}
                     className="w-full border-primary/20 text-primary hover:bg-primary/10"
                   >
                     <Package className="h-4 w-4 mr-1" /> Bundles

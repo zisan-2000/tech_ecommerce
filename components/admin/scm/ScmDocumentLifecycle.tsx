@@ -9,7 +9,7 @@ export type ScmDocumentLifecycleStage = {
   value: string;
   helperText?: string | null;
   href?: string | null;
-  state: "current" | "linked" | "pending";
+  state: "current" | "linked" | "pending" | "blocked";
 };
 
 function stageClasses(state: ScmDocumentLifecycleStage["state"]) {
@@ -19,11 +19,14 @@ function stageClasses(state: ScmDocumentLifecycleStage["state"]) {
   if (state === "linked") {
     return "border-sky-200 bg-sky-50";
   }
+  if (state === "blocked") {
+    return "border-red-200 bg-red-50";
+  }
   return "border-dashed border-muted-foreground/25 bg-muted/30";
 }
 
 function valueClasses(state: ScmDocumentLifecycleStage["state"]) {
-  if (state === "pending") {
+  if (state === "pending" || state === "blocked") {
     return "text-muted-foreground";
   }
   return "text-foreground";

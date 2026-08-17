@@ -61,13 +61,13 @@ export default function ProductModel3D({
 
     let destroyed = false;
 
-    async function init() {
+    async function init(containerElement: HTMLDivElement) {
       try {
         setStatus("loading");
         setLoadPct(0);
 
-        const width = container.clientWidth || 480;
-        const height = container.clientHeight || 480;
+        const width = containerElement.clientWidth || 480;
+        const height = containerElement.clientHeight || 480;
 
         const scene = new THREE.Scene();
         scene.background = null;
@@ -97,7 +97,7 @@ export default function ProductModel3D({
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         rendererRef.current = renderer;
-        container.appendChild(renderer.domElement);
+        containerElement.appendChild(renderer.domElement);
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambient);
@@ -266,7 +266,7 @@ export default function ProductModel3D({
 
     let cleanupControls: (() => void) | undefined;
 
-    init().then((cleanup) => {
+    init(container).then((cleanup) => {
       cleanupControls = cleanup;
     });
 

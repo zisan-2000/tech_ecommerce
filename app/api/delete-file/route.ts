@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { unlink } from 'fs/promises';
-import path from 'path';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { getAccessContext } from '@/lib/rbac';
+import { deleteUpload } from '@/lib/upload-storage';
 
 const DELETE_FILE_PERMISSIONS = [
   'products.manage',
@@ -49,13 +48,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const uploadRoot = path.resolve(process.cwd(), 'public', 'upload');
-    const fullPath = path.resolve(process.cwd(), 'public', normalizedPath);
-    if (!fullPath.startsWith(`${uploadRoot}${path.sep}`)) {
-      return NextResponse.json({ error: 'Invalid file path' }, { status: 400 });
-    }
-
-    await unlink(fullPath);
+    await deleteUpload(normalizedPath.slice('upload/'.length));
     
     return NextResponse.json({ 
       success: true,

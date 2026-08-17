@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type PaymentRequestApprovalStage } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 
 type TransactionClient = Prisma.TransactionClient;
@@ -30,7 +30,7 @@ function createSmtpTransporter() {
 export async function createPaymentRequestWorkflowNotifications(params: {
   tx: TransactionClient;
   paymentRequestId: number;
-  stage: Prisma.PaymentRequestApprovalStage;
+  stage: PaymentRequestApprovalStage;
   recipients: PaymentRequestNotificationRecipient[];
   message: string;
   metadata?: Prisma.InputJsonValue;

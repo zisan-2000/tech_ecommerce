@@ -1,4 +1,8 @@
-import { Prisma } from "@/generated/prisma";
+import {
+  Prisma,
+  type SupplierSlaActionStatus,
+  type SupplierSlaDisputeStatus,
+} from "@/generated/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -137,7 +141,7 @@ function trimText(value: unknown, maxLength: number) {
   return trimmed.slice(0, maxLength);
 }
 
-function parseActionStatus(value: unknown): Prisma.SupplierSlaActionStatus | null {
+function parseActionStatus(value: unknown): SupplierSlaActionStatus | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase();
   if (
@@ -152,7 +156,7 @@ function parseActionStatus(value: unknown): Prisma.SupplierSlaActionStatus | nul
   return null;
 }
 
-function parseDisputeStatus(value: unknown): Prisma.SupplierSlaDisputeStatus | null {
+function parseDisputeStatus(value: unknown): SupplierSlaDisputeStatus | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase();
   if (

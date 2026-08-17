@@ -23,7 +23,7 @@ type SslcommerzInitBody = {
 
 export async function POST(request: NextRequest) {
   try {
-    const rateLimit = rateLimitRequest(request, {
+    const rateLimit = await rateLimitRequest(request, {
       scope: "sslcommerz-init",
       limit: 10,
       windowMs: 10 * 60 * 1000,

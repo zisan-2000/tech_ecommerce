@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type PurchaseRequisitionApprovalStage } from "@/generated/prisma";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
@@ -249,7 +249,7 @@ async function recordRequisitionVersion(
   tx: Prisma.TransactionClient,
   requisitionId: number,
   action: string,
-  stage: Prisma.PurchaseRequisitionApprovalStage,
+  stage: PurchaseRequisitionApprovalStage,
   createdById: string,
 ) {
   const requisition = await tx.purchaseRequisition.findUnique({
@@ -280,7 +280,7 @@ async function createWorkflowNotifications(
   tx: Prisma.TransactionClient,
   input: {
     requisitionId: number;
-    stage: Prisma.PurchaseRequisitionApprovalStage;
+    stage: PurchaseRequisitionApprovalStage;
     warehouseId: number;
     message: string;
     recipientPermissionKeys?: string[];
@@ -434,7 +434,8 @@ export async function PATCH(
     const access = await getAccessContext(
       session?.user as { id?: string; role?: string } | undefined,
     );
-    if (!access.userId) {
+    const actorUserId = access.userId;
+    if (!actorUserId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -539,7 +540,7 @@ export async function PATCH(
                   attachments: {
                     create: attachments.map((attachment) => ({
                       ...attachment,
-                      uploadedById: access.userId,
+                      uploadedById: actorUserId,
                     })),
                   },
                 }
@@ -553,7 +554,7 @@ export async function PATCH(
           next.id,
           "update_draft",
           "PLANNING",
-          access.userId,
+          actorUserId,
         );
 
         return next;
@@ -602,7 +603,7 @@ export async function PATCH(
             stage: "SUBMISSION",
             decision: "APPROVED",
             note: toCleanText(body.note, 255) || null,
-            actedById: access.userId,
+            actedById: actorUserId,
           },
         });
 
@@ -611,7 +612,7 @@ export async function PATCH(
           next.id,
           "submit",
           "SUBMISSION",
-          access.userId,
+          actorUserId,
         );
 
         const emailNotificationIds = await createWorkflowNotifications(tx, {
@@ -665,7 +666,7 @@ export async function PATCH(
           data: {
             status: "BUDGET_CLEARED",
             budgetClearedAt: new Date(),
-            budgetClearedById: access.userId,
+            budgetClearedById: actorUserId,
             rejectedAt: null,
           },
           include: purchaseRequisitionInclude,
@@ -677,7 +678,7 @@ export async function PATCH(
             stage: "BUDGET_CLEARANCE",
             decision: "APPROVED",
             note: toCleanText(body.note, 255) || null,
-            actedById: access.userId,
+            actedById: actorUserId,
           },
         });
 
@@ -686,7 +687,7 @@ export async function PATCH(
           next.id,
           "budget_clear",
           "BUDGET_CLEARANCE",
-          access.userId,
+          actorUserId,
         );
 
         const emailNotificationIds = await createWorkflowNotifications(tx, {
@@ -735,7 +736,7 @@ export async function PATCH(
       }
 
       const existingEndorsement = requisition.approvalEvents.find(
-        (event) => event.stage === "ENDORSEMENT" && event.actedById === access.userId,
+        (event) => event.stage === "ENDORSEMENT" && event.actedById === actorUserId,
       );
       if (existingEndorsement) {
         return NextResponse.json(
@@ -751,7 +752,7 @@ export async function PATCH(
             stage: "ENDORSEMENT",
             decision: "APPROVED",
             note: toCleanText(body.note, 255) || null,
-            actedById: access.userId,
+            actedById: actorUserId,
           },
         });
 
@@ -772,7 +773,7 @@ export async function PATCH(
             ? {
                 status: "ENDORSED",
                 endorsedAt: new Date(),
-                endorsedById: access.userId,
+                endorsedById: actorUserId,
               }
             : {},
           include: purchaseRequisitionInclude,
@@ -783,7 +784,7 @@ export async function PATCH(
           next.id,
           reachedRequiredEndorsements ? "endorse_complete" : "endorse_partial",
           "ENDORSEMENT",
-          access.userId,
+          actorUserId,
         );
 
         let emailNotificationIds: number[] = [];
@@ -881,7 +882,7 @@ export async function PATCH(
           data: {
             status: "APPROVED",
             approvedAt: new Date(),
-            approvedById: access.userId,
+            approvedById: actorUserId,
             rejectedAt: null,
             assignedProcurementOfficerId: assignedOfficerId,
             routedToProcurementAt: assignedOfficerId ? new Date() : null,
@@ -895,7 +896,7 @@ export async function PATCH(
             stage: "FINAL_APPROVAL",
             decision: "APPROVED",
             note: toCleanText(body.note, 255) || null,
-            actedById: access.userId,
+            actedById: actorUserId,
           },
         });
 
@@ -904,7 +905,7 @@ export async function PATCH(
           next.id,
           "final_approve",
           "FINAL_APPROVAL",
-          access.userId,
+          actorUserId,
         );
 
         const emailNotificationIds = await createWorkflowNotifications(tx, {
@@ -975,7 +976,7 @@ export async function PATCH(
             stage: "REJECTION",
             decision: "REJECTED",
             note: toCleanText(body.note, 255) || null,
-            actedById: access.userId,
+            actedById: actorUserId,
           },
         });
 
@@ -984,7 +985,7 @@ export async function PATCH(
           next.id,
           "reject",
           "REJECTION",
-          access.userId,
+          actorUserId,
         );
 
         const emailNotificationIds = await createWorkflowNotifications(tx, {
@@ -1049,7 +1050,7 @@ export async function PATCH(
           next.id,
           "cancel",
           "CANCELLATION",
-          access.userId,
+          actorUserId,
         );
 
         return next;
@@ -1165,7 +1166,7 @@ export async function PATCH(
             expectedAt: expectedAt ?? null,
             notes: toCleanText(body.notes, 500) || requisition.note || null,
             currency: supplier.currency || "BDT",
-            createdById: access.userId,
+            createdById: actorUserId,
             subtotal: totals.subtotal,
             taxTotal: totals.taxTotal,
             shippingTotal: totals.shippingTotal,
@@ -1188,7 +1189,7 @@ export async function PATCH(
           data: {
             status: "CONVERTED",
             convertedAt: new Date(),
-            convertedById: access.userId,
+            convertedById: actorUserId,
           },
         });
 
@@ -1197,7 +1198,7 @@ export async function PATCH(
           requisition.id,
           "convert_to_po",
           "FINAL_APPROVAL",
-          access.userId,
+          actorUserId,
         );
 
         return purchaseOrder;

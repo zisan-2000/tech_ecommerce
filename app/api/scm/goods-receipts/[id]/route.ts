@@ -25,7 +25,9 @@ function toCleanText(value: unknown, max = 500) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
-function parseRating(value: unknown, fieldName: string, required = true) {
+function parseRating(value: unknown, fieldName: string, required?: true): number;
+function parseRating(value: unknown, fieldName: string, required: false): number | null;
+function parseRating(value: unknown, fieldName: string, required = true): number | null {
   if (value === undefined || value === null || value === "") {
     if (required) {
       throw new Error(`${fieldName} is required.`);

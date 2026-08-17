@@ -6,6 +6,7 @@ import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import { createInvestorPortalNotification } from "@/lib/investor-portal-notifications";
 import { syncInvestorKycStatus } from "@/lib/investor-document-service";
+import type { InvestorDocumentType } from "@/generated/prisma";
 
 function canReviewProfileRequests(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return (
@@ -96,7 +97,7 @@ export async function PATCH(
       investorUpdateData.taxNumber !== undefined ||
       investorUpdateData.nationalIdNumber !== undefined ||
       investorUpdateData.passportNumber !== undefined;
-    const reverifyDocumentTypes = [
+    const reverifyDocumentTypes: InvestorDocumentType[] = [
       ...(identityFieldsChanged
         ? ([
             "IDENTITY_PROOF",
@@ -134,7 +135,7 @@ export async function PATCH(
           await tx.investorDocument.updateMany({
             where: {
               investorId: existing.investorId,
-              type: { in: reverifyDocumentTypes as string[] },
+              type: { in: reverifyDocumentTypes },
             },
             data: {
               status: "UNDER_REVIEW",

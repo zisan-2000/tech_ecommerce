@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type SupplierSlaTerminationAction } from "@/generated/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -17,7 +17,7 @@ function canRead(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return SLA_POLICY_READ_PERMISSIONS.some((permission) => access.hasGlobal(permission));
 }
 
-function parseTerminationAction(value: unknown): Prisma.SupplierSlaTerminationAction | null {
+function parseTerminationAction(value: unknown): SupplierSlaTerminationAction | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase();
   if (

@@ -1,4 +1,4 @@
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type InvestorProfitRunStatus } from "@/generated/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
 
     const where: Prisma.InvestorProfitRunWhereInput = {};
     if (status) {
-      where.status = status as Prisma.InvestorProfitRunStatus;
+      where.status = status as InvestorProfitRunStatus;
     }
     if (from || toExclusive) {
       where.AND = [

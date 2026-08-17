@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type MaterialReleaseStatus } from "@/generated/prisma";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       where.materialRequestId = materialRequestId;
     }
     if (statusFilter && ["ISSUED", "CANCELLED"].includes(statusFilter)) {
-      where.status = statusFilter as Prisma.MaterialReleaseStatus;
+      where.status = statusFilter as MaterialReleaseStatus;
     }
     if (fromRaw || toRaw) {
       const releasedAt: Prisma.DateTimeFilter = {};

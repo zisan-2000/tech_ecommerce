@@ -506,7 +506,7 @@ export default function FloatingCartButton() {
       {/* Flying image animation */}
       {flyingItem && (
         <div
-          className="fixed pointer-events-none z-[100] overflow-hidden border border-white/70 bg-white/90 shadow-2xl transition-all duration-[2400ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+          className="fixed pointer-events-none z-[100] overflow-hidden border border-white/70 bg-white/90 shadow-2xl transition-all"
           style={{
             left: flyingItem.left,
             top: flyingItem.top,
@@ -515,6 +515,8 @@ export default function FloatingCartButton() {
             opacity: flyingItem.opacity,
             borderRadius: `${flyingItem.borderRadius}px`,
             transform: `translate(${flyingItem.translateX}px, ${flyingItem.translateY}px)`,
+            transitionDuration: "2400ms",
+            transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
           }}
         >
           <Image

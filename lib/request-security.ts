@@ -23,12 +23,55 @@ export function getClientIp(request: Request) {
   ).slice(0, 128);
 }
 
-export function rateLimitRequest(
+let redis: Redis | null = null;
+
+function getRedis() {
+  const url =
+    process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+
+  if (!url || !token) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Distributed rate limiting is not configured. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.",
+      );
+    }
+    return null;
+  }
+
+  redis ??= new Redis({ url, token });
+  return redis;
+}
+
+export async function rateLimitRequest(
   request: Request,
   options: { scope: string; limit: number; windowMs: number },
 ) {
   const now = Date.now();
   const key = `${options.scope}:${getClientIp(request)}`;
+  const redisClient = getRedis();
+
+  if (redisClient) {
+    const windowMs = Math.max(1_000, Math.ceil(options.windowMs));
+    const windowId = Math.floor(now / windowMs);
+    const redisKey = `rate-limit:${key}:${windowId}`;
+    const count = Number(
+      await redisClient.eval(
+        "local count = redis.call('INCR', KEYS[1]); if count == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]); end; return count;",
+        [redisKey],
+        [String(windowMs)],
+      ),
+    );
+    const resetAt = (windowId + 1) * windowMs;
+    const allowed = count <= options.limit;
+    return {
+      allowed,
+      remaining: allowed ? Math.max(0, options.limit - count) : 0,
+      retryAfter: allowed ? 0 : Math.max(1, Math.ceil((resetAt - now) / 1000)),
+    };
+  }
+
   const current = store.get(key);
 
   if (!current || current.resetAt <= now) {
@@ -51,4 +94,5 @@ export function rateLimitRequest(
     retryAfter: 0,
   };
 }
+import { Redis } from "@upstash/redis";
 

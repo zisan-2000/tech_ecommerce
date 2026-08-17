@@ -4,6 +4,11 @@
 
 - `NEXTAUTH_SECRET` (or `AUTH_SECRET`) signs short-lived guest payment-init tokens.
 - `CRON_SECRET` protects inventory-reservation cleanup.
+- `BLOB_READ_WRITE_TOKEN` enables durable Vercel Blob upload storage and is required
+  in production.
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` enable distributed rate
+  limiting and are required in production. `KV_REST_API_URL` and
+  `KV_REST_API_TOKEN` are accepted as compatible aliases.
 - `MAILBOX_API_KEY` is optional. Without it, email checks fall back to format validation.
 
 Rotate the old MailboxLayer key that previously existed in Git history. Removing it
@@ -35,13 +40,16 @@ npm run lint
 npm run typecheck
 ```
 
-`npm run typecheck` currently reports pre-existing SCM type errors. Do not remove
-`typescript.ignoreBuildErrors` until that backlog is fixed and the command is clean.
+`npm run typecheck` must pass before deployment. Next.js build error suppression has
+been removed, so production builds enforce the same TypeScript gate.
 
 ## Deployment note
 
-The current upload implementation writes to local `public/upload` storage. This is
-not durable on serverless deployments. Configure object storage before production;
-the route-level type, size, rate, token, and RBAC controls should be retained when
-the storage adapter is replaced.
+Uploads use local `public/upload` storage only during development. Production fails
+closed unless Vercel Blob is configured. Protected SCM, investor, payment, delivery,
+and digital-asset objects are stored as private blobs and remain behind the existing
+route-level token/RBAC controls.
 
+Rate limiting uses an in-memory fallback only outside production. Production fails
+closed unless Upstash Redis is configured, preventing per-instance serverless limits
+from being mistaken for a distributed limit.
