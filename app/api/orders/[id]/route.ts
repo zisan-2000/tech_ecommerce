@@ -6,6 +6,12 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
+import {
+  orderProductSelect,
+  orderUserSelect,
+  orderVariantSelect,
+  redactCustomerOrder,
+} from "@/lib/order-public";
 
 // GET /api/orders/:id
 export async function GET(
@@ -42,15 +48,8 @@ export async function GET(
       include: {
         orderItems: {
           include: {
-            product: true,
-            variant: {
-              select: {
-                id: true,
-                sku: true,
-                colorImage: true,
-                options: true,
-              },
-            },
+            product: { select: orderProductSelect },
+            variant: { select: orderVariantSelect },
           },
         },
         refunds: {
@@ -67,8 +66,15 @@ export async function GET(
             },
           },
         },
-        user: true,
-        coupon: true,
+        user: { select: orderUserSelect },
+        coupon: {
+          select: {
+            id: true,
+            code: true,
+            discountType: true,
+            discountValue: true,
+          },
+        },
       },
     });
 
@@ -92,7 +98,7 @@ export async function GET(
       }
     }
 
-    return NextResponse.json(order);
+    return NextResponse.json(canReadAll ? order : redactCustomerOrder(order));
   } catch (error) {
     console.error("Error fetching order:", error);
     return NextResponse.json(

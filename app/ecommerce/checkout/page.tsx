@@ -671,7 +671,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    const computedPaymentStatus = isCOD || isSSLCOMMERZ ? "UNPAID" : "PAID";
+    const computedPaymentStatus = "UNPAID";
     const localInvoiceId =
       globalThis.crypto?.randomUUID?.() ??
       `inv-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -714,7 +714,7 @@ export default function CheckoutPage() {
       paymentStatus: computedPaymentStatus,
       image: isManualPayment ? (paymentScreenshotUrl || null) : null,
       couponId: appliedCoupon?.id || null,
-      discountAmount: discountAmount || 0,
+      couponCode: appliedCoupon?.code || null,
     };
 
     try {
@@ -738,7 +738,11 @@ export default function CheckoutPage() {
         const initRes = await fetch("/api/sslcommerz/init", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: createdOrder.id, gatewayId }),
+          body: JSON.stringify({
+            orderId: createdOrder.id,
+            gatewayId,
+            paymentInitToken: createdOrder.paymentInitToken || null,
+          }),
         });
 
         const initData = await initRes.json().catch(() => null);

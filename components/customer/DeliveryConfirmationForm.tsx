@@ -136,6 +136,7 @@ export function DeliveryConfirmationForm({ token }: { token: string }) {
       setUploading(true);
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("confirmationToken", token);
 
       const res = await fetch("/api/upload/delivery-proofs", {
         method: "POST",

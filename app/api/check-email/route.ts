@@ -1,23 +1,57 @@
 import { NextResponse } from "next/server";
+import { rateLimitRequest } from "@/lib/request-security";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: Request) {
   try {
-    const { email } = await req.json();
-
-    if (!email) {
+    const rateLimit = rateLimitRequest(req, {
+      scope: "email-check",
+      limit: 10,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
       return NextResponse.json(
-        { valid: false, error: "Email is required" },
+        { valid: false, error: "Too many validation requests" },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } },
+      );
+    }
+
+    const body = await req.json().catch(() => null);
+    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+
+    if (!email || email.length > 254 || !EMAIL_PATTERN.test(email)) {
+      return NextResponse.json(
+        { valid: false, error: "A valid email is required" },
         { status: 400 }
       );
     }
 
-    // ---- MailboxLayer API ----
-    const API_KEY = process.env.MAILBOX_API_KEY || "5ead9791b517f570406ad3f1c9911bdd";
+    const apiKey = process.env.MAILBOX_API_KEY?.trim();
+    if (!apiKey) {
+      return NextResponse.json({
+        valid: true,
+        reason: { formatValid: true, providerCheck: "not_configured" },
+      });
+    }
 
-    const url = `http://apilayer.net/api/check?access_key=${API_KEY}&email=${email}&smtp=1&format=1`;
+    const url = new URL("https://apilayer.net/api/check");
+    url.searchParams.set("access_key", apiKey);
+    url.searchParams.set("email", email);
+    url.searchParams.set("smtp", "1");
+    url.searchParams.set("format", "1");
 
-    const res = await fetch(url);
-    const data = await res.json();
+    const res = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || data.success === false) {
+      return NextResponse.json(
+        { valid: false, error: "Email validation service is unavailable" },
+        { status: 502 },
+      );
+    }
 
     /*
       Important fields:
@@ -34,8 +68,13 @@ export async function POST(req: Request) {
       !data.disposable;
 
     return NextResponse.json({
-      valid: isValid,
-      reason: data,
+      valid: Boolean(isValid),
+      reason: {
+        formatValid: Boolean(data.format_valid),
+        mxFound: Boolean(data.mx_found),
+        smtpCheck: Boolean(data.smtp_check),
+        disposable: Boolean(data.disposable),
+      },
     });
   } catch (error) {
     console.error("Email check error:", error);

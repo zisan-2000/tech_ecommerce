@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Prisma generated client
 /generated/
+
+# Local OAuth credentials (use environment variables or a secret manager)
+/utility/credentials.json

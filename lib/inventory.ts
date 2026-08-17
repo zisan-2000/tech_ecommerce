@@ -207,6 +207,254 @@ export async function deductVariantInventory(params: {
   return { stock };
 }
 
+export async function reserveVariantInventory(params: {
+  tx: TransactionClient;
+  productId: number;
+  productVariantId: number;
+  orderId: number;
+  userId?: string | null;
+  quantity: number;
+  reason: string;
+  expiresAt?: Date | null;
+}) {
+  const {
+    tx,
+    productVariantId,
+    orderId,
+    userId,
+    quantity,
+    reason,
+    expiresAt,
+  } = params;
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    throw new Error("Reservation quantity must be greater than 0");
+  }
+
+  const levels = await tx.stockLevel.findMany({
+    where: { productVariantId },
+    include: {
+      warehouse: { select: { id: true, code: true, isDefault: true } },
+    },
+    orderBy: [{ warehouse: { isDefault: "desc" } }, { warehouseId: "asc" }],
+  });
+
+  if (computeAvailableStock(levels) < quantity) {
+    throw new Error("Insufficient stock for the selected variant");
+  }
+
+  let remaining = quantity;
+  for (const level of levels) {
+    if (remaining <= 0) break;
+    const available = Math.max(0, Number(level.quantity) - Number(level.reserved));
+    if (available <= 0) continue;
+
+    const take = Math.min(available, remaining);
+    const updated = await tx.stockLevel.updateMany({
+      where: {
+        id: level.id,
+        reserved: level.reserved,
+        quantity: { gte: Number(level.reserved) + take },
+      },
+      data: { reserved: { increment: take } },
+    });
+    if (updated.count !== 1) {
+      throw new Error("Stock changed during checkout. Please try again.");
+    }
+
+    await tx.inventoryReservation.create({
+      data: {
+        stockLevelId: level.id,
+        orderId,
+        userId: userId ?? null,
+        quantity: take,
+        reason: `${reason} (${level.warehouse.code})`,
+        expiresAt: expiresAt ?? null,
+      },
+    });
+    remaining -= take;
+  }
+
+  if (remaining > 0) {
+    throw new Error("Unable to reserve inventory across warehouses");
+  }
+
+  const stock = await refreshVariantStock(tx, productVariantId);
+  await captureVariantInventoryDailySnapshots(tx, productVariantId);
+  return { stock };
+}
+
+export async function commitOrderInventoryReservations(params: {
+  tx: TransactionClient;
+  orderId: number;
+  reason: string;
+}) {
+  const { tx, orderId, reason } = params;
+  const reservations = await tx.inventoryReservation.findMany({
+    where: { orderId },
+    include: {
+      stockLevel: {
+        select: {
+          id: true,
+          warehouseId: true,
+          productVariantId: true,
+          variant: { select: { productId: true } },
+        },
+      },
+    },
+    orderBy: { id: "asc" },
+  });
+
+  const touchedVariants = new Set<number>();
+  let committedQuantity = 0;
+  for (const reservation of reservations) {
+    const updated = await tx.stockLevel.updateMany({
+      where: {
+        id: reservation.stockLevelId,
+        reserved: { gte: reservation.quantity },
+        quantity: { gte: reservation.quantity },
+      },
+      data: {
+        reserved: { decrement: reservation.quantity },
+        quantity: { decrement: reservation.quantity },
+      },
+    });
+    if (updated.count !== 1) {
+      throw new Error("Reserved inventory could not be committed");
+    }
+
+    await tx.inventoryLog.create({
+      data: {
+        productId: reservation.stockLevel.variant.productId,
+        variantId: reservation.stockLevel.productVariantId,
+        warehouseId: reservation.stockLevel.warehouseId,
+        change: -reservation.quantity,
+        reason,
+      },
+    });
+    await tx.inventoryReservation.delete({ where: { id: reservation.id } });
+    touchedVariants.add(reservation.stockLevel.productVariantId);
+    committedQuantity += reservation.quantity;
+  }
+
+  for (const variantId of touchedVariants) {
+    await refreshVariantStock(tx, variantId);
+    await captureVariantInventoryDailySnapshots(tx, variantId);
+  }
+  return { reservationCount: reservations.length, committedQuantity };
+}
+
+export async function releaseOrderInventoryReservations(params: {
+  tx: TransactionClient;
+  orderId: number;
+}) {
+  const { tx, orderId } = params;
+  const reservations = await tx.inventoryReservation.findMany({
+    where: { orderId },
+    select: {
+      id: true,
+      stockLevelId: true,
+      quantity: true,
+      stockLevel: { select: { productVariantId: true } },
+    },
+    orderBy: { id: "asc" },
+  });
+
+  const touchedVariants = new Set<number>();
+  let releasedQuantity = 0;
+  for (const reservation of reservations) {
+    const updated = await tx.stockLevel.updateMany({
+      where: {
+        id: reservation.stockLevelId,
+        reserved: { gte: reservation.quantity },
+      },
+      data: { reserved: { decrement: reservation.quantity } },
+    });
+    if (updated.count !== 1) {
+      throw new Error("Reserved inventory could not be released");
+    }
+    await tx.inventoryReservation.delete({ where: { id: reservation.id } });
+    touchedVariants.add(reservation.stockLevel.productVariantId);
+    releasedQuantity += reservation.quantity;
+  }
+
+  for (const variantId of touchedVariants) {
+    await refreshVariantStock(tx, variantId);
+    await captureVariantInventoryDailySnapshots(tx, variantId);
+  }
+  return { reservationCount: reservations.length, releasedQuantity };
+}
+
+export async function cleanupExpiredInventoryReservations(params: {
+  tx: TransactionClient;
+  now?: Date;
+  batchSize?: number;
+}) {
+  const { tx } = params;
+  const now = params.now ?? new Date();
+  const batchSize = Math.min(250, Math.max(1, params.batchSize ?? 100));
+  const expired = await tx.inventoryReservation.findMany({
+    where: {
+      orderId: { not: null },
+      expiresAt: { not: null, lte: now },
+    },
+    select: { orderId: true },
+    distinct: ["orderId"],
+    take: batchSize,
+    orderBy: { id: "asc" },
+  });
+
+  let releasedOrders = 0;
+  let releasedQuantity = 0;
+  for (const row of expired) {
+    if (!row.orderId) continue;
+    const order = await tx.order.findUnique({
+      where: { id: row.orderId },
+      select: {
+        paymentStatus: true,
+        couponId: true,
+        discount_total: true,
+        payments: { select: { status: true } },
+      },
+    });
+    if (
+      !order ||
+      order.paymentStatus === "PAID" ||
+      order.payments.some((payment) => payment.status === "CAPTURED")
+    ) {
+      continue;
+    }
+
+    const released = await releaseOrderInventoryReservations({
+      tx,
+      orderId: row.orderId,
+    });
+    if (released.reservationCount === 0) continue;
+
+    await tx.payment.updateMany({
+      where: {
+        orderId: row.orderId,
+        status: { in: ["INITIATED", "AUTHORIZED"] },
+      },
+      data: { status: "FAILED" },
+    });
+    await tx.order.updateMany({
+      where: { id: row.orderId, paymentStatus: "UNPAID" },
+      data: { status: "FAILED" },
+    });
+    if (order.couponId && Number(order.discount_total || 0) > 0) {
+      await tx.coupon.updateMany({
+        where: { id: order.couponId, usedCount: { gt: 0 } },
+        data: { usedCount: { decrement: 1 } },
+      });
+    }
+    releasedOrders += 1;
+    releasedQuantity += released.releasedQuantity;
+  }
+
+  return { scannedOrders: expired.length, releasedOrders, releasedQuantity };
+}
+
 export async function receiveVariantInventory(params: {
   tx: TransactionClient;
   productId: number;

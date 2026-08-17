@@ -1,6 +1,10 @@
-import { randomUUID } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  commitOrderInventoryReservations,
+  releaseOrderInventoryReservations,
+} from "@/lib/inventory";
 
 export type SslcommerzGatewayData = {
   type?: string;
@@ -110,6 +114,45 @@ export function createSslcommerzTransactionId(orderId: number) {
   return `O${orderId}_${time}_${nonce}`.slice(0, 30);
 }
 
+function paymentInitSecret() {
+  return process.env.NEXTAUTH_SECRET?.trim() || process.env.AUTH_SECRET?.trim() || null;
+}
+
+export function isPaymentInitSigningConfigured() {
+  return Boolean(paymentInitSecret());
+}
+
+export function createPaymentInitToken(orderId: number, ttlMs = 10 * 60 * 1000) {
+  const secret = paymentInitSecret();
+  if (!secret) return null;
+  const expiresAt = Date.now() + ttlMs;
+  const payload = `${orderId}.${expiresAt}`;
+  const signature = createHmac("sha256", secret).update(payload).digest("base64url");
+  return `${expiresAt}.${signature}`;
+}
+
+export function verifyPaymentInitToken(orderId: number, token: unknown) {
+  const secret = paymentInitSecret();
+  const raw = typeof token === "string" ? token.trim() : "";
+  if (!secret || !raw) return false;
+
+  const [expiresRaw, signature, ...extra] = raw.split(".");
+  const expiresAt = Number(expiresRaw);
+  if (extra.length > 0 || !signature || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    return false;
+  }
+
+  const expected = createHmac("sha256", secret)
+    .update(`${orderId}.${expiresAt}`)
+    .digest("base64url");
+  const actualBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  return (
+    actualBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(actualBuffer, expectedBuffer)
+  );
+}
+
 export async function readSslcommerzPayload(request: NextRequest) {
   const query = Object.fromEntries(request.nextUrl.searchParams.entries());
   const contentType = request.headers.get("content-type") || "";
@@ -142,11 +185,23 @@ export async function processSslcommerzCallback(
 
   const payment = await prisma.payment.findUnique({
     where: { externalId: tranId },
-    include: { order: true },
+    include: {
+      order: {
+        include: {
+          orderItems: {
+            select: {
+              quantity: true,
+              product: { select: { type: true } },
+            },
+          },
+        },
+      },
+    },
   });
   if (!payment || !payment.orderId || !payment.order) {
     return { ok: false, orderId: null, message: "Payment transaction was not found" };
   }
+  const order = payment.order;
 
   if (payment.status === "CAPTURED" && payment.order.paymentStatus === "PAID") {
     return { ok: true, orderId: payment.orderId, message: "Payment already verified" };
@@ -157,9 +212,27 @@ export async function processSslcommerzCallback(
   }
 
   if (kind === "fail" || kind === "cancel") {
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: { status: kind === "cancel" ? "VOIDED" : "FAILED" },
+    await prisma.$transaction(async (tx) => {
+      const changed = await tx.payment.updateMany({
+        where: {
+          id: payment.id,
+          status: { in: ["INITIATED", "AUTHORIZED"] },
+        },
+        data: { status: kind === "cancel" ? "VOIDED" : "FAILED" },
+      });
+      if (changed.count !== 1) return;
+
+      await releaseOrderInventoryReservations({ tx, orderId: payment.orderId! });
+      await tx.order.update({
+        where: { id: payment.orderId! },
+        data: { status: kind === "cancel" ? "CANCELLED" : "FAILED" },
+      });
+      if (order.couponId && Number(order.discount_total || 0) > 0) {
+        await tx.coupon.updateMany({
+          where: { id: order.couponId, usedCount: { gt: 0 } },
+          data: { usedCount: { decrement: 1 } },
+        });
+      }
     });
     return {
       ok: false,
@@ -222,6 +295,12 @@ export async function processSslcommerzCallback(
   const safeMeta = {
     type: "SSLCOMMERZ_TRANSACTION",
     gatewayId: found.gateway.id,
+    inventoryMode:
+      String(transactionMeta.inventoryMode || "").toUpperCase() === "LEGACY_DEDUCTED"
+        ? "LEGACY_DEDUCTED"
+        : String(transactionMeta.inventoryMode || "")
+          ? "RESERVATION"
+          : "LEGACY_DEDUCTED",
     valId,
     bankTransactionId: String(validation.bank_tran_id || "") || null,
     cardType: String(validation.card_type || "") || null,
@@ -242,19 +321,63 @@ export async function processSslcommerzCallback(
     };
   }
 
-  await prisma.$transaction([
-    prisma.payment.update({
-      where: { id: payment.id },
+  const expectedPhysicalQuantity = order.orderItems.reduce(
+    (sum, item) =>
+      item.product.type === "PHYSICAL" ? sum + Number(item.quantity) : sum,
+    0,
+  );
+  const usesLegacyDeduction = safeMeta.inventoryMode === "LEGACY_DEDUCTED";
+  const captureResult = await prisma.$transaction(async (tx) => {
+    const captured = await tx.payment.updateMany({
+      where: {
+        id: payment.id,
+        status: { in: ["INITIATED", "AUTHORIZED"] },
+      },
       data: { status: "CAPTURED", paymentGatewayData: safeMeta },
-    }),
-    prisma.order.update({
-      where: { id: payment.orderId },
+    });
+
+    if (captured.count !== 1) {
+      const current = await tx.payment.findUnique({
+        where: { id: payment.id },
+        select: { status: true },
+      });
+      return {
+        alreadyCaptured: current?.status === "CAPTURED",
+        capturedNow: false,
+      };
+    }
+
+    if (!usesLegacyDeduction) {
+      const committed = await commitOrderInventoryReservations({
+        tx,
+        orderId: payment.orderId!,
+        reason: `Order #${payment.orderId} SSLCommerz payment capture`,
+      });
+      if (committed.committedQuantity !== expectedPhysicalQuantity) {
+        throw new Error("Reserved inventory does not match the paid order");
+      }
+    }
+
+    await tx.order.update({
+      where: { id: payment.orderId! },
       data: {
         paymentStatus: "PAID",
         transactionId: String(validation.bank_tran_id || tranId),
       },
-    }),
-  ]);
+    });
+    return { alreadyCaptured: false, capturedNow: true };
+  });
+
+  if (captureResult.alreadyCaptured) {
+    return { ok: true, orderId: payment.orderId, message: "Payment already verified" };
+  }
+  if (!captureResult.capturedNow) {
+    return {
+      ok: false,
+      orderId: payment.orderId,
+      message: "This payment attempt is no longer eligible for capture",
+    };
+  }
 
   return { ok: true, orderId: payment.orderId, message: "Payment verified successfully" };
 }

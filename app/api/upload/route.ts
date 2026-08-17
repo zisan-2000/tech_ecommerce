@@ -2,33 +2,13 @@
 import { NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
+import { rateLimitRequest } from "@/lib/request-security";
+import { safeUploadFilename, validateUpload } from "@/lib/upload-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const uploadsRoot = path.join(process.cwd(), "public", "upload", "general");
-
-function guessContentType(ext: string) {
-  switch (ext) {
-    case ".jpg":
-    case ".jpeg":
-      return "image/jpeg";
-    case ".png":
-      return "image/png";
-    case ".webp":
-      return "image/webp";
-    case ".gif":
-      return "image/gif";
-    case ".avif":
-      return "image/avif";
-    case ".svg":
-      return "image/svg+xml";
-    case ".pdf":
-      return "application/pdf";
-    default:
-      return "application/octet-stream";
-  }
-}
 
 export async function GET() {
   try {
@@ -47,27 +27,43 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    // Ensure the upload directory exists
-    await fs.mkdir(uploadsRoot, { recursive: true });
+    const rateLimit = rateLimitRequest(request, {
+      scope: "general-upload",
+      limit: 12,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many uploads. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } },
+      );
+    }
 
     const formData = await request.formData();
-    const file = formData.get('file') as File | null;
+    const file = formData.get("file");
 
-    if (!file) {
+    if (!(file instanceof File)) {
       return NextResponse.json(
         { error: "No file uploaded" },
         { status: 400 }
       );
     }
 
-    // Generate a unique filename
-    const ext = path.extname(file.name).toLowerCase();
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}${ext}`;
-    const filePath = path.join(uploadsRoot, filename);
-
-    // Convert the file to a buffer and save it
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    const validation = validateUpload({
+      file,
+      bytes: buffer,
+      kind: "image-or-pdf",
+      maxBytes: 5 * 1024 * 1024,
+    });
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    await fs.mkdir(uploadsRoot, { recursive: true });
+    const filename = safeUploadFilename(file.name, validation.extension);
+    const filePath = path.join(uploadsRoot, filename);
     await fs.writeFile(filePath, buffer);
 
     // Return an API URL so files are served dynamically after build/deploy.

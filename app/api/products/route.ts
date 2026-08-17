@@ -19,6 +19,7 @@ import {
   privateJson,
   publicJson,
 } from "@/lib/public-cache";
+import { storefrontProductSelect } from "@/lib/storefront-product";
 
 const createVariantSku = (slug: string, index: number) =>
   `${slug.substring(0, 20)}-V${index + 1}-${Math.random()
@@ -95,26 +96,6 @@ const productInclude = {
   attributes: {
     include: {
       attribute: true,
-    },
-  },
-} as const;
-
-const storefrontProductInclude = {
-  category: true,
-  brand: true,
-  writer: true,
-  publisher: true,
-  variantOptions: {
-    orderBy: { position: "asc" },
-    include: { values: { orderBy: { position: "asc" } } },
-  },
-  variants: { orderBy: { id: "asc" } },
-  bundleItems: {
-    orderBy: { sortOrder: "asc" },
-    include: {
-      product: {
-        select: { id: true, name: true, image: true, available: true },
-      },
     },
   },
 } as const;
@@ -214,18 +195,23 @@ export async function GET(req: Request) {
       });
     }
 
-    const products = await prisma.product.findMany({
-      where: whereClause,
-      orderBy: { id: "desc" },
-      include: {
-        ...(storefront ? storefrontProductInclude : productInclude),
-        _count: {
+    const products: any[] = storefront
+      ? await prisma.product.findMany({
+          where: whereClause,
+          orderBy: { id: "desc" },
           select: {
-            reviews: true,
+            ...storefrontProductSelect,
+            _count: { select: { reviews: true } },
           },
-        },
-      },
-    });
+        })
+      : await prisma.product.findMany({
+          where: whereClause,
+          orderBy: { id: "desc" },
+          include: {
+            ...productInclude,
+            _count: { select: { reviews: true } },
+          },
+        });
     const colorImageMap = await getVariantColorImageMap(
       products.flatMap((product) =>
         Array.isArray(product.variants)

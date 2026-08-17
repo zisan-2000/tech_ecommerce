@@ -7,6 +7,15 @@ import { getAccessContext } from "@/lib/rbac";
 import { resolveSupplierPortalContext } from "@/lib/supplier-portal";
 import { resolveInvestorPortalContext } from "@/lib/investor-portal";
 import { prisma } from "@/lib/prisma";
+import { isDeliveryConfirmationStatus } from "@/lib/delivery-proof";
+import { rateLimitRequest } from "@/lib/request-security";
+import {
+  createUploadAccessToken,
+  safeUploadFilename,
+  type UploadKind,
+  validateUpload,
+  verifyUploadAccessToken,
+} from "@/lib/upload-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +26,71 @@ const SCM_GRN_PREFIX = "scm-grn";
 const SCM_MATERIAL_PREFIX = "scm-material";
 const INVESTOR_KYC_PREFIX = "investor-kyc";
 const INVESTOR_PAYOUT_PROOF_PREFIX = "investor-payout-proof";
+const PAYMENT_SCREENSHOT_PREFIX = "paymentScreenshot";
+const DELIVERY_PROOF_PREFIX = "delivery-proofs";
+const USER_PROFILE_PREFIX = "userProfilePic";
+
+const PRODUCT_IMAGE_PREFIXES = new Set([
+  "brands",
+  "writers",
+  "publishers",
+  "color-variant",
+  "products",
+]);
+const BLOG_IMAGE_PREFIXES = new Set(["blogImages", "blogAds"]);
+const SETTINGS_IMAGE_PREFIXES = new Set(["banners", "site"]);
+
+function validPathSegments(segments: string[]) {
+  return (
+    segments.length > 0 &&
+    segments.every(
+      (segment) =>
+        Boolean(segment) &&
+        segment !== "." &&
+        segment !== ".." &&
+        /^[a-zA-Z0-9_.-]+$/.test(segment),
+    )
+  );
+}
+
+function resolveUploadPath(relPath: string) {
+  const target = path.resolve(rootUploadDir, relPath);
+  if (target !== rootUploadDir && !target.startsWith(`${rootUploadDir}${path.sep}`)) {
+    return null;
+  }
+  return target;
+}
+
+function uploadKindForPrefix(prefix: string): UploadKind {
+  if (prefix === "digital-assets") return "digital-asset";
+  if (
+    prefix === SCM_PROPOSAL_PREFIX ||
+    prefix === SCM_GRN_PREFIX ||
+    prefix === SCM_MATERIAL_PREFIX
+  ) {
+    return "document";
+  }
+  if (
+    prefix === PAYMENT_SCREENSHOT_PREFIX ||
+    prefix === DELIVERY_PROOF_PREFIX ||
+    prefix === USER_PROFILE_PREFIX ||
+    PRODUCT_IMAGE_PREFIXES.has(prefix) ||
+    BLOG_IMAGE_PREFIXES.has(prefix) ||
+    SETTINGS_IMAGE_PREFIXES.has(prefix)
+  ) {
+    return "image";
+  }
+  return "image-or-pdf";
+}
+
+async function validDeliveryProofToken(token: string) {
+  if (!token || token.length > 200) return false;
+  const shipment = await prisma.shipment.findUnique({
+    where: { deliveryConfirmationToken: token },
+    select: { status: true },
+  });
+  return Boolean(shipment && isDeliveryConfirmationStatus(shipment.status));
+}
 
 function guessContentType(ext: string) {
   switch (ext) {
@@ -366,7 +440,11 @@ export async function POST(
   try {
     // Get params (must be awaited in Next 15 dynamic routes)
     const { slug } = await params;
+    if (!validPathSegments(slug)) {
+      return NextResponse.json({ error: "Invalid upload path" }, { status: 400 });
+    }
     const relPath = slug.join("/");
+    const prefix = slug[0];
     const requiresScmProposalScope = isScmProposalPath(relPath);
     const requiresScmGrnScope = isScmGrnPath(relPath);
     const requiresScmMaterialScope = isScmMaterialPath(relPath);
@@ -407,29 +485,115 @@ export async function POST(
       }
     }
 
-    const form = await req.formData();
-    const file = form.get("file") as File;
+    let standardSessionUser:
+      | { id?: string; role?: string }
+      | null
+      | undefined;
+    const customProtectedScope =
+      requiresScmProposalScope ||
+      requiresScmGrnScope ||
+      requiresScmMaterialScope ||
+      requiresInvestorKycScope ||
+      requiresInvestorPayoutProofScope;
+    const allowsGuestUpload =
+      prefix === PAYMENT_SCREENSHOT_PREFIX || prefix === DELIVERY_PROOF_PREFIX;
 
-    if (!file) {
+    if (!customProtectedScope && !allowsGuestUpload) {
+      const session = await getServerSession(authOptions);
+      standardSessionUser = session?.user as
+        | { id?: string; role?: string }
+        | undefined;
+      const access = await getAccessContext(standardSessionUser);
+      if (!access.userId) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      const canUpload =
+        prefix === USER_PROFILE_PREFIX ||
+        access.has("gallery.manage") ||
+        (PRODUCT_IMAGE_PREFIXES.has(prefix) && access.has("products.manage")) ||
+        (prefix === "digital-assets" && access.has("products.manage")) ||
+        (BLOG_IMAGE_PREFIXES.has(prefix) && access.has("blogs.manage")) ||
+        (SETTINGS_IMAGE_PREFIXES.has(prefix) &&
+          access.hasAny(["settings.manage", "settings.banner.manage"]));
+      if (!canUpload) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
+
+    const rateLimit = rateLimitRequest(req, {
+      scope: `scoped-upload:${prefix}`,
+      limit: 20,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many uploads. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } },
+      );
+    }
+
+    const form = await req.formData();
+    const file = form.get("file");
+
+    if (!(file instanceof File)) {
       return NextResponse.json({ message: "No file provided" }, { status: 400 });
+    }
+
+    if (prefix === DELIVERY_PROOF_PREFIX && !standardSessionUser?.id) {
+      const token = String(form.get("confirmationToken") || "").trim();
+      if (!(await validDeliveryProofToken(token))) {
+        return NextResponse.json({ error: "Invalid delivery confirmation token" }, { status: 403 });
+      }
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    const kind = uploadKindForPrefix(prefix);
+    const validation = validateUpload({
+      file,
+      bytes: buffer,
+      kind,
+      maxBytes: kind === "digital-asset" ? 50 * 1024 * 1024 : 10 * 1024 * 1024,
+    });
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
 
-    const targetDir = path.join(rootUploadDir, relPath);
+    const targetDir = resolveUploadPath(relPath);
+    if (!targetDir) {
+      return NextResponse.json({ error: "Invalid upload path" }, { status: 400 });
+    }
     await fs.mkdir(targetDir, { recursive: true });
 
-    const filename = `${Date.now()}-${file.name.replace(/[^\w.-]/g, '')}`;
+    const filename = safeUploadFilename(file.name, validation.extension);
     const filepath = path.join(targetDir, filename);
 
     await fs.writeFile(filepath, buffer);
+
+    const storedRelPath = `${relPath}/${filename}`;
+    const paymentAccessToken =
+      prefix === PAYMENT_SCREENSHOT_PREFIX
+        ? createUploadAccessToken(storedRelPath)
+        : null;
+    if (prefix === PAYMENT_SCREENSHOT_PREFIX && !paymentAccessToken) {
+      await fs.unlink(filepath).catch(() => undefined);
+      return NextResponse.json(
+        { error: "Secure upload signing is not configured" },
+        { status: 503 },
+      );
+    }
 
     // Return API URL so that Next.js always goes through our GET handler,
     // which serves the real file bytes with the correct Content-Type.
     return NextResponse.json({ 
       success: true,
-      url: `/api/upload/${relPath}/${filename}` 
+      url:
+        prefix === DELIVERY_PROOF_PREFIX
+          ? `/api/upload/${relPath}/${filename}?token=${encodeURIComponent(String(form.get("confirmationToken") || ""))}`
+          : prefix === PAYMENT_SCREENSHOT_PREFIX
+            ? `/api/upload/${relPath}/${filename}?access=${encodeURIComponent(paymentAccessToken!)}`
+          : `/api/upload/${relPath}/${filename}`,
     });
   } catch (error) {
     console.error('Upload error:', error);
@@ -446,11 +610,14 @@ export async function POST(
 
 /* ---------------- GET (SERVE FILE) ---------------- */
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ slug: string[] }> }
 ) {
   try {
     const { slug } = await params;
+    if (!validPathSegments(slug)) {
+      return NextResponse.json({ error: "Bad path" }, { status: 400 });
+    }
     const relPath = slug.join("/");
     
     if (relPath.includes("..")) {
@@ -467,6 +634,28 @@ export async function GET(
       requiresScmMaterialScope ||
       requiresInvestorKycScope ||
       requiresInvestorPayoutProofScope;
+
+    if (slug[0] === DELIVERY_PROOF_PREFIX) {
+      const session = await getServerSession(authOptions);
+      const sessionUser = session?.user as { id?: string; role?: string } | undefined;
+      if (!sessionUser?.id) {
+        const token = new URL(req.url).searchParams.get("token") || "";
+        if (!(await validDeliveryProofToken(token))) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
+    }
+
+    if (slug[0] === PAYMENT_SCREENSHOT_PREFIX) {
+      const session = await getServerSession(authOptions);
+      const sessionUser = session?.user as { id?: string; role?: string } | undefined;
+      const access = await getAccessContext(sessionUser);
+      const canReadAllOrders = access.hasAny(["orders.read_all", "orders.update"]);
+      const token = new URL(req.url).searchParams.get("access") || "";
+      if (!canReadAllOrders && !verifyUploadAccessToken(relPath, token)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     if (requiresProtectedScope) {
       const session = await getServerSession(authOptions);
@@ -496,16 +685,24 @@ export async function GET(
       }
     }
 
-    const filePath = path.join(rootUploadDir, relPath);
+    const filePath = resolveUploadPath(relPath);
+    if (!filePath) {
+      return NextResponse.json({ error: "Bad path" }, { status: 400 });
+    }
     const data = await fs.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
 
     return new NextResponse(new Uint8Array(data), {
       headers: {
         "Content-Type": guessContentType(ext),
-        "Cache-Control": requiresProtectedScope
+        "Cache-Control":
+          requiresProtectedScope ||
+          slug[0] === DELIVERY_PROOF_PREFIX ||
+          slug[0] === PAYMENT_SCREENSHOT_PREFIX
           ? "private, no-store"
           : "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
       },
     });
   } catch (error) {

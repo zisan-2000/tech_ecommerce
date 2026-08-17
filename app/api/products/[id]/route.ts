@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { Prisma, type ProductType } from "@/generated/prisma";
 import slugify from "slugify";
 import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
+import { storefrontProductSelect } from "@/lib/storefront-product";
 
 const productInclude = {
   category: true,
@@ -155,14 +156,20 @@ export async function GET(
       );
     }
 
-    const product = await prisma.product.findFirst({
-      where: {
-        id,
-        deleted: false,
-        ...(storefront ? { available: true } : {}),
-      },
-      include: productInclude,
-    });
+    const where = {
+      id,
+      deleted: false,
+      ...(storefront ? { available: true } : {}),
+    };
+    const product: any = storefront
+      ? await prisma.product.findFirst({
+          where,
+          select: storefrontProductSelect,
+        })
+      : await prisma.product.findFirst({
+          where,
+          include: productInclude,
+        });
 
     if (!product) {
       return NextResponse.json(

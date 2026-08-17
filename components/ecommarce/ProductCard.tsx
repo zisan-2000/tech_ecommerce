@@ -80,7 +80,6 @@ const COLOR_NAME_TO_HEX: Record<string, string> = {
   maroon: "#7f1d1d",
   burgundy: "#6d1f2f",
   blue: "#2563eb",
-  green: "#1e3a8a",
   sky: "#38bdf8",
   green: "#16a34a",
   olive: "#6b8e23",

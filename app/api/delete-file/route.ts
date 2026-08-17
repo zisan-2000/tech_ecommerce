@@ -1,31 +1,60 @@
 import { NextResponse } from 'next/server';
 import { unlink } from 'fs/promises';
-import { join } from 'path';
+import path from 'path';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { getAccessContext } from '@/lib/rbac';
+
+const DELETE_FILE_PERMISSIONS = [
+  'products.manage',
+  'blogs.manage',
+  'gallery.manage',
+  'settings.manage',
+  'suppliers.manage',
+  'purchase_requisitions.manage',
+  'material_requests.manage',
+  'goods_receipts.manage',
+  'delivery-men.manage',
+  'logistics.manage',
+] as const;
 
 export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const filePath = searchParams.get('path');
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!access.hasAny([...DELETE_FILE_PERMISSIONS])) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-    if (!filePath) {
+    const { searchParams } = new URL(request.url);
+    const requestedPath = searchParams.get('path')?.replace(/\\/g, '/');
+
+    if (!requestedPath) {
       return NextResponse.json(
         { error: 'File path is required' },
         { status: 400 }
       );
     }
 
-    // Security: Prevent directory traversal
-    if (filePath.includes('..')) {
+    const normalizedPath = requestedPath.replace(/^\/+/, '');
+    if (!normalizedPath.startsWith('upload/') || normalizedPath.includes('..')) {
       return NextResponse.json(
         { error: 'Invalid file path' },
         { status: 400 }
       );
     }
 
-    // Construct full path
-    const fullPath = join(process.cwd(), 'public', filePath);
-    
-    // Delete the file
+    const uploadRoot = path.resolve(process.cwd(), 'public', 'upload');
+    const fullPath = path.resolve(process.cwd(), 'public', normalizedPath);
+    if (!fullPath.startsWith(`${uploadRoot}${path.sep}`)) {
+      return NextResponse.json({ error: 'Invalid file path' }, { status: 400 });
+    }
+
     await unlink(fullPath);
     
     return NextResponse.json({ 
@@ -47,7 +76,6 @@ export async function DELETE(request: Request) {
       { 
         success: false,
         error: 'Failed to delete file',
-        details: error instanceof Error ? error.message : 'Unknown error' 
       },
       { status: 500 }
     );

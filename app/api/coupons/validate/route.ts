@@ -1,55 +1,40 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { CouponValidationError, validateCouponForSubtotal } from "@/lib/coupons";
+import { rateLimitRequest } from "@/lib/request-security";
 
 export async function POST(req: Request) {
   try {
+    const rateLimit = rateLimitRequest(req, {
+      scope: "coupon-validation",
+      limit: 30,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many coupon attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } },
+      );
+    }
+
     const { code, subtotal } = await req.json();
 
-    if (!code) {
+    if (typeof code !== "string" || !code.trim()) {
       return NextResponse.json({ error: "Coupon code is required" }, { status: 400 });
     }
+    const subtotalNumber = Number(subtotal);
+    if (!Number.isFinite(subtotalNumber) || subtotalNumber < 0) {
+      return NextResponse.json({ error: "Invalid subtotal" }, { status: 400 });
+    }
 
-    const coupon = await prisma.coupon.findUnique({
-      where: { code: code.toUpperCase() }
+    const result = await validateCouponForSubtotal(prisma, {
+      code,
+      subtotal: subtotalNumber,
     });
-
-    if (!coupon) {
-      return NextResponse.json({ error: "Invalid coupon code" }, { status: 404 });
+    if (!result) {
+      return NextResponse.json({ error: "Coupon code is required" }, { status: 400 });
     }
-
-    // Check if coupon is valid
-        if (!coupon.isValid) {
-        return NextResponse.json({ error: "Coupon is inactive" }, { status: 400 });
-    }
-
-    // Check if coupon is expired
-    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
-      return NextResponse.json({ error: "Coupon has expired" }, { status: 400 });
-    }
-
-    // Check usage limit
-    if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
-      return NextResponse.json({ error: "Coupon usage limit exceeded" }, { status: 400 });
-    }
-
-    // Check minimum order value
-    if (coupon.minOrderValue && subtotal < Number(coupon.minOrderValue)) {
-      return NextResponse.json({ 
-        error: `Minimum order value of ৳${coupon.minOrderValue} required` 
-      }, { status: 400 });
-    }
-
-    // Calculate discount
-    let discountAmount = 0;
-    if (coupon.discountType === "percentage") {
-      discountAmount = (subtotal * Number(coupon.discountValue)) / 100;
-      // Apply max discount limit if set
-      if (coupon.maxDiscount && discountAmount > Number(coupon.maxDiscount)) {
-        discountAmount = Number(coupon.maxDiscount);
-      }
-    } else {
-      discountAmount = Number(coupon.discountValue);
-    }
+    const { coupon, discountAmount } = result;
 
     // Return coupon validation without incrementing usage count
     // Usage count will be incremented when order is placed
@@ -65,6 +50,9 @@ export async function POST(req: Request) {
     });
 
   } catch (error) {
+    if (error instanceof CouponValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error("Coupon validation error:", error);
     return NextResponse.json({ 
       error: "Failed to validate coupon", 

@@ -1872,7 +1872,7 @@ function findMatchedRule(
   return null;
 }
 
-export default async function authMiddleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method.toUpperCase();
   const isAuthRoute = ["/signin", "/sign-up"].includes(pathname);

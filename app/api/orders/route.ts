@@ -2,14 +2,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { deductVariantInventory } from "@/lib/inventory";
+import { deductVariantInventory, reserveVariantInventory } from "@/lib/inventory";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { calculateShippingQuote } from "@/lib/shipping";
 import { calculateTaxForItems } from "@/lib/tax";
+import {
+  claimCouponUsage,
+  CouponValidationError,
+  validateCouponForSubtotal,
+} from "@/lib/coupons";
 import { resolveWarehouseScope } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
-import { findSslcommerzGateway, gatewayIdFromMethod } from "@/lib/sslcommerz";
+import {
+  createPaymentInitToken,
+  findSslcommerzGateway,
+  gatewayIdFromMethod,
+  isPaymentInitSigningConfigured,
+} from "@/lib/sslcommerz";
+import { rateLimitRequest } from "@/lib/request-security";
+import {
+  orderProductSelect,
+  orderUserSelect,
+  orderVariantSelect,
+  redactCustomerOrder,
+} from "@/lib/order-public";
 
 // GET /api/orders
 // - admin: all orders (with pagination & optional status filter)
@@ -114,25 +131,18 @@ export async function GET(request: NextRequest) {
         include: {
           orderItems: {
             include: {
-              product: true,
-              variant: {
-                select: {
-                  id: true,
-                  sku: true,
-                  colorImage: true,
-                  options: true,
-                },
-              },
+              product: { select: orderProductSelect },
+              variant: { select: orderVariantSelect },
             },
           },
-          user: true,
+          user: { select: orderUserSelect },
         },
       }),
       prisma.order.count({ where }),
     ]);
 
     return NextResponse.json({
-      orders,
+      orders: canReadAll ? orders : orders.map(redactCustomerOrder),
       pagination: {
         page,
         limit,
@@ -161,6 +171,18 @@ export async function GET(request: NextRequest) {
 // }
 export async function POST(request: NextRequest) {
   try {
+    const rateLimit = rateLimitRequest(request, {
+      scope: "order-create",
+      limit: 12,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many checkout attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } },
+      );
+    }
+
     const session = await getServerSession(authOptions);
     const userId = (session?.user as any)?.id as string | undefined;
 
@@ -179,14 +201,15 @@ export async function POST(request: NextRequest) {
       items,
       transactionId, // body থেকে নিচ্ছি
       image,         // 🔥 payment screenshot URL (e.g. /upload/xxx.png)
-      couponId,      // 🔥 coupon ID if applied
-      discountAmount, // 🔥 discount amount
+      couponId,
+      couponCode,
     } = body;
 
     const paymentMethod = String(payment_method || "");
     const isCOD = paymentMethod === "CashOnDelivery";
     const isSSLCOMMERZ = /^SSLCOMMERZ:\d+$/i.test(paymentMethod);
     const isManualPayment = !isCOD && !isSSLCOMMERZ;
+    const manualGatewayMatch = paymentMethod.match(/^MANUAL:.{1,80}:(\d+)$/i);
 
     if (
       !name ||
@@ -219,12 +242,51 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
+      if (!userId && !isPaymentInitSigningConfigured()) {
+        return NextResponse.json(
+          { error: "Guest payment signing is not configured" },
+          { status: 503 },
+        );
+      }
+    }
+
+    if (isManualPayment) {
+      const manualGatewayId = Number(manualGatewayMatch?.[1] || 0);
+      const manualGateway = manualGatewayId
+        ? await prisma.payment.findFirst({
+            where: { id: manualGatewayId, orderId: null },
+            select: { paymentGatewayData: true },
+          })
+        : null;
+      const gatewayData =
+        manualGateway?.paymentGatewayData &&
+        typeof manualGateway.paymentGatewayData === "object" &&
+        !Array.isArray(manualGateway.paymentGatewayData)
+          ? (manualGateway.paymentGatewayData as Record<string, unknown>)
+          : null;
+      if (
+        !gatewayData ||
+        String(gatewayData.type || "").toUpperCase() !== "MANUAL" ||
+        gatewayData.isActive === false
+      ) {
+        return NextResponse.json(
+          { error: "Selected manual payment method is unavailable" },
+          { status: 400 },
+        );
+      }
     }
 
     // Only MANUAL payment requires screenshot proof
-    if (isManualPayment && !image) {
+    if (
+      isManualPayment &&
+      (typeof image !== "string" ||
+        !image.startsWith("/api/upload/paymentScreenshot/") ||
+        typeof transactionId !== "string" ||
+        !transactionId.trim() ||
+        transactionId.trim().length > 128)
+    ) {
       return NextResponse.json(
-        { error: "Payment screenshot is required for online payments" },
+        { error: "A valid payment screenshot and transaction ID are required" },
         { status: 400 }
       );
     }
@@ -359,14 +421,19 @@ export async function POST(request: NextRequest) {
     const shipping_cost = shippingQuote.shippingCost;
     const vat_total = taxQuote.totalVAT;
     const tax_charge_total = taxQuote.totalTaxCharge;
-    const discount_total = Number(discountAmount || 0);
-    const grand_total = subtotal + shipping_cost + tax_charge_total - discount_total;
-
-    // payment_method থেকে paymentStatus ঠিক করা
-    const paymentStatus = (isCOD || isSSLCOMMERZ) ? "UNPAID" : "PAID";
-
     // Use a transaction for order + orderItems consistency
     const created = await prisma.$transaction(async (tx: any) => {
+      const couponResult = await validateCouponForSubtotal(tx, {
+        couponId,
+        code: couponCode,
+        subtotal,
+      });
+      const discount_total = couponResult?.discountAmount ?? 0;
+      const grand_total = Math.max(
+        0,
+        Math.round((subtotal + shipping_cost + tax_charge_total - discount_total) * 100) / 100,
+      );
+
       // Create the order (orderItems will reference productId values)
       const o = await tx.order.create({
         data: {
@@ -387,10 +454,10 @@ export async function POST(request: NextRequest) {
           Vat_total: vat_total,
           taxSnapshot: taxQuote,
           status: "PENDING",
-          paymentStatus,
+          paymentStatus: "UNPAID",
           transactionId: transactionId ?? null,
           image: isManualPayment ? (image ?? null) : null,
-          couponId: couponId ?? null,
+          couponId: couponResult?.coupon.id ?? null,
           orderItems: {
             create: orderItemsData.map((item, index) => ({
               productId: item.productId,
@@ -407,30 +474,44 @@ export async function POST(request: NextRequest) {
           },
         },
         include: {
-          orderItems: { include: { product: true, variant: true } },
-          user: userId ? true : false,
-          coupon: couponId ? true : false,
+          orderItems: {
+            include: {
+              product: { select: orderProductSelect },
+              variant: { select: orderVariantSelect },
+            },
+          },
+          user: userId ? { select: orderUserSelect } : false,
+          coupon: Boolean(couponResult),
         },
       });
 
       for (const item of orderItemsData) {
         if (item.product.type === "PHYSICAL") {
-          await deductVariantInventory({
-            tx,
-            productId: item.product.id,
-            productVariantId: item.variant.id,
-            quantity: item.quantity,
-            reason: `Order #${o.id} checkout deduction`,
-          });
+          if (isSSLCOMMERZ) {
+            await reserveVariantInventory({
+              tx,
+              productId: item.product.id,
+              productVariantId: item.variant.id,
+              orderId: o.id,
+              userId: userId ?? null,
+              quantity: item.quantity,
+              reason: `Order #${o.id} SSLCommerz reservation`,
+              expiresAt: new Date(Date.now() + 45 * 60 * 1000),
+            });
+          } else {
+            await deductVariantInventory({
+              tx,
+              productId: item.product.id,
+              productVariantId: item.variant.id,
+              quantity: item.quantity,
+              reason: `Order #${o.id} checkout deduction`,
+            });
+          }
         }
       }
 
-      // Increment coupon usage count if coupon was applied
-      if (couponId && discount_total > 0) {
-        await tx.coupon.update({
-          where: { id: couponId },
-          data: { usedCount: { increment: 1 } },
-        });
+      if (couponResult && discount_total > 0) {
+        await claimCouponUsage(tx, couponResult.coupon);
       }
 
       return o;
@@ -464,9 +545,22 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(created, { status: 201 });
+    const customerOrder = redactCustomerOrder(created);
+    return NextResponse.json(
+      isSSLCOMMERZ
+        ? {
+            ...customerOrder,
+            paymentInitToken: createPaymentInitToken(created.id),
+          }
+        : customerOrder,
+      { status: 201 },
+    );
   } catch (error: any) {
     console.error("Error creating order:", error);
+
+    if (error instanceof CouponValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
     if (
       typeof error?.message === "string" &&
@@ -476,7 +570,9 @@ export async function POST(request: NextRequest) {
         error.message.startsWith("Variant") ||
         error.message.startsWith("Variant inactive") ||
         error.message.startsWith("Stock changed") ||
-        error.message.startsWith("Unable to allocate"))
+        error.message.startsWith("Unable to allocate") ||
+        error.message.startsWith("Unable to reserve") ||
+        error.message.startsWith("Reservation"))
     ) {
       return NextResponse.json(
         { error: error.message },

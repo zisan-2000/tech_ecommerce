@@ -390,8 +390,7 @@ export default function Home() {
       <div className="min-h-screen flex flex-col">
         <DataProvider>
           {(data) => {
-            // Memoize header props to prevent unnecessary re-renders
-            const headerProps = useMemo(() => ({
+            const headerProps = {
               siteSettingsData: data.siteSettings,
               productsData: data.rawProducts.map((p: any) => ({
                 id: p.id,
@@ -408,13 +407,12 @@ export default function Home() {
                     ? null
                     : Number(c.parentId),
               })),
-            }), [data.siteSettings, data.rawProducts, data.rawCategories]);
+            };
 
-            // Memoize category books components
-            const categoryBooksComponents = useMemo(() => {
-              if (data.loading || data.error) return null;
-              
-              return data.categories.map((category: any) => (
+            const categoryBooksComponents =
+              data.loading || data.error
+                ? null
+                : data.categories.map((category: any) => (
                 <CategoryBooks
                   key={category.id}
                   category={category}
@@ -422,14 +420,12 @@ export default function Home() {
                   ratings={data.ratings}
                   isAuthenticated={isAuthenticated}
                 />
-              ));
-            }, [data.categories, data.allProducts, data.ratings, isAuthenticated, data.loading, data.error]);
+                  ));
 
-            // Memoize footer props
-            const footerProps = useMemo(() => ({
+            const footerProps = {
               siteSettingsData: data.siteSettings,
               categoriesData: data.rawCategories,
-            }), [data.siteSettings, data.rawCategories]);
+            };
 
             return (
               <>

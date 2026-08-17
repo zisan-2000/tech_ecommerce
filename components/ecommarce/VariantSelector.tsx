@@ -55,7 +55,7 @@ function normalizeOptions(
       )
       .map(([optionKey, optionValue]) => [
         normalizeKey(optionKey),
-        optionValue.trim(),
+        String(optionValue).trim(),
       ]),
   );
 }

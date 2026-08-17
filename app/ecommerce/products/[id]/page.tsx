@@ -39,16 +39,26 @@ function toNumber(v: number | string | null | undefined) {
   const p = typeof v === "number" ? v : Number(v);
   return Number.isFinite(p) ? p : 0;
 }
-function sanitizeHtml(html: string | null | undefined): string {
-  if (!html) return "";
-  return html
-    .replace(/<img[^>]+alt="([^"]+)"[^>]*>/g, "$1")
-    .replace(/<span[^>]*class="html-span[^"]*"[^>]*>(.*?)<\/span>/g, "$1")
-    .replace(/class="[^"]*xexx8yu[^"]*"/g, "")
-    .replace(/<img[^>]+src="https:\/\/static\.xx\.fbcdn\.net[^>]*>/g, "")
-    .replace(/<script[^>]*>.*?<\/script>/gis, "")
-    .replace(/<style[^>]*>.*?<\/style>/gis, "")
-    .replace(/on\w+="[^"]*"/g, "");
+function SafeHtml({ html, className }: { html: string; className?: string }) {
+  const [safeHtml, setSafeHtml] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void import("dompurify").then(({ default: DOMPurify }) => {
+      if (!active) return;
+      setSafeHtml(
+        DOMPurify.sanitize(html, {
+          FORBID_TAGS: ["script", "style", "svg", "math", "template", "iframe", "object", "embed"],
+          FORBID_ATTR: ["style", "srcdoc"],
+        }),
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [html]);
+
+  return <div className={className} dangerouslySetInnerHTML={{ __html: safeHtml }} />;
 }
 function saveText(price: number, orig: number | null | undefined) {
   if (!orig || orig <= price) return null;
@@ -960,11 +970,9 @@ function ProductDetailsContent({ routeProductId }: { routeProductId: string }) {
 
             {/* Short description */}
             {product.shortDesc && (
-              <div
+              <SafeHtml
+                html={product.shortDesc}
                 className="text-[14px] leading-7 text-muted-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-1 [&_p]:mb-2 [&_strong]:font-semibold [&_strong]:text-foreground"
-                dangerouslySetInnerHTML={{
-                  __html: sanitizeHtml(product.shortDesc),
-                }}
               />
             )}
 
@@ -1164,11 +1172,7 @@ function ProductDetailsContent({ routeProductId }: { routeProductId: string }) {
                   )}
                 <div className="prose prose-sm max-w-none dark:prose-invert [&_table]:w-full [&_table]:border-collapse [&_table]:overflow-x-auto [&_table]:block [&_th]:border [&_th]:border-border [&_th]:bg-muted/40 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_td]:align-top [&_img]:max-w-full [&_img]:h-auto [&_p]:mb-3">
                   {product.description ? (
-                    <div
-                      dangerouslySetInnerHTML={{
-                        __html: sanitizeHtml(product.description),
-                      }}
-                    />
+                    <SafeHtml html={product.description} />
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       No description available.

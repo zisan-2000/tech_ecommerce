@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { rateLimitRequest } from "@/lib/request-security";
 import {
   callbackUrls,
   createSslcommerzTransactionId,
@@ -7,6 +10,7 @@ import {
   gatewayIdFromMethod,
   isSslcommerzMethod,
   sslcommerzEndpoint,
+  verifyPaymentInitToken,
 } from "@/lib/sslcommerz";
 
 export const runtime = "nodejs";
@@ -14,10 +18,23 @@ export const runtime = "nodejs";
 type SslcommerzInitBody = {
   orderId: number;
   gatewayId?: number;
+  paymentInitToken?: string | null;
 };
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimit = rateLimitRequest(request, {
+      scope: "sslcommerz-init",
+      limit: 10,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many payment attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } },
+      );
+    }
+
     const body = (await request.json().catch(() => null)) as SslcommerzInitBody | null;
     const orderId = Number(body?.orderId);
 
@@ -27,13 +44,35 @@ export async function POST(request: NextRequest) {
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
+      include: {
+        _count: { select: { inventoryReservations: true } },
+        orderItems: {
+          select: { product: { select: { type: true } } },
+        },
+      },
     });
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (!isSslcommerzMethod(order.payment_method) || order.paymentStatus === "PAID") {
+    const session = await getServerSession(authOptions);
+    const sessionUserId = (session?.user as { id?: string } | undefined)?.id;
+    const ownsAuthenticatedOrder = Boolean(
+      order.userId && sessionUserId && order.userId === sessionUserId,
+    );
+    const hasGuestToken = Boolean(
+      !order.userId && verifyPaymentInitToken(order.id, body?.paymentInitToken),
+    );
+    if (!ownsAuthenticatedOrder && !hasGuestToken) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (
+      !isSslcommerzMethod(order.payment_method) ||
+      order.paymentStatus === "PAID" ||
+      ["FAILED", "CANCELLED", "RETURNED"].includes(order.status)
+    ) {
       return NextResponse.json({ error: "Order is not eligible for SSLCommerz payment" }, { status: 409 });
     }
 
@@ -101,6 +140,13 @@ export async function POST(request: NextRequest) {
 
     const tranId = createSslcommerzTransactionId(order.id);
     const urls = callbackUrls(request, data);
+    const hasPhysicalItems = order.orderItems.some(
+      (item) => item.product.type === "PHYSICAL",
+    );
+    const inventoryMode =
+      !hasPhysicalItems || order._count.inventoryReservations > 0
+        ? "RESERVATION"
+        : "LEGACY_DEDUCTED";
 
     const payment = await prisma.payment.create({
       data: {
@@ -114,6 +160,7 @@ export async function POST(request: NextRequest) {
           type: "SSLCOMMERZ_TRANSACTION",
           gatewayId: gateway!.id,
           sandbox,
+          inventoryMode,
           initiatedAt: new Date().toISOString(),
         },
       },
@@ -184,6 +231,7 @@ export async function POST(request: NextRequest) {
           type: "SSLCOMMERZ_TRANSACTION",
           gatewayId: gateway!.id,
           sandbox,
+          inventoryMode,
           initiatedAt: new Date().toISOString(),
           redirectUrl: gatewayPageUrl,
           sessionKey: String(payload.sessionkey || "") || null,
