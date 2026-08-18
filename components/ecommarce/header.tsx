@@ -57,6 +57,9 @@ import {
   X,
   Menu,
   MapPin,
+  BadgePercent,
+  Wrench,
+  MonitorCog,
 } from "lucide-react";
 
 const CATEGORIES_API = "/api/categories?view=storefront";
@@ -92,6 +95,25 @@ interface CategoryDTO {
 interface CategoryNode extends CategoryDTO {
   children: CategoryNode[];
 }
+
+const DESKTOP_CATEGORY_ORDER = [
+  "laptop",
+  "desktop-pc",
+  "components",
+  "accessories",
+  "monitor",
+  "networking",
+  "office-equipment",
+  "smart-gadget",
+  "cameras",
+  "television",
+  "power",
+  "security",
+  "gaming",
+  "home-appliance",
+  "software",
+  "servers",
+] as const;
 
 function normalizeCategoryList(list: CategoryDTO[]): CategoryDTO[] {
   return Array.isArray(list)
@@ -172,6 +194,16 @@ function buildCategoryTree(list: CategoryDTO[]): CategoryNode[] {
   };
 
   sortRec(roots);
+
+  roots.sort((a, b) => {
+    const aRank = DESKTOP_CATEGORY_ORDER.indexOf(
+      a.slug as (typeof DESKTOP_CATEGORY_ORDER)[number],
+    );
+    const bRank = DESKTOP_CATEGORY_ORDER.indexOf(
+      b.slug as (typeof DESKTOP_CATEGORY_ORDER)[number],
+    );
+    return (aRank < 0 ? 999 : aRank) - (bRank < 0 ? 999 : bRank);
+  });
 
   return roots;
 }
@@ -546,17 +578,11 @@ export default function Header({
 
   const [navHoverCatId, setNavHoverCatId] = useState<number | null>(null);
 
-  const [navHoverSubId, setNavHoverSubId] = useState<number | null>(null);
-
   const [navMenuPos, setNavMenuPos] = useState<{ left: number; top: number }>({
     left: 0,
 
     top: 0,
   });
-
-  const [navChildMenuSide, setNavChildMenuSide] = useState<"left" | "right">(
-    "right",
-  );
 
   const catWrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -847,13 +873,12 @@ export default function Header({
 
   const getDesktopNavMenuPosition = (rect: DOMRect) => {
     if (typeof window === "undefined") {
-      return { left: rect.left, childMenuSide: "right" as const };
+      return rect.left;
     }
 
     const viewportPadding = 12;
-    const menuWidth = 240;
-    const childMenuWidth = 240;
-    const moveLeftOffset = 200;
+    const menuWidth = Math.min(960, window.innerWidth - viewportPadding * 2);
+    const moveLeftOffset = Math.min(180, menuWidth / 4);
 
     const maxLeft = Math.max(
       viewportPadding,
@@ -864,30 +889,18 @@ export default function Header({
 
     const left = Math.min(Math.max(desiredLeft, viewportPadding), maxLeft);
 
-    const spaceLeft = left - viewportPadding;
-    const spaceRight = window.innerWidth - (left + menuWidth) - viewportPadding;
-
-    const childMenuSide =
-      spaceRight < childMenuWidth && spaceLeft >= childMenuWidth
-        ? ("left" as const)
-        : ("right" as const);
-
-    return { left, childMenuSide };
+    return left;
   };
   const headerIconClass =
-    "relative flex h-10 w-10 items-center justify-center rounded-full text-primary-foreground transition hover:bg-white/10 hover:text-primary-foreground md:h-auto md:w-auto md:flex-col md:gap-0.5 md:rounded-none md:text-xs md:font-medium md:text-foreground md:hover:bg-transparent md:hover:text-primary";
+    "relative flex h-10 w-10 items-center justify-center rounded-full text-primary-foreground transition hover:bg-white/10 hover:text-primary-foreground md:h-11 md:w-11 md:rounded-lg md:bg-slate-700/80 md:text-white md:hover:bg-slate-600 md:hover:text-white";
+  const desktopActionClass =
+    "hidden h-11 items-center gap-2 rounded-lg bg-slate-700/80 px-3 text-sm font-bold text-white transition hover:bg-slate-600 hover:text-white lg:flex";
 
   const hoveredNavCat = useMemo(() => {
     if (navHoverCatId === null) return null;
 
     return categoryTree.find((c) => c.id === navHoverCatId) ?? null;
   }, [categoryTree, navHoverCatId]);
-
-  const hoveredNavSub = useMemo(() => {
-    if (!hoveredNavCat || navHoverSubId === null) return null;
-
-    return hoveredNavCat.children.find((c) => c.id === navHoverSubId) ?? null;
-  }, [hoveredNavCat, navHoverSubId]);
 
   const clearNavCloseTimer = useCallback(() => {
     if (navCloseTimerRef.current) {
@@ -902,8 +915,6 @@ export default function Header({
 
     navCloseTimerRef.current = setTimeout(() => {
       setNavHoverCatId(null);
-
-      setNavHoverSubId(null);
     }, 120);
   }, [clearNavCloseTimer]);
 
@@ -921,10 +932,10 @@ export default function Header({
         scrolled ? "shadow-md" : "shadow-none",
       ].join(" ")}
     >
-      <div className="border-b border-border bg-primary text-primary-foreground md:bg-background md:text-foreground">
-        <div className="container mx-auto flex h-[50px] items-center justify-between gap-3 px-4 md:h-[60px] md:gap-3">
+      <div className="border-b border-slate-700 bg-primary text-primary-foreground md:bg-[#111827] md:text-white">
+        <div className="container mx-auto flex h-[50px] items-center justify-between gap-3 px-4 md:h-[74px] md:gap-3">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2">
-            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-white/20 bg-white md:h-11 md:w-11 md:border-border md:bg-card">
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-white/20 bg-white md:h-12 md:w-12">
               <Image
                 src={siteSettings.logo || "/assets/examplelogo.jpg"}
                 alt="Logo"
@@ -935,7 +946,7 @@ export default function Header({
             </div>
 
             <div className="hidden leading-none sm:block">
-              <div className="max-w-[190px] truncate text-xl tracking-tight text-primary lexend-extrabold">
+              <div className="max-w-[190px] truncate text-xl tracking-tight text-white lexend-extrabold">
                 {siteSettings.siteTitle || "AanBee"}
               </div>
             </div>
@@ -949,17 +960,18 @@ export default function Header({
               onFocus={() =>
                 searchResults.length > 0 && setShowSearchDropdown(true)
               }
-              placeholder="Search in..."
-              className="h-12 w-full rounded-lg border border-border bg-muted px-5 pr-12 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring md:h-11"
+              placeholder="Type a product, brand or model..."
+              className="h-12 w-full rounded-lg border-0 bg-white px-5 pr-28 text-sm text-slate-900 outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-blue-400"
             />
 
             <button
               type="button"
               onClick={submitCatalogSearch}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground"
+              className="absolute bottom-0 right-0 top-0 flex w-28 items-center justify-center gap-2 rounded-r-lg bg-slate-700 text-sm font-bold text-white transition hover:bg-slate-600"
               aria-label="Search"
             >
-              <Search className="h-6 w-6" />
+              <Search className="h-5 w-5" />
+              <span>Search</span>
             </button>
 
             {showSearchDropdown && (
@@ -998,21 +1010,24 @@ export default function Header({
             </Link> */}
 
             <Link
-              href="/ecommerce/blogs"
-              className={`${headerIconClass} hidden lg:flex`}
+              href="/ecommerce/products?featured=1"
+              className={desktopActionClass}
             >
-              <Newspaper className="h-6 w-6" />
+              <BadgePercent className="h-5 w-5" />
+              <span>Offers</span>
+            </Link>
 
-              <span>Blog</span>
+            <Link href="/ecommerce/compare" className={desktopActionClass}>
+              <Wrench className="h-5 w-5" />
+              <span>Tools</span>
             </Link>
 
             <Link
-              href="/ecommerce/products"
-              className={`${headerIconClass} hidden lg:flex`}
+              href="/ecommerce/products?category=desktop-pc"
+              className={`${desktopActionClass} hidden xl:flex`}
             >
-              <Boxes className="h-6 w-6" />
-
-              <span>All Products</span>
+              <MonitorCog className="h-5 w-5" />
+              <span>PC Builder</span>
             </Link>
 
             {hasMounted && (
@@ -1028,7 +1043,7 @@ export default function Header({
                       <Moon className="h-6 w-6" />
                     )}
 
-                    <span>Theme</span>
+                    <span className="sr-only">Theme</span>
                   </button>
                 </DropdownMenuTrigger>
 
@@ -1062,7 +1077,7 @@ export default function Header({
                 </span>
               )}
 
-              <span>Wishlist</span>
+              <span className="sr-only">Wishlist</span>
             </Link>
 
             <div
@@ -1170,7 +1185,7 @@ export default function Header({
                 </span>
               )}
 
-              <span className="hidden sm:inline">Cart</span>
+              <span className="sr-only">Cart</span>
             </Link>
 
             <div ref={profileRef} className="relative hidden sm:block">
@@ -1196,7 +1211,9 @@ export default function Header({
                         <UserIcon className="h-6 w-6" />
                       )}
                     </div>
-                    <span>{userName?.split(" ")[0] || "Account"}</span>
+                    <span className="sr-only">
+                      {userName?.split(" ")[0] || "Account"}
+                    </span>
                   </button>
 
                   {profileOpen && (
@@ -1267,9 +1284,12 @@ export default function Header({
                   )}
                 </>
               ) : (
-                <Link href="/signin" className={headerIconClass}>
+                <Link
+                  href="/signin"
+                  className={`${headerIconClass} md:w-auto md:px-3`}
+                >
                   <UserIcon className="h-6 w-6" />
-                  <span>Sign In</span>
+                  <span className="hidden lg:inline">Login</span>
                 </Link>
               )}
             </div>
@@ -1288,7 +1308,7 @@ export default function Header({
         </div>
       </div>
 
-      <nav className="relative z-[60] hidden bg-secondary text-secondary-foreground md:block">
+      <nav className="relative z-[60] hidden border-b border-slate-200 bg-white text-slate-900 shadow-sm md:block dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
         <div className="container relative mx-auto overflow-visible px-4">
           <div className="group/nav relative">
             {/* Left Arrow - Primary Color */}
@@ -1296,7 +1316,7 @@ export default function Header({
             <button
               type="button"
               onClick={() => scrollDesktopNav("left")}
-              className="absolute left-1 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-secondary text-primary-foreground shadow-lg backdrop-blur transition-all duration-300 opacity-0 pointer-events-none group-hover/nav:opacity-100 group-hover/nav:pointer-events-auto hover:bg-secondary hover:scale-110 active:scale-95"
+              className="absolute left-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-slate-800 text-white shadow-lg transition-all duration-200 opacity-0 pointer-events-none group-hover/nav:opacity-100 group-hover/nav:pointer-events-auto hover:bg-slate-700 active:scale-95"
               aria-label="Scroll categories left"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -1307,7 +1327,7 @@ export default function Header({
             <button
               type="button"
               onClick={() => scrollDesktopNav("right")}
-              className="absolute right-1 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-secondary text-primary-foreground shadow-lg backdrop-blur transition-all duration-300 opacity-0 pointer-events-none group-hover/nav:opacity-100 group-hover/nav:pointer-events-auto hover:bg-secondary hover:scale-110 active:scale-95"
+              className="absolute right-0 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-slate-800 text-white shadow-lg transition-all duration-200 opacity-0 pointer-events-none group-hover/nav:opacity-100 group-hover/nav:pointer-events-auto hover:bg-slate-700 active:scale-95"
               aria-label="Scroll categories right"
             >
               <ChevronRight className="h-4 w-4" />
@@ -1315,11 +1335,11 @@ export default function Header({
 
             <div
               ref={navScrollRef}
-              className="mx-10 flex h-14 items-center gap-8 overflow-hidden"
+              className="mx-8 flex h-[53px] items-center gap-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               onMouseLeave={scheduleNavClose}
               onMouseEnter={clearNavCloseTimer}
             >
-              {categoryTree.slice(0, 12).map((cat) => (
+              {categoryTree.map((cat) => (
                 <div
                   key={cat.id}
                   className="relative shrink-0 group"
@@ -1328,16 +1348,11 @@ export default function Header({
 
                     setNavHoverCatId(cat.children.length > 0 ? cat.id : null);
 
-                    setNavHoverSubId(null);
-
                     const rect = (
                       e.currentTarget as HTMLDivElement
                     ).getBoundingClientRect();
 
-                    const { left, childMenuSide } =
-                      getDesktopNavMenuPosition(rect);
-
-                    setNavChildMenuSide(childMenuSide);
+                    const left = getDesktopNavMenuPosition(rect);
 
                     setNavMenuPos({ left, top: rect.bottom });
                   }}
@@ -1345,24 +1360,10 @@ export default function Header({
                   <button
                     type="button"
                     onClick={() => {
-                      if (cat.children.length === 0) {
-                        goCategoryFromDesktop(cat.slug);
-                      }
+                      goCategoryFromDesktop(cat.slug);
                     }}
-                    className="flex h-14 items-center gap-2 whitespace-nowrap text-md font-semibold transition-all duration-300 text-secondary-foreground hover:text-secondary-foreground/70"
+                    className="flex h-[53px] items-center gap-1.5 whitespace-nowrap px-3 text-[14px] font-bold text-slate-900 transition-colors hover:text-blue-700 dark:text-slate-100 dark:hover:text-blue-400"
                   >
-                    {cat.image && (
-                      <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/40">
-                        <Image
-                          src={cat.image}
-                          alt={cat.name}
-                          fill
-                          className="object-cover"
-                          sizes="32px"
-                        />
-                      </span>
-                    )}
-
                     <span>{cat.name}</span>
 
                     {cat.children.length > 0 && (
@@ -1372,7 +1373,7 @@ export default function Header({
 
                   {/* Hover underline effect */}
 
-                  <div className="absolute -bottom-[2px] left-0 h-[2px] w-0 bg-primary transition-all duration-300 group-hover:w-full" />
+                  <div className="absolute bottom-0 left-3 right-3 h-[3px] origin-left scale-x-0 bg-blue-600 transition-transform duration-200 group-hover:scale-x-100" />
                 </div>
               ))}
             </div>
@@ -1386,76 +1387,54 @@ export default function Header({
             onMouseEnter={clearNavCloseTimer}
             onMouseLeave={scheduleNavClose}
           >
-            <div className="w-80 rounded-b-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl animate-in slide-in-from-top-2 duration-200">
-              {hoveredNavCat.children.map((sub) => (
-                <div
-                  key={sub.id}
-                  className="relative"
-                  onMouseEnter={() => setNavHoverSubId(sub.id)}
-                >
-                  <button
-                    type="button"
-                    onClick={() => goCategoryFromDesktop(sub.slug)}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {sub.image && (
-                        <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/40">
-                          <Image
-                            src={sub.image}
-                            alt={sub.name}
-                            fill
-                            className="object-cover"
-                            sizes="32px"
-                          />
-                        </span>
-                      )}
-                      <span className="truncate">{sub.name}</span>
-                    </div>
-                    {sub.children.length > 0 ? (
-                      navChildMenuSide === "left" ? (
-                        <ChevronLeft className="h-4 w-4 shrink-0" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 shrink-0" />
-                      )
-                    ) : (
-                      <span className="h-4 w-4" />
-                    )}
-                  </button>
-
-                  {sub.children.length > 0 && hoveredNavSub?.id === sub.id && (
-                    <div
-                      className={`absolute top-0 z-[10001] w-80 rounded-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl duration-200 animate-in ${
-                        navChildMenuSide === "left"
-                          ? "right-full slide-in-from-right-2"
-                          : "left-full slide-in-from-left-2"
-                      }`}
-                    >
-                      {sub.children.map((child) => (
-                        <button
-                          key={child.id}
-                          type="button"
-                          onClick={() => goCategoryFromDesktop(child.slug)}
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
-                        >
-                          {child.image && (
-                            <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/40">
-                              <Image
-                                src={child.image}
-                                alt={child.name}
-                                fill
-                                className="object-cover"
-                                sizes="32px"
-                              />
-                            </span>
-                          )}
-                          <span className="truncate">{child.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+            <div className="w-[min(960px,calc(100vw-24px))] overflow-hidden rounded-b-xl border border-slate-200 bg-white text-slate-800 shadow-2xl animate-in slide-in-from-top-2 duration-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 dark:border-slate-800">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400">
+                    Explore category
+                  </p>
+                  <p className="mt-0.5 text-base font-extrabold">
+                    {hoveredNavCat.name}
+                  </p>
                 </div>
-              ))}
+                <Link
+                  href={`/ecommerce/products?category=${encodeURIComponent(hoveredNavCat.slug)}`}
+                  onClick={() => setNavHoverCatId(null)}
+                  className="text-sm font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  View all
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-3 gap-x-8 gap-y-1 p-4">
+                {hoveredNavCat.children.map((sub) => (
+                  <div key={sub.id} className="min-w-0">
+                    <Link
+                      href={`/ecommerce/products?category=${encodeURIComponent(sub.slug)}`}
+                      onClick={() => setNavHoverCatId(null)}
+                      className="group/item flex min-h-10 items-center justify-between gap-3 rounded-md px-2.5 py-2 text-sm font-bold transition hover:bg-slate-100 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+                    >
+                      <span className="truncate">{sub.name}</span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition group-hover/item:translate-x-0.5 group-hover/item:text-blue-600" />
+                    </Link>
+
+                    {sub.children.length > 0 && (
+                      <div className="space-y-0.5 pl-3">
+                        {sub.children.map((child) => (
+                          <Link
+                            key={child.id}
+                            href={`/ecommerce/products?category=${encodeURIComponent(child.slug)}`}
+                            onClick={() => setNavHoverCatId(null)}
+                            className="block truncate rounded px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-50 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+                          >
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

@@ -320,7 +320,7 @@ const readCatalogFacets = unstable_cache(
       },
     };
   },
-  ["storefront-catalog-facets-v1"],
+  ["storefront-catalog-facets-v2"],
   {
     revalidate: 300,
     tags: ["storefront-catalog", "products", "categories", "site-settings"],
@@ -440,7 +440,7 @@ const readCatalog = unstable_cache(
       },
     };
   },
-  ["storefront-catalog-results-v1"],
+  ["storefront-catalog-results-v2"],
   { revalidate: 120, tags: ["storefront-catalog", "products", "categories"] },
 );
 

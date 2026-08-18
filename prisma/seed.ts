@@ -8,6 +8,7 @@ import { seedScmDemo } from "./seed-data/scm";
 import { seedInvestorDemo } from "./seed-data/investor";
 import { seedWarehouseDemo } from "./seed-data/warehouse";
 import { seedManagementDemo } from "./seed-data/management";
+import { seedStorefrontDemo } from "./seed-data/storefront";
 
 const prisma = new PrismaClient();
 
@@ -394,6 +395,11 @@ async function main() {
 
   await seedInvestorDemo(prisma, admin?.id ?? null);
   console.log("✅ Investor demo seed ensured");
+
+  // Run this last so operational seed modules can keep their internal records
+  // while the public catalog exposes only the curated technology storefront.
+  await seedStorefrontDemo(prisma, admin?.id ?? null);
+  console.log("✅ Technology-only storefront demo seed ensured");
 }
 
 main()

@@ -12,6 +12,7 @@
     "test:phase0": "tsx --test tests/phase0-security.test.mjs",
     "test:phase1": "tsx --test tests/phase1-storefront.test.mjs",
     "test:phase2": "tsx --test tests/phase2-product-detail.test.mjs",
+    "seed:storefront": "tsx prisma/seed-storefront.ts",
     "email": "email dev",
     "cron:sla:trigger": "node scripts/cron/trigger-sla-eval.mjs",
     "postinstall": "prisma generate && copyfiles node_modules/pdfjs-dist/build/pdf.worker.min.js public"
