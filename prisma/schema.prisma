@@ -374,6 +374,8 @@ model Product {
 
   @@index([deleted, available, createdAt])
   @@index([deleted, available, soldCount])
+  @@index([deleted, available, basePrice])
+  @@index([deleted, available, featured])
   @@index([categoryId, deleted, available])
   @@index([brandId, deleted, available])
   @@index([writerId, deleted, available])
@@ -441,6 +443,8 @@ model ProductVariant {
   investorCapitalTransactions  InvestorCapitalTransaction[]
   investorProfitRunVariants    InvestorProfitRunVariant[]
   investorProfitRunAllocations InvestorProfitRunAllocation[]
+
+  @@index([productId, active, stock])
 }
 
 model ProductVariantOption {

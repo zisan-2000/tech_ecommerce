@@ -7,6 +7,7 @@ import {
   type BundleItem,
   type DiscountType 
 } from '@/lib/bundle';
+import { revalidateStorefrontCatalog } from '@/lib/storefront-catalog-cache';
 
 export async function GET(
   request: NextRequest,
@@ -261,6 +262,8 @@ export async function PUT(
       return bundle;
     });
 
+    revalidateStorefrontCatalog();
+
     return NextResponse.json({
       success: true,
       bundle: result,
@@ -325,6 +328,8 @@ export async function DELETE(
         }
       });
 
+      revalidateStorefrontCatalog();
+
       return NextResponse.json({
         success: true,
         message: 'Bundle soft deleted due to existing orders'
@@ -342,6 +347,8 @@ export async function DELETE(
           where: { id: bundleId }
         });
       });
+
+      revalidateStorefrontCatalog();
 
       return NextResponse.json({
         success: true,

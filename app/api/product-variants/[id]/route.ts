@@ -4,6 +4,7 @@ import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { ensureVariantCodes } from "@/lib/product-codes";
 import { Prisma } from "@/generated/prisma";
 import { NextResponse } from "next/server";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 async function getVariantColorImageMap(variantIds: number[]) {
   const uniqueIds = Array.from(new Set(variantIds.filter(Number.isFinite)));
@@ -161,6 +162,7 @@ export async function PUT(
     });
 
     const colorImageMap = await getVariantColorImageMap([id]);
+    revalidateStorefrontCatalog();
     return NextResponse.json(
       updated
         ? { ...updated, colorImage: colorImageMap.get(id) ?? null }
@@ -198,6 +200,8 @@ export async function DELETE(
       await tx.inventoryLog.deleteMany({ where: { variantId: id } });
       await tx.productVariant.delete({ where: { id } });
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json({ message: "Deleted successfully" });
   } catch (error) {

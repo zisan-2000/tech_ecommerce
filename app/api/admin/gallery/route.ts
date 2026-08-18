@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import { authOptions } from "@/lib/auth";
 import { getAccessContext } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -652,6 +653,7 @@ export async function DELETE(req: Request) {
 
     // Bust cache on delete (best-effort).
     galleryCache.clear();
+    revalidateStorefrontCatalog();
 
     return NextResponse.json({ success: true, deleted, blocked, notFound, failed });
   } catch (error) {

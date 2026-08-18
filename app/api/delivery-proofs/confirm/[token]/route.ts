@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { isDeliveryConfirmationStatus } from "@/lib/delivery-proof";
 import { appendShipmentStatusLog } from "@/lib/report-history";
 
@@ -220,6 +221,8 @@ export async function POST(
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json(
       {

@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { dispatchVariantInventory } from "@/lib/inventory";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { logActivity } from "@/lib/activity-log";
 import {
   generateAssetTags,
@@ -354,6 +355,8 @@ export async function POST(request: NextRequest) {
         include: materialReleaseInclude,
       });
     });
+
+    revalidateStorefrontCatalog();
 
     await logActivity({
       action: "issue",

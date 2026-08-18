@@ -12,6 +12,7 @@ import { shipmentDeliveryAssignmentSummarySelect } from "@/lib/delivery-assignme
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -588,6 +589,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         include: buildShipmentInclude(),
       });
     });
+
+    revalidateStorefrontCatalog();
 
     await logActivity({
       action: "update_shipment",

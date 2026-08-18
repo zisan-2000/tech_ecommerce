@@ -21,6 +21,7 @@ import {
   isPaymentInitSigningConfigured,
 } from "@/lib/sslcommerz";
 import { rateLimitRequest } from "@/lib/request-security";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import {
   orderProductSelect,
   orderUserSelect,
@@ -516,6 +517,8 @@ export async function POST(request: NextRequest) {
 
       return o;
     });
+
+    revalidateStorefrontCatalog();
 
     await logActivity({
       action: "place_order",

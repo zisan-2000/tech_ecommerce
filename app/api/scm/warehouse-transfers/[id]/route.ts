@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import { dispatchVariantInventory, receiveVariantInventory } from "@/lib/inventory";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import {
   refreshWarehouseTransferStatus,
   toWarehouseTransferLogSnapshot,
@@ -392,6 +393,8 @@ export async function PATCH(
         return refreshWarehouseTransferStatus(tx, transfer.id);
       });
 
+      revalidateStorefrontCatalog();
+
       await logActivity({
         action: "dispatch",
         entity: "warehouse_transfer",
@@ -503,6 +506,8 @@ export async function PATCH(
 
         return refreshWarehouseTransferStatus(tx, transfer.id);
       });
+
+      revalidateStorefrontCatalog();
 
       await logActivity({
         action: "receive",

@@ -8,6 +8,7 @@ import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import slugify from "slugify";
 import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 function toBrandLogSnapshot(brand: {
   name: string;
@@ -115,6 +116,8 @@ export async function POST(req: Request) {
       },
       after: toBrandLogSnapshot(brand),
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json(brand, { status: 201 });
   } catch {

@@ -1,8 +1,12 @@
-import { unstable_cache } from "next/cache";
+import { unstable_cache } from "next/cache.js";
 import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 
 const CATALOG_PAGE_SIZES = [12, 24, 36] as const;
+export const CATALOG_MAX_PRICE = 99_999_999.99;
+export const CATALOG_MAX_PAGE = 500;
+const CATALOG_MAX_BRANDS = 12;
+const CATALOG_MAX_SEARCH_TERMS = 8;
 const PRODUCT_TYPES = ["PHYSICAL", "DIGITAL", "SERVICE", "BUNDLE"] as const;
 const SORT_OPTIONS = [
   "newest",
@@ -54,6 +58,7 @@ const catalogProductSelect = {
       stock: true,
       options: true,
       colorImage: true,
+      isDefault: true,
     },
   },
   bundleItems: {
@@ -61,7 +66,18 @@ const catalogProductSelect = {
     select: {
       quantity: true,
       product: {
-        select: { id: true, name: true, image: true },
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          available: true,
+          deleted: true,
+          variants: {
+            where: { active: true },
+            orderBy: [{ isDefault: "desc" as const }, { id: "asc" as const }],
+            select: { stock: true, isDefault: true },
+          },
+        },
       },
     },
   },
@@ -83,25 +99,54 @@ function boundedInteger(value: unknown, fallback: number, max: number) {
 
 function optionalMoney(value: unknown) {
   if (value === undefined || value === null || value === "") return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  const normalized = String(value).trim();
+  if (!/^\d{1,8}(?:\.\d{1,2})?$/.test(normalized)) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= CATALOG_MAX_PRICE
+    ? parsed
+    : null;
 }
 
-function uniqueStrings(values: string[]) {
-  return Array.from(
-    new Set(values.map((value) => value.trim()).filter(Boolean)),
-  );
+function normalizeSlug(value: unknown, allowNumeric = false) {
+  const normalized = String(value ?? "").trim().toLowerCase().slice(0, 80);
+  const pattern = allowNumeric
+    ? /^(?:\d+|[a-z0-9]+(?:-[a-z0-9]+)*)$/
+    : /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  return pattern.test(normalized) ? normalized : "";
+}
+
+function normalizeSearch(value: unknown) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+}
+
+function escapePostgresLike(value: string) {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
+export function catalogSearchTerms(query: string) {
+  return normalizeSearch(query)
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, CATALOG_MAX_SEARCH_TERMS)
+    .map(escapePostgresLike);
 }
 
 export function parseCatalogFilters(
   searchParams: CatalogSearchParams,
 ): CatalogFilters {
   const rawBrands = searchParams.brand;
-  const brands = uniqueStrings(
-    (Array.isArray(rawBrands) ? rawBrands : rawBrands ? [rawBrands] : [])
-      .flatMap((value) => value.split(","))
-      .slice(0, 12),
-  );
+  const brands = Array.from(
+    new Set(
+      (Array.isArray(rawBrands) ? rawBrands : rawBrands ? [rawBrands] : [])
+        .flatMap((value) => value.split(","))
+        .map((value) => normalizeSlug(value))
+        .filter(Boolean),
+    ),
+  ).slice(0, CATALOG_MAX_BRANDS);
   const rawType = firstValue(searchParams.type)?.toUpperCase() ?? "";
   const type = PRODUCT_TYPES.includes(rawType as CatalogProductType)
     ? (rawType as CatalogProductType)
@@ -126,8 +171,8 @@ export function parseCatalogFilters(
       : [rawMinPrice, rawMaxPrice];
 
   return {
-    q: (firstValue(searchParams.q) ?? "").trim().slice(0, 100),
-    category: (firstValue(searchParams.category) ?? "").trim().slice(0, 100),
+    q: normalizeSearch(firstValue(searchParams.q)),
+    category: normalizeSlug(firstValue(searchParams.category), true),
     brands,
     type,
     minPrice,
@@ -135,7 +180,7 @@ export function parseCatalogFilters(
     inStock: firstValue(searchParams.inStock) === "1",
     featured: firstValue(searchParams.featured) === "1",
     sort,
-    page: boundedInteger(firstValue(searchParams.page), 1, 10_000),
+    page: boundedInteger(firstValue(searchParams.page), 1, CATALOG_MAX_PAGE),
     perPage,
   };
 }
@@ -150,10 +195,29 @@ function normalizeOptions(value: Prisma.JsonValue) {
   ) as Record<string, string | number | null>;
 }
 
-function productStock(product: RawCatalogProduct) {
-  if (product.type === "BUNDLE") return product.bundleStockLimit ?? 0;
+export function catalogProductStock(product: RawCatalogProduct) {
+  if (product.type === "BUNDLE") {
+    if (product.bundleItems.length === 0) return 0;
+    const derivedStock = product.bundleItems.reduce((available, item) => {
+      if (item.product.deleted || !item.product.available || item.quantity < 1) {
+        return 0;
+      }
+      const variant = item.product.variants[0];
+      const itemStock = variant
+        ? Math.floor(Math.max(0, variant.stock) / item.quantity)
+        : 0;
+      return Math.min(available, itemStock);
+    }, Number.POSITIVE_INFINITY);
+    return Math.max(
+      0,
+      Math.min(derivedStock, product.bundleStockLimit ?? derivedStock),
+    );
+  }
   if (product.type === "DIGITAL" || product.type === "SERVICE") return 1;
-  return product.variants.reduce((total, variant) => total + variant.stock, 0);
+  return product.variants.reduce(
+    (total, variant) => total + Math.max(0, variant.stock),
+    0,
+  );
 }
 
 function serializeCatalogProduct(product: RawCatalogProduct) {
@@ -176,7 +240,7 @@ function serializeCatalogProduct(product: RawCatalogProduct) {
     soldCount: product.soldCount,
     ratingAvg: product.ratingAvg,
     ratingCount: product.ratingCount,
-    stock: productStock(product),
+    stock: catalogProductStock(product),
     discountPct,
     bundleStockLimit: product.bundleStockLimit,
     variants: product.variants.map((variant) => ({
@@ -279,13 +343,38 @@ const readCatalogFacets = unstable_cache(
       return total;
     };
 
+    const categoryById = new Map(
+      categories.map((category) => [category.id, category]),
+    );
+    const orderedCategories: Array<
+      (typeof categories)[number] & { depth: number }
+    > = [];
+    const visited = new Set<number>();
+    const appendCategory = (id: number, depth: number) => {
+      if (visited.has(id)) return;
+      const category = categoryById.get(id);
+      if (!category) return;
+      visited.add(id);
+      orderedCategories.push({ ...category, depth });
+      for (const childId of childrenByParent.get(id) ?? []) {
+        appendCategory(childId, depth + 1);
+      }
+    };
+    for (const category of categories) {
+      if (category.parentId === null || !categoryById.has(category.parentId)) {
+        appendCategory(category.id, 0);
+      }
+    }
+    for (const category of categories) appendCategory(category.id, 0);
+
     return {
-      categories: categories.map((category) => ({
+      categories: orderedCategories.map((category) => ({
         id: category.id,
         name: category.name,
         slug: category.slug,
         image: category.image,
         parentId: category.parentId,
+        depth: category.depth,
         productCount: totalProducts(category.id),
       })),
       brands: brands.map((brand) => ({
@@ -320,7 +409,7 @@ const readCatalogFacets = unstable_cache(
       },
     };
   },
-  ["storefront-catalog-facets-v2"],
+  ["storefront-catalog-facets-v3"],
   {
     revalidate: 300,
     tags: ["storefront-catalog", "products", "categories", "site-settings"],
@@ -367,19 +456,21 @@ function catalogOrderBy(
 
 const readCatalog = unstable_cache(
   async (serializedFilters: string) => {
-    const filters = JSON.parse(serializedFilters) as CatalogFilters;
+    const requestedFilters = JSON.parse(serializedFilters) as CatalogFilters;
     const facets = await readCatalogFacets();
+    const filters = resolveCatalogFilters(requestedFilters, facets);
     const categoryIds = filters.category
       ? descendantCategoryIds(facets.categories, filters.category)
       : [];
     const andFilters: Prisma.ProductWhereInput[] = [];
-    if (filters.q) {
+    for (const term of catalogSearchTerms(filters.q)) {
       andFilters.push({
         OR: [
-          { name: { contains: filters.q, mode: "insensitive" } },
-          { sku: { contains: filters.q, mode: "insensitive" } },
-          { shortDesc: { contains: filters.q, mode: "insensitive" } },
-          { brand: { name: { contains: filters.q, mode: "insensitive" } } },
+          { name: { contains: term, mode: "insensitive" } },
+          { slug: { contains: term, mode: "insensitive" } },
+          { sku: { contains: term, mode: "insensitive" } },
+          { shortDesc: { contains: term, mode: "insensitive" } },
+          { brand: { name: { contains: term, mode: "insensitive" } } },
         ],
       });
     }
@@ -387,7 +478,23 @@ const readCatalog = unstable_cache(
       andFilters.push({
         OR: [
           { type: { in: ["DIGITAL", "SERVICE"] } },
-          { type: "BUNDLE", bundleStockLimit: { gt: 0 } },
+          {
+            type: "BUNDLE",
+            bundleStockLimit: { gt: 0 },
+            bundleItems: {
+              some: {},
+              every: {
+                quantity: { gt: 0 },
+                product: {
+                  deleted: false,
+                  available: true,
+                  variants: {
+                    some: { active: true, stock: { gt: 0 } },
+                  },
+                },
+              },
+            },
+          },
           {
             type: "PHYSICAL",
             variants: { some: { active: true, stock: { gt: 0 } } },
@@ -440,7 +547,7 @@ const readCatalog = unstable_cache(
       },
     };
   },
-  ["storefront-catalog-results-v2"],
+  ["storefront-catalog-results-v3"],
   { revalidate: 120, tags: ["storefront-catalog", "products", "categories"] },
 );
 
@@ -456,6 +563,57 @@ export async function getStorefrontCatalog(filters: CatalogFilters) {
 
 export async function getStorefrontCatalogFacets() {
   return readCatalogFacets();
+}
+
+export function resolveCatalogFilters(
+  filters: CatalogFilters,
+  facets: StorefrontCatalogFacets,
+): CatalogFilters {
+  const selectedCategory = filters.category
+    ? facets.categories.find(
+        (category) =>
+          category.slug === filters.category ||
+          String(category.id) === filters.category,
+      )
+    : null;
+  const knownBrands = new Set(facets.brands.map((brand) => brand.slug));
+  return {
+    ...filters,
+    category: selectedCategory?.slug ?? "",
+    brands: filters.brands.filter((brand) => knownBrands.has(brand)),
+  };
+}
+
+export function catalogCanonicalUrl(filters: CatalogFilters) {
+  const keepBrand = !filters.category && filters.brands.length === 1;
+  return catalogUrl(filters, {
+    q: "",
+    brands: keepBrand ? filters.brands : [],
+    type: "",
+    minPrice: null,
+    maxPrice: null,
+    inStock: false,
+    featured: false,
+    sort: "newest",
+    page: 1,
+    perPage: 24,
+  });
+}
+
+export function isIndexableCatalogView(filters: CatalogFilters) {
+  return (
+    !filters.q &&
+    filters.brands.length <= 1 &&
+    !(filters.category && filters.brands.length > 0) &&
+    !filters.type &&
+    filters.minPrice === null &&
+    filters.maxPrice === null &&
+    !filters.inStock &&
+    !filters.featured &&
+    filters.sort === "newest" &&
+    filters.page === 1 &&
+    filters.perPage === 24
+  );
 }
 
 export function catalogUrl(

@@ -8,6 +8,7 @@ import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import slugify from "slugify";
 import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 function toCategoryLogSnapshot(category: {
   name: string;
@@ -164,6 +165,8 @@ export async function POST(req: Request) {
       },
       after: toCategoryLogSnapshot(category),
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json(category, { status: 201 });
   } catch (error) {

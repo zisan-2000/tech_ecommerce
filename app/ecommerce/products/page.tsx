@@ -4,8 +4,11 @@ import { redirect } from "next/navigation";
 import { Filter, PackageSearch, Search, SlidersHorizontal } from "lucide-react";
 import CatalogProductGrid from "@/components/ecommarce/catalog/CatalogProductGrid";
 import {
+  CATALOG_MAX_PRICE,
+  catalogCanonicalUrl,
   catalogUrl,
   getStorefrontCatalog,
+  isIndexableCatalogView,
   parseCatalogFilters,
   type CatalogSearchParams,
   type CatalogSort,
@@ -39,14 +42,11 @@ export async function generateMetadata({
     description:
       "Browse computers, components, accessories and gadgets with category, brand, price and stock filters.",
     alternates: {
-      canonical: catalogUrl(filters, {
-        page: 1,
-        perPage: 24,
-        sort: "newest",
-      }),
+      canonical: catalogCanonicalUrl(filters),
     },
-    robots:
-      filters.q || filters.page > 1 ? { index: false, follow: true } : undefined,
+    robots: isIndexableCatalogView(filters)
+      ? undefined
+      : { index: false, follow: true },
   };
 }
 
@@ -58,10 +58,13 @@ function paginationPages(page: number, totalPages: number) {
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
-  const filters = parseCatalogFilters(await searchParams);
-  const data = await getStorefrontCatalog(filters);
-  const { products, facets, pagination } = data;
-  if (pagination.total > 0 && pagination.page > pagination.totalPages) {
+  const parsedFilters = parseCatalogFilters(await searchParams);
+  const data = await getStorefrontCatalog(parsedFilters);
+  const { filters, products, facets, pagination } = data;
+  if (catalogUrl(parsedFilters) !== catalogUrl(filters)) {
+    redirect(catalogUrl(filters));
+  }
+  if (pagination.page > pagination.totalPages) {
     redirect(catalogUrl(filters, { page: pagination.totalPages }));
   }
   const selectedCategory = facets.categories.find(
@@ -81,6 +84,61 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     filters.inStock,
     filters.featured,
   ].filter(Boolean).length;
+  const activeFilterLinks: Array<{ key: string; label: string; href: string }> = [];
+  if (filters.q) {
+    activeFilterLinks.push({
+      key: "search",
+      label: `Search: ${filters.q}`,
+      href: catalogUrl(filters, { q: "", page: 1 }),
+    });
+  }
+  if (selectedCategory) {
+    activeFilterLinks.push({
+      key: "category",
+      label: selectedCategory.name,
+      href: catalogUrl(filters, { category: "", page: 1 }),
+    });
+  }
+  for (const brand of facets.brands.filter((item) =>
+    filters.brands.includes(item.slug),
+  )) {
+    activeFilterLinks.push({
+      key: `brand-${brand.slug}`,
+      label: brand.name,
+      href: catalogUrl(filters, {
+        brands: filters.brands.filter((slug) => slug !== brand.slug),
+        page: 1,
+      }),
+    });
+  }
+  if (filters.type) {
+    activeFilterLinks.push({
+      key: "type",
+      label: filters.type.charAt(0) + filters.type.slice(1).toLowerCase(),
+      href: catalogUrl(filters, { type: "", page: 1 }),
+    });
+  }
+  if (filters.minPrice !== null || filters.maxPrice !== null) {
+    activeFilterLinks.push({
+      key: "price",
+      label: `Price: ${filters.minPrice ?? 0}–${filters.maxPrice ?? "Any"}`,
+      href: catalogUrl(filters, { minPrice: null, maxPrice: null, page: 1 }),
+    });
+  }
+  if (filters.inStock) {
+    activeFilterLinks.push({
+      key: "stock",
+      label: "In stock",
+      href: catalogUrl(filters, { inStock: false, page: 1 }),
+    });
+  }
+  if (filters.featured) {
+    activeFilterLinks.push({
+      key: "featured",
+      label: "Featured",
+      href: catalogUrl(filters, { featured: false, page: 1 }),
+    });
+  }
   const pages = paginationPages(pagination.page, pagination.totalPages);
   const firstResult = pagination.total
     ? (pagination.page - 1) * pagination.perPage + 1
@@ -131,7 +189,28 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
         <div className="mt-6 grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
           <aside className="rounded-2xl border bg-card shadow-sm lg:sticky lg:top-24">
-            <div className="flex items-center justify-between border-b px-4 py-4">
+            <input
+              id="catalog-filter-toggle"
+              type="checkbox"
+              className="peer sr-only"
+            />
+            <label
+              htmlFor="catalog-filter-toggle"
+              className="flex cursor-pointer items-center justify-between px-4 py-4 lg:hidden"
+            >
+              <span className="flex items-center gap-2 font-bold">
+                <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
+                Filters
+                {activeFilterCount ? (
+                  <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </span>
+              <span className="text-xs font-semibold text-primary">Show / hide</span>
+            </label>
+
+            <div className="hidden items-center justify-between border-b px-4 py-4 lg:flex">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
                 <h2 className="font-bold">Filters</h2>
@@ -151,7 +230,21 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               ) : null}
             </div>
 
-            <form method="get" action="/ecommerce/products" className="space-y-5 p-4">
+            <form
+              method="get"
+              action="/ecommerce/products"
+              className="hidden space-y-5 border-t p-4 peer-checked:block lg:block lg:border-t-0"
+            >
+              {activeFilterCount ? (
+                <div className="flex justify-end lg:hidden">
+                  <Link
+                    href="/ecommerce/products"
+                    className="text-xs font-semibold text-primary hover:underline"
+                  >
+                    Clear all filters
+                  </Link>
+                </div>
+              ) : null}
               <label className="block space-y-2 text-sm font-semibold">
                 Search
                 <span className="relative block">
@@ -176,7 +269,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                   <option value="">All categories</option>
                   {facets.categories.map((category) => (
                     <option key={category.id} value={category.slug}>
-                      {category.parentId ? "— " : ""}
+                      {"— ".repeat(Math.min(category.depth, 3))}
                       {category.name} ({category.productCount})
                     </option>
                   ))}
@@ -234,6 +327,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     type="number"
                     name="minPrice"
                     min="0"
+                    max={CATALOG_MAX_PRICE}
+                    step="0.01"
                     defaultValue={filters.minPrice ?? ""}
                     placeholder={`Min ${facets.priceRange.min}`}
                     aria-label="Minimum price"
@@ -243,6 +338,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     type="number"
                     name="maxPrice"
                     min="0"
+                    max={CATALOG_MAX_PRICE}
+                    step="0.01"
                     defaultValue={filters.maxPrice ?? ""}
                     placeholder={`Max ${facets.priceRange.max}`}
                     aria-label="Maximum price"
@@ -344,6 +441,34 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                 ))}
               </div>
             </div>
+
+            {activeFilterLinks.length ? (
+              <div
+                className="mb-4 flex flex-wrap items-center gap-2"
+                aria-label="Active product filters"
+              >
+                <span className="text-xs font-semibold text-muted-foreground">
+                  Active:
+                </span>
+                {activeFilterLinks.map((filter) => (
+                  <Link
+                    key={filter.key}
+                    href={filter.href}
+                    aria-label={`Remove ${filter.label} filter`}
+                    className="inline-flex items-center gap-1 rounded-full border bg-card px-3 py-1.5 text-xs font-semibold transition hover:border-primary hover:text-primary"
+                  >
+                    {filter.label}
+                    <span aria-hidden="true">×</span>
+                  </Link>
+                ))}
+                <Link
+                  href="/ecommerce/products"
+                  className="px-2 py-1 text-xs font-semibold text-primary hover:underline"
+                >
+                  Clear all
+                </Link>
+              </div>
+            ) : null}
 
             {products.length ? (
               <CatalogProductGrid products={products} />

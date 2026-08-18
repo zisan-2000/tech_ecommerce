@@ -20,6 +20,7 @@ import {
   publicJson,
 } from "@/lib/public-cache";
 import { storefrontProductSelect } from "@/lib/storefront-product";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 const createVariantSku = (slug: string, index: number) =>
   `${slug.substring(0, 20)}-V${index + 1}-${Math.random()
@@ -596,6 +597,8 @@ export async function POST(req: Request) {
       },
       after: toProductLogSnapshot(productWithColorImages),
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json(productWithColorImages, { status: 201 });
   } catch (err) {

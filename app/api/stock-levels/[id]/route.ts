@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-log";
 import { refreshVariantStock } from "@/lib/inventory";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { getAccessContext } from "@/lib/rbac";
 import { captureVariantInventoryDailySnapshots } from "@/lib/report-history";
 import { getServerSession } from "next-auth/next";
@@ -72,6 +73,7 @@ export async function DELETE(
     await prisma.stockLevel.delete({ where: { id } });
 
     await refreshVariantStock(prisma, existing.productVariantId);
+    revalidateStorefrontCatalog();
     await captureVariantInventoryDailySnapshots(prisma, existing.productVariantId);
 
     const change = -Number(existing.quantity);

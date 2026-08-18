@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import slugify from "slugify";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 function toBrandLogSnapshot(brand: {
   name: string;
@@ -95,6 +96,8 @@ export async function PUT(
       after: toBrandLogSnapshot(updated),
     });
 
+    revalidateStorefrontCatalog();
+
     return NextResponse.json(updated);
   } catch {
     return NextResponse.json(
@@ -156,6 +159,8 @@ export async function DELETE(
         deleted: true,
       },
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json({ message: "Brand deleted" });
   } catch {

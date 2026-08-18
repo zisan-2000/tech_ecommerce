@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cleanupExpiredInventoryReservations } from "@/lib/inventory";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 function isAuthorized(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
     const result = await prisma.$transaction((tx) =>
       cleanupExpiredInventoryReservations({ tx, batchSize: 100 }),
     );
+    revalidateStorefrontCatalog();
     return NextResponse.json({
       ok: true,
       processedAt: new Date().toISOString(),
@@ -34,4 +36,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

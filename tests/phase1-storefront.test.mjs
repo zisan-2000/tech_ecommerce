@@ -6,8 +6,14 @@ import {
   normalizeStorefrontReviews,
 } from "../lib/storefront-client-data.ts";
 import {
+  CATALOG_MAX_PAGE,
+  catalogCanonicalUrl,
+  catalogProductStock,
+  catalogSearchTerms,
   catalogUrl,
+  isIndexableCatalogView,
   parseCatalogFilters,
+  resolveCatalogFilters,
 } from "../lib/storefront-catalog.ts";
 
 test("storefront categories are normalized into stable tab values", () => {
@@ -96,6 +102,103 @@ test("catalog filters correct an inverted price range", () => {
   const filters = parseCatalogFilters({ minPrice: "5000", maxPrice: "1000" });
   assert.equal(filters.minPrice, 1000);
   assert.equal(filters.maxPrice, 5000);
+});
+
+test("catalog filters bound untrusted slugs, money and deep pagination", () => {
+  const filters = parseCatalogFilters({
+    q: "  HP\u0000   gaming   laptop  ",
+    category: "Gaming-Laptop",
+    brand: ["HP,hp", "not a slug", "ASUS"],
+    minPrice: "1e3",
+    maxPrice: "100000000",
+    page: "999999",
+  });
+
+  assert.equal(filters.q, "HP gaming laptop");
+  assert.equal(filters.category, "gaming-laptop");
+  assert.deepEqual(filters.brands, ["hp", "asus"]);
+  assert.equal(filters.minPrice, null);
+  assert.equal(filters.maxPrice, null);
+  assert.equal(filters.page, CATALOG_MAX_PAGE);
+});
+
+test("catalog search tokenizes terms and escapes SQL LIKE wildcards", () => {
+  assert.deepEqual(catalogSearchTerms("HP 15% _gaming"), [
+    "HP",
+    "15\\%",
+    "\\_gaming",
+  ]);
+  assert.equal(catalogSearchTerms("a b c d e f g h i j").length, 8);
+});
+
+test("catalog resolves numeric categories and removes unknown facet values", () => {
+  const filters = parseCatalogFilters({
+    category: "7",
+    brand: ["hp", "unknown"],
+  });
+  const resolved = resolveCatalogFilters(filters, {
+    categories: [{ id: 7, slug: "gaming-laptop" }],
+    brands: [{ slug: "hp" }],
+  });
+
+  assert.equal(resolved.category, "gaming-laptop");
+  assert.deepEqual(resolved.brands, ["hp"]);
+});
+
+test("catalog SEO only indexes stable landing views", () => {
+  const category = parseCatalogFilters({ category: "laptop" });
+  const filtered = parseCatalogFilters({
+    category: "laptop",
+    brand: "hp",
+    minPrice: "50000",
+    sort: "price-asc",
+  });
+
+  assert.equal(isIndexableCatalogView(category), true);
+  assert.equal(isIndexableCatalogView(filtered), false);
+  assert.equal(catalogCanonicalUrl(filtered), "/ecommerce/products?category=laptop");
+});
+
+test("catalog bundle stock is constrained by child inventory and quantity", () => {
+  const bundle = {
+    type: "BUNDLE",
+    bundleStockLimit: 10,
+    variants: [],
+    bundleItems: [
+      {
+        quantity: 2,
+        product: {
+          available: true,
+          deleted: false,
+          variants: [{ stock: 7 }],
+        },
+      },
+      {
+        quantity: 1,
+        product: {
+          available: true,
+          deleted: false,
+          variants: [{ stock: 5 }],
+        },
+      },
+    ],
+  };
+
+  assert.equal(catalogProductStock(bundle), 3);
+  bundle.bundleItems[1].product.available = false;
+  assert.equal(catalogProductStock(bundle), 0);
+});
+
+test("catalog physical stock never exposes negative inventory", () => {
+  assert.equal(
+    catalogProductStock({
+      type: "PHYSICAL",
+      bundleStockLimit: null,
+      bundleItems: [],
+      variants: [{ stock: -5 }, { stock: 4 }],
+    }),
+    4,
+  );
 });
 
 test("catalog URLs preserve filters and omit defaults", () => {

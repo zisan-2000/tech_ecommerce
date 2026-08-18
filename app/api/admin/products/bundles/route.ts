@@ -8,6 +8,7 @@ import {
   type DiscountType 
 } from '@/lib/bundle';
 import type { Product } from '@/types/bundle';
+import { revalidateStorefrontCatalog } from '@/lib/storefront-catalog-cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -250,6 +251,8 @@ export async function POST(request: NextRequest) {
 
       return bundle;
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json({
       success: true,

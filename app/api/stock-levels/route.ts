@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-log";
 import { refreshVariantStock } from "@/lib/inventory";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { getAccessContext } from "@/lib/rbac";
 import { captureVariantInventoryDailySnapshots } from "@/lib/report-history";
 import { resolveWarehouseScope } from "@/lib/warehouse-scope";
@@ -185,6 +186,7 @@ export async function POST(req: Request) {
     const change = quantity - oldQty;
 
     await refreshVariantStock(prisma, productVariantId);
+    revalidateStorefrontCatalog();
     await captureVariantInventoryDailySnapshots(prisma, productVariantId);
 
     if (change !== 0) {

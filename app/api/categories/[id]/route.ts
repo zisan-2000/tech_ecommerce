@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import slugify from "slugify";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 function toCategoryLogSnapshot(category: {
   name: string;
@@ -178,6 +179,8 @@ export async function PUT(
       after: toCategoryLogSnapshot(updated),
     });
 
+    revalidateStorefrontCatalog();
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error(error);
@@ -248,6 +251,8 @@ export async function DELETE(
         deleted: true,
       },
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json({
       message: "Category soft deleted successfully",

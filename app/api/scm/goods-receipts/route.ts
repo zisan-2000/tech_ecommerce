@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import { receiveVariantInventory } from "@/lib/inventory";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import {
   computePurchaseOrderLandedCostAllocation,
   generateGoodsReceiptNumber,
@@ -443,6 +444,8 @@ export async function POST(request: NextRequest) {
       }
       return receipt;
     });
+
+    revalidateStorefrontCatalog();
 
     await logActivity({
       action: "create",

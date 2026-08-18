@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { isStorefrontRequest, publicJson } from "@/lib/public-cache";
 
 // GET /api/reviews?productId=1&page=1&limit=10
@@ -173,6 +174,8 @@ export async function POST(request: NextRequest) {
         ratingCount: ratingStats._count.rating,
       },
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json(review, { status: existing ? 200 : 201 });
   } catch (error) {

@@ -65,6 +65,7 @@ type Props = {
   onAddToCart?: () => void | Promise<unknown>;
   formatPrice?: (value: number) => string;
   className?: string;
+  imagePriority?: boolean;
 };
 
 const defaultFormatPrice = (value: number) =>
@@ -211,6 +212,7 @@ export default function ProductCardCompact({
   formatPrice = defaultFormatPrice,
   addToCartLabel = "Add To Cart",
   className,
+  imagePriority = false,
 }: Props) {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [buttonAnimate, setButtonAnimate] = useState(false);
@@ -446,6 +448,7 @@ export default function ProductCardCompact({
                   isHovered ? "scale-105" : "scale-100",
                 )}
                 sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 20vw"
+                priority={imagePriority}
               />
             </div>
 

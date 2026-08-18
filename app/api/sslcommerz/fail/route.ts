@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPublicBaseUrl, processSslcommerzCallback } from "@/lib/sslcommerz";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 async function handle(request: NextRequest) {
   const result = await processSslcommerzCallback(request, "fail");
+  revalidateStorefrontCatalog();
   const url = new URL("/ecommerce/payment-result", getPublicBaseUrl(request));
   url.searchParams.set("status", "failed");
   url.searchParams.set("message", result.message);

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import {
   orderProductSelect,
   orderUserSelect,
@@ -294,6 +295,8 @@ export async function PATCH(
         data,
       });
     });
+
+    revalidateStorefrontCatalog();
 
     await logActivity({
       action: "update_order",

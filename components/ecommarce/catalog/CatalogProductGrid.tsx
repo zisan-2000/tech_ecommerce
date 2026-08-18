@@ -103,7 +103,7 @@ export default function CatalogProductGrid({
         </div>
       ) : null}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-        {products.map((product) => (
+        {products.map((product, index) => (
           <ProductCard
             key={product.id}
             product={{
@@ -131,6 +131,7 @@ export default function CatalogProductGrid({
             compared={isCompared(product.id)}
             onAddToCart={() => addProductToCart(product)}
             formatPrice={formatBDT}
+            imagePriority={index < 2}
           />
         ))}
       </div>

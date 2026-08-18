@@ -16,6 +16,7 @@ import { Prisma, type ProductType } from "@/generated/prisma";
 import slugify from "slugify";
 import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
 import { storefrontProductSelect } from "@/lib/storefront-product";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 const productInclude = {
   category: true,
@@ -737,6 +738,8 @@ export async function PUT(
       });
     }
 
+    revalidateStorefrontCatalog();
+
     return NextResponse.json(withRelationsWithColorImages);
   } catch (err) {
     console.error(err);
@@ -815,6 +818,8 @@ export async function DELETE(
       before: toProductLogSnapshot(existing),
       after: toProductLogSnapshot(deletedProduct),
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json({
       message: "Product soft deleted successfully",

@@ -4,6 +4,7 @@ import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { ensureVariantCodes } from "@/lib/product-codes";
 import { Prisma } from "@/generated/prisma";
 import { NextResponse } from "next/server";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 
 async function getVariantColorImageMap(variantIds: number[]) {
   const uniqueIds = Array.from(new Set(variantIds.filter(Number.isFinite)));
@@ -178,6 +179,8 @@ export async function POST(req: Request) {
         },
       });
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json(
       created ? { ...created, colorImage } : created,

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import { dispatchVariantInventory } from "@/lib/inventory";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import {
   refreshSupplierReturnStatus,
   supplierReturnInclude,
@@ -452,6 +453,8 @@ export async function PATCH(
 
         return refreshSupplierReturnStatus(tx, supplierReturn.id);
       });
+
+      revalidateStorefrontCatalog();
 
       await logActivity({
         action: "dispatch",
