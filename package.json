@@ -12,6 +12,8 @@
     "test:phase0": "tsx --test tests/phase0-security.test.mjs",
     "test:phase1": "tsx --test tests/phase1-storefront.test.mjs",
     "test:phase2": "tsx --test tests/phase2-product-detail.test.mjs",
+    "test:phases": "npm run test:phase0 && npm run test:phase1 && npm run test:phase2",
+    "verify:phases": "npm run test:phases && npm run lint && npm run typecheck",
     "seed:storefront": "tsx prisma/seed-storefront.ts",
     "seed:storefront-menu": "tsx prisma/seed-storefront-menu.ts",
     "email": "email dev",
