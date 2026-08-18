@@ -191,8 +191,8 @@ export async function GET(req: Request) {
       });
 
       return publicJson(summaries, {
-        maxAge: 300,
-        staleWhileRevalidate: 1800,
+        maxAge: 0,
+        staleWhileRevalidate: 0,
       });
     }
 
@@ -236,7 +236,7 @@ export async function GET(req: Request) {
     }));
 
     return storefront
-      ? publicJson(productsWithRatings, { maxAge: 60, staleWhileRevalidate: 300 })
+      ? publicJson(productsWithRatings, { maxAge: 0, staleWhileRevalidate: 0 })
       : privateJson(productsWithRatings);
   } catch (err) {
     return NextResponse.json(

@@ -54,6 +54,7 @@ export async function GET(
     const products = await prisma.product.findMany({
       where: {
         deleted: false,
+        available: true,
         categoryId: { in: categoryIds },
       },
       orderBy: { id: "desc" },

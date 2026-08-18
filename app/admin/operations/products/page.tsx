@@ -25,6 +25,7 @@ interface Product {
   gallery?: string[];
   videoUrl?: string | null;
   available: boolean;
+  updatedAt: string;
   featured?: boolean;
   categoryId?: number;
   brandId?: number | null;
@@ -216,6 +217,53 @@ export default function ProductsPage() {
     return updated;
   }, []);
 
+  const updateProductAvailability = useCallback(
+    async (id: number, available: boolean, expectedUpdatedAt: string) => {
+      const res = await fetch(`/api/products/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ available, expectedUpdatedAt }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 409) {
+          const latestResponse = await fetch("/api/products", {
+            cache: "no-store",
+          });
+          if (latestResponse.ok) {
+            const latestProducts = (await latestResponse.json()) as Product[];
+            setProducts(latestProducts);
+            if (productsPageCache) {
+              productsPageCache = {
+                ...productsPageCache,
+                products: latestProducts,
+              };
+            }
+          }
+        }
+
+        throw new Error(
+          payload?.error || "Failed to update product availability",
+        );
+      }
+
+      const updated = payload as Product;
+      setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)));
+      if (productsPageCache) {
+        productsPageCache = {
+          ...productsPageCache,
+          products: productsPageCache.products.map((p) =>
+            p.id === id ? updated : p,
+          ),
+        };
+      }
+      invalidateStorefrontProductCache();
+      return updated;
+    },
+    [],
+  );
+
   const deleteProduct = useCallback(async (id: number) => {
     await fetch(`/api/products/${id}`, { method: "DELETE" });
 
@@ -250,6 +298,7 @@ export default function ProductsPage() {
         loading={loading}
         onCreate={createProduct}
         onUpdate={updateProduct}
+        onAvailabilityChange={updateProductAvailability}
         onDelete={deleteProduct}
       />
     </div>

@@ -17,12 +17,17 @@ import slugify from "slugify";
 import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
 import { storefrontProductSelect } from "@/lib/storefront-product";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
+import {
+  isExpectedProductVersion,
+  parseProductAvailabilityPatch,
+} from "@/lib/product-availability";
 
 const productInclude = {
   category: true,
   brand: true,
   writer: true,
   publisher: true,
+  VatClass: true,
   variantOptions: {
     orderBy: { position: "asc" },
     include: {
@@ -37,6 +42,17 @@ const productInclude = {
       codes: {
         where: { isPrimary: true, status: "ACTIVE" },
         orderBy: { id: "asc" },
+      },
+      stockLevels: {
+        include: {
+          warehouse: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+        },
       },
     },
   },
@@ -187,7 +203,7 @@ export async function GET(
 
     const data = attachVariantColorImages(product, colorImageMap);
     return storefront
-      ? publicJson(data, { maxAge: 60, staleWhileRevalidate: 300 })
+      ? publicJson(data, { maxAge: 0, staleWhileRevalidate: 0 })
       : privateJson(data);
   } catch (err) {
     return NextResponse.json(
@@ -227,6 +243,16 @@ export async function PUT(
     }
 
     const body = await req.json();
+
+    if (body.available !== undefined) {
+      return NextResponse.json(
+        {
+          error:
+            "Use the dedicated product availability PATCH action to activate or deactivate a product",
+        },
+        { status: 400 },
+      );
+    }
 
     const existing = await prisma.product.findFirst({
       where: { id, deleted: false },
@@ -464,8 +490,7 @@ export async function PUT(
               : existing.serviceDurationMinutes,
           serviceLocation: body.serviceLocation ?? existing.serviceLocation,
           serviceOnlineLink: body.serviceOnlineLink ?? existing.serviceOnlineLink,
-          available:
-            body.available !== undefined ? body.available : existing.available,
+          available: existing.available,
           featured: body.featured !== undefined ? body.featured : existing.featured,
           image: body.image ?? existing.image,
           gallery: body.gallery ?? existing.gallery,
@@ -755,6 +780,171 @@ export async function PUT(
     return NextResponse.json(
       { error: message },
       { status }
+    );
+  }
+}
+
+/* =========================
+   ACTIVATE / DEACTIVATE PRODUCT
+========================= */
+export async function PATCH(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("products.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { id: idParam } = await ctx.params;
+    const id = Number(idParam);
+    if (!Number.isInteger(id) || id < 1) {
+      return NextResponse.json(
+        { error: "Invalid product id" },
+        { status: 400 },
+      );
+    }
+
+    let requestBody: unknown;
+    try {
+      requestBody = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: "A valid JSON body is required" },
+        { status: 400 },
+      );
+    }
+
+    const parsed = parseProductAvailabilityPatch(requestBody);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+
+    const existing = await prisma.product.findFirst({
+      where: { id, deleted: false },
+      include: productInclude,
+    });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Product not found" },
+        { status: 404 },
+      );
+    }
+
+    if (
+      !isExpectedProductVersion(
+        existing.updatedAt,
+        parsed.value.expectedUpdatedAt,
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This product changed after the page was loaded. Latest product data has been reloaded; review it and try again.",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (parsed.value.available && existing.category.deleted) {
+      return NextResponse.json(
+        {
+          error:
+            "This product cannot be activated because its category is inactive",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (existing.available === parsed.value.available) {
+      if (!existing.available) {
+        await prisma.cartItem.deleteMany({ where: { productId: id } });
+      }
+      const colorImageMap = await getVariantColorImageMap(
+        existing.variants.map((variant) => Number(variant.id)),
+      );
+      return privateJson(attachVariantColorImages(existing, colorImageMap));
+    }
+
+    const mutation = await prisma.$transaction(async (tx) => {
+      const updateResult = await tx.product.updateMany({
+        where: {
+          id,
+          deleted: false,
+          updatedAt: existing.updatedAt,
+        },
+        data: { available: parsed.value.available },
+      });
+      const removedCartItems =
+        updateResult.count === 1 && !parsed.value.available
+          ? await tx.cartItem.deleteMany({ where: { productId: id } })
+          : { count: 0 };
+
+      return {
+        updatedCount: updateResult.count,
+        removedCartItemCount: removedCartItems.count,
+      };
+    });
+
+    if (mutation.updatedCount !== 1) {
+      return NextResponse.json(
+        {
+          error:
+            "This product was changed by another administrator. Latest product data has been reloaded; review it and try again.",
+        },
+        { status: 409 },
+      );
+    }
+
+    const updated = await prisma.product.findFirst({
+      where: { id, deleted: false },
+      include: productInclude,
+    });
+    if (!updated) {
+      return NextResponse.json(
+        { error: "Product not found after availability update" },
+        { status: 409 },
+      );
+    }
+
+    const colorImageMap = await getVariantColorImageMap(
+      updated.variants.map((variant) => Number(variant.id)),
+    );
+    const updatedWithColorImages = attachVariantColorImages(
+      updated,
+      colorImageMap,
+    );
+    const action = updated.available ? "activate_product" : "deactivate_product";
+
+    await logActivity({
+      action,
+      entity: "product",
+      entityId: updated.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Product ${updated.available ? "activated" : "deactivated"}: ${updated.name}`,
+        removedCartItemCount: mutation.removedCartItemCount,
+      },
+      before: toProductLogSnapshot(existing),
+      after: toProductLogSnapshot(updatedWithColorImages),
+    });
+
+    revalidateStorefrontCatalog();
+
+    return privateJson(updatedWithColorImages);
+  } catch (error) {
+    console.error("Failed to update product availability", error);
+    return NextResponse.json(
+      { error: "Failed to update product availability" },
+      { status: 500 },
     );
   }
 }

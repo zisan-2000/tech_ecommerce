@@ -16,6 +16,66 @@ import {
   resolveCatalogFilters,
 } from "../lib/storefront-catalog.ts";
 import { STOREFRONT_CATEGORIES } from "../prisma/seed-data/storefront/constants.ts";
+import {
+  getProductAvailabilityAction,
+  isExpectedProductVersion,
+  parseProductAvailabilityPatch,
+} from "../lib/product-availability.ts";
+
+test("product availability actions always transition to the opposite state", () => {
+  assert.deepEqual(getProductAvailabilityAction(true), {
+    nextAvailable: false,
+    label: "Deactivate",
+    pastTense: "deactivated",
+  });
+  assert.deepEqual(getProductAvailabilityAction(false), {
+    nextAvailable: true,
+    label: "Activate",
+    pastTense: "activated",
+  });
+});
+
+test("product availability mutations require a boolean and a valid version", () => {
+  const parsed = parseProductAvailabilityPatch({
+    available: false,
+    expectedUpdatedAt: "2026-08-18T10:00:00.000Z",
+  });
+  assert.equal(parsed.ok, true);
+  if (parsed.ok) {
+    assert.equal(parsed.value.available, false);
+    assert.equal(
+      parsed.value.expectedUpdatedAt.toISOString(),
+      "2026-08-18T10:00:00.000Z",
+    );
+  }
+
+  assert.equal(parseProductAvailabilityPatch({ available: "false" }).ok, false);
+  assert.equal(
+    parseProductAvailabilityPatch({
+      available: true,
+      expectedUpdatedAt: "not-a-date",
+    }).ok,
+    false,
+  );
+});
+
+test("product availability version checks reject stale admin data", () => {
+  const current = new Date("2026-08-18T10:00:01.000Z");
+  assert.equal(
+    isExpectedProductVersion(
+      current,
+      new Date("2026-08-18T10:00:01.000Z"),
+    ),
+    true,
+  );
+  assert.equal(
+    isExpectedProductVersion(
+      current,
+      new Date("2026-08-18T10:00:00.000Z"),
+    ),
+    false,
+  );
+});
 
 test("storefront menu seed contains real third-level cable categories", () => {
   const cableCategory = STOREFRONT_CATEGORIES.find(

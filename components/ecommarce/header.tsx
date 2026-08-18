@@ -667,7 +667,7 @@ export default function Header({
 
         const data = await cachedFetchJson<any[]>(
           "/api/products?view=storefront&fields=summary",
-          { ttlMs: 5 * 60 * 1000 },
+          { ttlMs: 30 * 1000 },
         );
 
         const mapped: ProductSummary[] = Array.isArray(data)

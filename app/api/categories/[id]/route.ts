@@ -8,6 +8,11 @@ import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import slugify from "slugify";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
+import {
+  isStorefrontRequest,
+  privateJson,
+  publicJson,
+} from "@/lib/public-cache";
 
 function toCategoryLogSnapshot(category: {
   name: string;
@@ -33,6 +38,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const storefront = isStorefrontRequest(req);
     const { id: idParam } = await params;
     const id = Number(idParam);
 
@@ -53,12 +59,18 @@ export async function GET(
         _count: {
           select: {
             products: {
-              where: { deleted: false },
+              where: {
+                deleted: false,
+                ...(storefront ? { available: true } : {}),
+              },
             },
           },
         },
         products: {
-          where: { deleted: false },
+          where: {
+            deleted: false,
+            ...(storefront ? { available: true } : {}),
+          },
           include: {
             writer: true,
             brand: true,
@@ -74,7 +86,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
+    const response = {
       id: category.id,
       name: category.name,
       slug: category.slug,
@@ -86,7 +98,11 @@ export async function GET(
       products: category.products,
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
-    });
+    };
+
+    return storefront
+      ? publicJson(response, { maxAge: 60, staleWhileRevalidate: 300 })
+      : privateJson(response);
   } catch (error) {
     console.error(error);
     return NextResponse.json(

@@ -84,9 +84,9 @@ Current baseline:
 | Suite | Current tests | Coverage summary |
 | --- | ---: | --- |
 | Phase 0 | 9 | public-data redaction, coupon security, upload signatures, private paths, rate limiting |
-| Phase 1 | 15 | menu taxonomy, catalog normalization, filters, search safety, SEO URLs, stock and pagination URLs |
+| Phase 1 | 18 | menu taxonomy, catalog normalization, availability action/version validation, filters, search safety, SEO URLs, stock and pagination URLs |
 | Phase 2 | 9 | product IDs, variants/stock, purchase projection, compare limit, targeted cart fetch, question permissions |
-| Total | 33 | সব test অবশ্যই pass করতে হবে |
+| Total | 36 | সব test অবশ্যই pass করতে হবে |
 
 Production build আলাদাভাবে পরীক্ষা করতে হলে running dev server বন্ধ করে চালান:
 

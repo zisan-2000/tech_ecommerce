@@ -15,7 +15,10 @@ export async function GET(request: NextRequest) {
     const userId = (session.user as any).id as string;
 
     const wishlist = await prisma.wishlist.findMany({
-      where: { userId },
+      where: {
+        userId,
+        product: { available: true, deleted: false },
+      },
       include: {
         product: true,
       },
@@ -56,13 +59,13 @@ export async function POST(request: NextRequest) {
     }
 
     // পণ্য আসলেই আছে কিনা চেক করা (optional but good)
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
+    const product = await prisma.product.findFirst({
+      where: { id: productId, available: true, deleted: false },
     });
 
     if (!product) {
       return NextResponse.json(
-        { error: "Product not found" },
+        { error: "Product is not available" },
         { status: 404 }
       );
     }

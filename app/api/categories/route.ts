@@ -29,6 +29,7 @@ function toCategoryLogSnapshot(category: {
 ========================= */
 export async function GET(req: Request) {
   try {
+    const storefront = isStorefrontRequest(req);
     const categories = await prisma.category.findMany({
       where: { deleted: false },
       orderBy: { id: "desc" },
@@ -40,7 +41,10 @@ export async function GET(req: Request) {
         _count: {
           select: {
             products: {
-              where: { deleted: false },
+              where: {
+                deleted: false,
+                ...(storefront ? { available: true } : {}),
+              },
             },
           },
         },
@@ -95,7 +99,7 @@ export async function GET(req: Request) {
       deleted: c.deleted,
     }));
 
-    return isStorefrontRequest(req)
+    return storefront
       ? publicJson(formatted, { maxAge: 300, staleWhileRevalidate: 1800 })
       : privateJson(formatted);
   } catch (error) {

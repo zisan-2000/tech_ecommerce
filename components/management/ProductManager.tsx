@@ -29,6 +29,8 @@ import {
   Boxes,
   Package,
   AlertTriangle,
+  Power,
+  PowerOff,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -46,6 +48,7 @@ import AttributesManagerModal from "./AttributesManagerModal";
 import DigitalAssetManagerModal from "./DigitalAssetManagerModal";
 import type { InventoryStatus } from "@/lib/stock-status";
 import SpotlightCard from "../SpotlightCard";
+import { getProductAvailabilityAction } from "@/lib/product-availability";
 
 type WarehouseOption = {
   id: number;
@@ -67,6 +70,7 @@ export default function ProductManager({
   loading,
   onCreate,
   onUpdate,
+  onAvailabilityChange,
   onDelete,
   writers,
   publishers,
@@ -90,6 +94,9 @@ export default function ProductManager({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [availabilityProduct, setAvailabilityProduct] = useState<any>(null);
+  const [availabilityDialogOpen, setAvailabilityDialogOpen] = useState(false);
+  const [isChangingAvailability, setIsChangingAvailability] = useState(false);
   const [attributesOpen, setAttributesOpen] = useState(false);
   const [digitalAssetsOpen, setDigitalAssetsOpen] = useState(false);
   const [warehouseId, setWarehouseId] = useState<string>("");
@@ -354,6 +361,16 @@ export default function ProductManager({
     setDeleteModalOpen(true);
   };
 
+  const openAvailabilityModal = (product: any) => {
+    setAvailabilityProduct(product);
+    setAvailabilityDialogOpen(true);
+  };
+
+  const closeAvailabilityModal = () => {
+    setAvailabilityDialogOpen(false);
+    setAvailabilityProduct(null);
+  };
+
   const closeDeleteModal = () => {
     setDeleteModalOpen(false);
     setDeletingProduct(null);
@@ -376,6 +393,32 @@ export default function ProductManager({
     } finally {
       setIsDeleting(false);
       closeDeleteModal();
+    }
+  };
+
+  const handleAvailabilityChange = async () => {
+    if (!availabilityProduct) return;
+
+    const action = getProductAvailabilityAction(
+      Boolean(availabilityProduct.available),
+    );
+    try {
+      setIsChangingAvailability(true);
+      await onAvailabilityChange(
+        availabilityProduct.id,
+        action.nextAvailable,
+        availabilityProduct.updatedAt,
+      );
+      toast.success(`Product ${action.pastTense} successfully`);
+      closeAvailabilityModal();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update product availability",
+      );
+    } finally {
+      setIsChangingAvailability(false);
     }
   };
 
@@ -467,6 +510,54 @@ export default function ProductManager({
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ACTIVATE / DEACTIVATE MODAL */}
+      <AlertDialog
+        open={availabilityDialogOpen}
+        onOpenChange={(open) => {
+          if (isChangingAvailability) return;
+          if (open) setAvailabilityDialogOpen(true);
+          else closeAvailabilityModal();
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {availabilityProduct?.available
+                ? "Deactivate Product?"
+                : "Activate Product?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {availabilityProduct?.available
+                ? `“${availabilityProduct?.name}” will be removed from storefront listings, search and product details. New cart and order requests will be blocked. Inventory and historical orders will be preserved.`
+                : `“${availabilityProduct?.name}” will become visible on the storefront and can be purchased when its product type and stock rules allow it.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isChangingAvailability}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void handleAvailabilityChange();
+              }}
+              disabled={isChangingAvailability}
+              className={
+                availabilityProduct?.available
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              }
+            >
+              {isChangingAvailability
+                ? "Saving..."
+                : availabilityProduct?.available
+                  ? "Deactivate"
+                  : "Activate"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -820,11 +911,15 @@ export default function ProductManager({
 
                 {/* Top-left badges */}
                 <div className="absolute top-3 left-3 flex gap-1.5">
-                  {p.available && (
-                    <span className="rounded-full border border-primary/20 bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-foreground">
-                      Available
-                    </span>
-                  )}
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                      p.available
+                        ? "border-primary/20 bg-primary text-primary-foreground"
+                        : "border-destructive/20 bg-destructive text-destructive-foreground"
+                    }`}
+                  >
+                    {p.available ? "Available" : "Unavailable"}
+                  </span>
                   {p.featured && (
                     <span className="rounded-full border border-accent/20 bg-accent px-2 py-0.5 text-[11px] font-medium text-accent-foreground">
                       Featured
@@ -928,12 +1023,12 @@ export default function ProductManager({
 
                 {/* Actions fixed bottom */}
                 <div className="mt-auto border-t border-border/50 pt-3">
-                  <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       onClick={() => openEdit(p)}
                       variant="default"
                       size="sm"
-                      className="min-w-[calc(50%-0.25rem)] flex-1 text-xs sm:min-w-0"
+                      className="w-full text-xs"
                     >
                       <Edit3 className="mr-1 h-3 w-3" />
                       Edit
@@ -943,16 +1038,36 @@ export default function ProductManager({
                       onClick={() => openManage(p)}
                       variant="default"
                       size="sm"
-                      className="min-w-[calc(50%-0.25rem)] flex-1 text-xs sm:min-w-0"
+                      className="w-full text-xs"
                     >
                       Manage
+                    </Button>
+
+                    <Button
+                      onClick={() => openAvailabilityModal(p)}
+                      variant="outline"
+                      size="sm"
+                      aria-label={`${p.available ? "Deactivate" : "Activate"} ${p.name}`}
+                      className={`w-full text-xs ${
+                        p.available
+                          ? "border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          : "border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+                      }`}
+                    >
+                      {p.available ? (
+                        <PowerOff className="mr-1 h-3.5 w-3.5" />
+                      ) : (
+                        <Power className="mr-1 h-3.5 w-3.5" />
+                      )}
+                      {p.available ? "Deactivate" : "Activate"}
                     </Button>
 
                     <Button
                       onClick={() => openDeleteModal(p)}
                       variant="destructive"
                       size="sm"
-                      className="h-9 w-full shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-9"
+                      aria-label={`Delete ${p.name}`}
+                      className="h-9 w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>

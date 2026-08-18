@@ -796,13 +796,14 @@ export default function ProductAddModal({
         serviceDurationMinutes: form.serviceDurationMinutes ? Number(form.serviceDurationMinutes) : null,
         serviceLocation: form.serviceLocation || null,
         serviceOnlineLink: form.serviceOnlineLink || null,
-        available: form.available,
         featured: form.featured,
         image: form.image || null,
         gallery: form.gallery || [],
         videoUrl: form.videoUrl || null,
         variantOptions: hasVariants ? normalizedVariantOptions : [],
       };
+
+      if (!editing) payload.available = form.available;
 
       if (stock !== undefined) payload.stock = stock;
       if (hasVariants) {
@@ -1283,7 +1284,17 @@ export default function ProductAddModal({
               </div>
             )}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <label className="flex items-center gap-2"><input type="checkbox" checked={form.available} onChange={(e) => setForm((prev) => ({ ...prev, available: e.target.checked }))} /><Label>Available</Label></label>
+              {editing ? (
+                <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+                  <span className="font-medium">Status: </span>
+                  <span>{form.available ? "Available" : "Unavailable"}</span>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Use the product card&apos;s Activate/Deactivate action to change availability.
+                  </p>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2"><input type="checkbox" checked={form.available} onChange={(e) => setForm((prev) => ({ ...prev, available: e.target.checked }))} /><Label>Available</Label></label>
+              )}
               <label className="flex items-center gap-2"><input type="checkbox" checked={form.featured} onChange={(e) => setForm((prev) => ({ ...prev, featured: e.target.checked }))} /><Label>Featured</Label></label>
             </div>
           </section>

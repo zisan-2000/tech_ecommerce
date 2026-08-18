@@ -316,6 +316,7 @@ export async function POST(request: NextRequest) {
     const products = await prisma.product.findMany({
       where: {
         id: { in: productIds },
+        deleted: false,
       },
       include: {
         VatClass: true,
@@ -350,7 +351,7 @@ export async function POST(request: NextRequest) {
         throw new Error(`Product not found: ${item.productId}`);
       }
 
-      if (!product.available) {
+      if (product.deleted || !product.available) {
         throw new Error(`Product not available: ${product.name}`);
       }
 

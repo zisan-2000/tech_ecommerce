@@ -18,6 +18,16 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Testing
 
+Product module (admin panelসহ) আলাদাভাবে test করতে:
+
+```bash
+npm run verify:products
+```
+
+Category/brand থেকে product, variant, warehouse stock, bundle, storefront এবং
+cart পর্যন্ত exact manual cases আছে
+[Product module testing manual](docs/product-testing-manual.md)-এ।
+
 Run the complete Phase 0–2 automated gate:
 
 ```bash

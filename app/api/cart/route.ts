@@ -16,7 +16,10 @@ export async function GET() {
     }
 
     const items = await prisma.cartItem.findMany({
-      where: { userId },
+      where: {
+        userId,
+        product: { available: true, deleted: false },
+      },
       include: {
         product: {
           include: {
@@ -102,7 +105,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (!product || !product.available) {
+    if (!product || product.deleted || !product.available) {
       return NextResponse.json(
         { error: 'Product not available' },
         { status: 404 }
