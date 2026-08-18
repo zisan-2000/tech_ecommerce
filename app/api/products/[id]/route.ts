@@ -17,6 +17,7 @@ import slugify from "slugify";
 import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache";
 import { storefrontProductSelect } from "@/lib/storefront-product";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
+import { applyFlashSalePricingToProduct } from "@/lib/flash-sale";
 import {
   isExpectedProductVersion,
   parseProductAvailabilityPatch,
@@ -203,7 +204,10 @@ export async function GET(
 
     const data = attachVariantColorImages(product, colorImageMap);
     return storefront
-      ? publicJson(data, { maxAge: 0, staleWhileRevalidate: 0 })
+      ? publicJson(applyFlashSalePricingToProduct(data), {
+          maxAge: 0,
+          staleWhileRevalidate: 0,
+        })
       : privateJson(data);
   } catch (err) {
     return NextResponse.json(

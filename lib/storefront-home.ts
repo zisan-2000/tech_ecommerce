@@ -1,8 +1,9 @@
 import { unstable_cache } from "next/cache";
 import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
+import { resolveFlashSalePricing } from "@/lib/flash-sale";
 
-const storefrontHomeProductSelect = {
+export const storefrontHomeProductSelect = {
   id: true,
   name: true,
   slug: true,
@@ -10,6 +11,11 @@ const storefrontHomeProductSelect = {
   categoryId: true,
   basePrice: true,
   originalPrice: true,
+  flashSaleEnabled: true,
+  flashSalePrice: true,
+  flashSaleStartsAt: true,
+  flashSaleEndsAt: true,
+  flashSaleSortOrder: true,
   currency: true,
   available: true,
   featured: true,
@@ -53,28 +59,32 @@ type RawStorefrontProduct = Prisma.ProductGetPayload<{
   select: typeof storefrontHomeProductSelect;
 }>;
 
-function serializeProduct(product: RawStorefrontProduct) {
+export function serializeStorefrontHomeProduct(
+  product: RawStorefrontProduct,
+  now = new Date(),
+) {
+  const regularBasePrice = Number(product.basePrice);
+  const flashSale = resolveFlashSalePricing(product, regularBasePrice, now);
   return {
     ...product,
-    basePrice: Number(product.basePrice),
-    originalPrice:
-      product.originalPrice === null ? null : Number(product.originalPrice),
+    basePrice: flashSale.salePrice,
+    originalPrice: flashSale.active
+      ? flashSale.regularPrice
+      : product.originalPrice === null
+        ? null
+        : Number(product.originalPrice),
+    flashSale,
+    flashSalePrice:
+      product.flashSalePrice === null ? null : Number(product.flashSalePrice),
+    flashSaleStartsAt: product.flashSaleStartsAt?.toISOString() ?? null,
+    flashSaleEndsAt: product.flashSaleEndsAt?.toISOString() ?? null,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
     variants: product.variants.map((variant) => ({
       ...variant,
-      price: Number(variant.price),
+      price: resolveFlashSalePricing(product, variant.price, now).salePrice,
     })),
   };
-}
-
-function discountPercent(product: ReturnType<typeof serializeProduct>) {
-  if (!product.originalPrice || product.originalPrice <= product.basePrice) {
-    return 0;
-  }
-  return Math.round(
-    ((product.originalPrice - product.basePrice) / product.originalPrice) * 100,
-  );
 }
 
 const readStorefrontHomeData = unstable_cache(
@@ -92,9 +102,12 @@ const readStorefrontHomeData = unstable_cache(
           where: {
             deleted: false,
             available: true,
-            originalPrice: { not: null },
+            flashSaleEnabled: true,
+            flashSalePrice: { not: null },
+            flashSaleStartsAt: { lte: now },
+            flashSaleEndsAt: { gt: now },
           },
-          orderBy: { updatedAt: "desc" },
+          orderBy: [{ flashSaleSortOrder: "asc" }, { flashSaleEndsAt: "asc" }],
           take: 80,
           select: storefrontHomeProductSelect,
         }),
@@ -196,18 +209,19 @@ const readStorefrontHomeData = unstable_cache(
       return total;
     };
 
-    const serializedProducts = products.map(serializeProduct);
+    const serializedProducts = products.map((product) =>
+      serializeStorefrontHomeProduct(product, now),
+    );
     const flashSaleProducts = discountedProducts
-      .map(serializeProduct)
-      .filter((product) => discountPercent(product) > 0)
-      .sort((left, right) => discountPercent(right) - discountPercent(left))
+      .map((product) => serializeStorefrontHomeProduct(product, now))
+      .filter((product) => product.flashSale.active)
       .slice(0, 20);
 
     return {
       products: serializedProducts,
       flashSaleProducts,
       topSellingProducts: topSelling.map((product, index) => ({
-        ...serializeProduct(product),
+        ...serializeStorefrontHomeProduct(product, now),
         totalSold: product.soldCount,
         rank: index + 1,
       })),
@@ -245,10 +259,10 @@ const readStorefrontHomeData = unstable_cache(
       },
     };
   },
-  ["storefront-home-v1"],
+  ["storefront-home-v2"],
   {
-    revalidate: 120,
-    tags: ["storefront-home", "products", "categories", "banners", "site-settings"],
+    revalidate: 30,
+    tags: ["storefront-home", "products", "flash-sales", "categories", "banners", "site-settings"],
   },
 );
 

@@ -22,6 +22,7 @@ import {
 } from "@/lib/sslcommerz";
 import { rateLimitRequest } from "@/lib/request-security";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
+import { resolveFlashSalePricing } from "@/lib/flash-sale";
 import {
   orderProductSelect,
   orderUserSelect,
@@ -378,7 +379,10 @@ export async function POST(request: NextRequest) {
         throw new Error(`Insufficient stock for: ${product.name}`);
       }
 
-      const priceNumber = Number(targetVariant.price ?? product.basePrice);
+      const priceNumber = resolveFlashSalePricing(
+        product,
+        targetVariant.price ?? product.basePrice,
+      ).salePrice;
       const lineTotal = priceNumber * item.quantity;
 
       subtotal += lineTotal;

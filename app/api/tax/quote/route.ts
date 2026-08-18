@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculateTaxForItems } from "@/lib/tax";
+import { resolveFlashSalePricing } from "@/lib/flash-sale";
 
 type QuoteRequestItem = {
   productId: number;
@@ -12,6 +13,10 @@ type ProductTaxLookup = {
   id: number;
   basePrice: unknown;
   currency: string;
+  flashSaleEnabled: boolean;
+  flashSalePrice: unknown | null;
+  flashSaleStartsAt: Date | null;
+  flashSaleEndsAt: Date | null;
   VatClass: {
     id: number;
     name: string;
@@ -102,7 +107,10 @@ export async function POST(request: NextRequest) {
           productId: product.id,
           variantId: variant.id,
           quantity: item.quantity,
-          unitPrice: Number(variant.price ?? product.basePrice),
+          unitPrice: resolveFlashSalePricing(
+            product,
+            variant.price ?? product.basePrice,
+          ).salePrice,
           currency: String(variant.currency || product.currency || "BDT"),
           vatClassId: product.VatClass?.id ?? null,
           vatClassName: product.VatClass?.name ?? null,

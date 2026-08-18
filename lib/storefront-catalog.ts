@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache.js";
 import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
+import { resolveFlashSalePricing } from "@/lib/flash-sale";
 
 const CATALOG_PAGE_SIZES = [12, 24, 36] as const;
 export const CATALOG_MAX_PRICE = 99_999_999.99;
@@ -43,6 +44,10 @@ const catalogProductSelect = {
   type: true,
   basePrice: true,
   originalPrice: true,
+  flashSaleEnabled: true,
+  flashSalePrice: true,
+  flashSaleStartsAt: true,
+  flashSaleEndsAt: true,
   image: true,
   soldCount: true,
   ratingAvg: true,
@@ -221,9 +226,13 @@ export function catalogProductStock(product: RawCatalogProduct) {
 }
 
 function serializeCatalogProduct(product: RawCatalogProduct) {
-  const price = Number(product.basePrice);
-  const originalPrice =
-    product.originalPrice === null ? null : Number(product.originalPrice);
+  const flashSale = resolveFlashSalePricing(product);
+  const price = flashSale.salePrice;
+  const originalPrice = flashSale.active
+    ? flashSale.regularPrice
+    : product.originalPrice === null
+      ? null
+      : Number(product.originalPrice);
   const discountPct =
     originalPrice && originalPrice > price
       ? Math.round(((originalPrice - price) / originalPrice) * 100)
@@ -242,10 +251,11 @@ function serializeCatalogProduct(product: RawCatalogProduct) {
     ratingCount: product.ratingCount,
     stock: catalogProductStock(product),
     discountPct,
+    flashSale,
     bundleStockLimit: product.bundleStockLimit,
     variants: product.variants.map((variant) => ({
       ...variant,
-      price: Number(variant.price),
+      price: resolveFlashSalePricing(product, variant.price).salePrice,
       options: normalizeOptions(variant.options),
     })),
     bundleItems: product.bundleItems.map((item) => ({

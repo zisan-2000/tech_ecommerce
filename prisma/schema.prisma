@@ -327,6 +327,11 @@ model Product {
   shortDesc               String?
   basePrice               Decimal                           @db.Decimal(10, 2)
   originalPrice           Decimal?                          @db.Decimal(10, 2)
+  flashSaleEnabled        Boolean                           @default(false)
+  flashSalePrice          Decimal?                          @db.Decimal(10, 2)
+  flashSaleStartsAt       DateTime?
+  flashSaleEndsAt         DateTime?
+  flashSaleSortOrder      Int                               @default(0)
   currency                String                            @default("USD") @db.VarChar(3)
   weight                  Float?
   dimensions              Json?
@@ -376,6 +381,7 @@ model Product {
   @@index([deleted, available, soldCount])
   @@index([deleted, available, basePrice])
   @@index([deleted, available, featured])
+  @@index([deleted, available, flashSaleEnabled, flashSaleStartsAt, flashSaleEndsAt])
   @@index([categoryId, deleted, available])
   @@index([brandId, deleted, available])
   @@index([writerId, deleted, available])

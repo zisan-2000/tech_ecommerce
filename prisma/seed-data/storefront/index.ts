@@ -352,6 +352,16 @@ export async function seedStorefrontDemo(
   const variantIds: Record<string, number> = {};
 
   for (const [productPosition, item] of STOREFRONT_PRODUCTS.entries()) {
+    const isDemoFlashSale = productPosition < 8;
+    const demoFlashPrice = isDemoFlashSale
+      ? Math.max(1, Math.round(item.basePrice * (0.84 + productPosition * 0.01)))
+      : null;
+    const demoFlashStartsAt = isDemoFlashSale
+      ? new Date(Date.now() - 60 * 60 * 1000)
+      : null;
+    const demoFlashEndsAt = isDemoFlashSale
+      ? new Date(Date.now() + (productPosition + 1) * 24 * 60 * 60 * 1000)
+      : null;
     const product = await prisma.product.upsert({
       where: { slug: item.slug },
       update: {
@@ -364,6 +374,11 @@ export async function seedStorefrontDemo(
         shortDesc: item.shortDesc,
         basePrice: item.basePrice,
         originalPrice: item.originalPrice ?? null,
+        flashSaleEnabled: isDemoFlashSale,
+        flashSalePrice: demoFlashPrice,
+        flashSaleStartsAt: demoFlashStartsAt,
+        flashSaleEndsAt: demoFlashEndsAt,
+        flashSaleSortOrder: productPosition,
         currency: "BDT",
         weight: item.weight ?? null,
         dimensions: item.dimensions,
@@ -386,6 +401,11 @@ export async function seedStorefrontDemo(
         shortDesc: item.shortDesc,
         basePrice: item.basePrice,
         originalPrice: item.originalPrice ?? null,
+        flashSaleEnabled: isDemoFlashSale,
+        flashSalePrice: demoFlashPrice,
+        flashSaleStartsAt: demoFlashStartsAt,
+        flashSaleEndsAt: demoFlashEndsAt,
+        flashSaleSortOrder: productPosition,
         currency: "BDT",
         weight: item.weight ?? null,
         dimensions: item.dimensions,

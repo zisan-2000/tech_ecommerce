@@ -8,5 +8,6 @@ export function revalidateStorefrontCatalog() {
   // updateTag, so expire the tagged data immediately.
   revalidateTag("storefront-catalog", { expire: 0 });
   revalidateTag("products", { expire: 0 });
+  revalidateTag("flash-sales", { expire: 0 });
   revalidateTag("categories", { expire: 0 });
 }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { applyFlashSalePricingToProduct } from "@/lib/flash-sale";
 
 // GET /api/wishlist -> current user's wishlist items + product details
 export async function GET(request: NextRequest) {
@@ -28,7 +29,12 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ items: wishlist });
+    return NextResponse.json({
+      items: wishlist.map((item) => ({
+        ...item,
+        product: applyFlashSalePricingToProduct(item.product),
+      })),
+    });
   } catch (error) {
     console.error("Error fetching wishlist:", error);
     return NextResponse.json(
@@ -94,7 +100,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(wishlistItem, { status: 201 });
+    return NextResponse.json(
+      {
+        ...wishlistItem,
+        product: applyFlashSalePricingToProduct(wishlistItem.product),
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Error adding to wishlist:", error);
     return NextResponse.json(

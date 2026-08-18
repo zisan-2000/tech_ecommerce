@@ -21,6 +21,7 @@ import {
 } from "@/lib/public-cache";
 import { storefrontProductSelect } from "@/lib/storefront-product";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
+import { applyFlashSalePricingToProduct } from "@/lib/flash-sale";
 
 const createVariantSku = (slug: string, index: number) =>
   `${slug.substring(0, 20)}-V${index + 1}-${Math.random()
@@ -236,7 +237,12 @@ export async function GET(req: Request) {
     }));
 
     return storefront
-      ? publicJson(productsWithRatings, { maxAge: 0, staleWhileRevalidate: 0 })
+      ? publicJson(
+          productsWithRatings.map((product) =>
+            applyFlashSalePricingToProduct(product),
+          ),
+          { maxAge: 0, staleWhileRevalidate: 0 },
+        )
       : privateJson(productsWithRatings);
   } catch (err) {
     return NextResponse.json(

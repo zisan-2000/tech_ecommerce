@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { applyFlashSalePricingToProduct } from '@/lib/flash-sale';
 
 // GET cart items - Logged in user only
 export async function GET() {
@@ -47,7 +48,21 @@ export async function GET() {
       orderBy: { id: 'asc' },
     });
 
-    return NextResponse.json({ items });
+    return NextResponse.json({
+      items: items.map((item) => ({
+        ...item,
+        product: applyFlashSalePricingToProduct(item.product),
+        variant: item.variant
+          ? {
+              ...item.variant,
+              price: applyFlashSalePricingToProduct({
+                ...item.product,
+                variants: [item.variant],
+              }).variants?.[0]?.price ?? Number(item.variant.price),
+            }
+          : null,
+      })),
+    });
   } catch (error) {
     console.error('Error fetching cart:', error);
     return NextResponse.json(
