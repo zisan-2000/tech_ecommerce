@@ -15,6 +15,30 @@ import {
   parseCatalogFilters,
   resolveCatalogFilters,
 } from "../lib/storefront-catalog.ts";
+import { STOREFRONT_CATEGORIES } from "../prisma/seed-data/storefront/constants.ts";
+
+test("storefront menu seed contains real third-level cable categories", () => {
+  const cableCategory = STOREFRONT_CATEGORIES.find(
+    (category) => category.key === "cable",
+  );
+  assert.ok(cableCategory);
+
+  const childSlugs = STOREFRONT_CATEGORIES.filter(
+    (category) => category.parentKey === cableCategory.key,
+  ).map((category) => category.slug);
+
+  assert.deepEqual(childSlugs, [
+    "hdmi-cable",
+    "displayport-cable",
+    "usb-cable",
+    "usb-type-c-cable",
+    "vga-dvi-cable",
+    "audio-cable",
+    "network-cable",
+    "power-cable",
+    "converter-adapter",
+  ]);
+});
 
 test("storefront categories are normalized into stable tab values", () => {
   assert.deepEqual(

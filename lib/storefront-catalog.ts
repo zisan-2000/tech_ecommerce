@@ -409,7 +409,7 @@ const readCatalogFacets = unstable_cache(
       },
     };
   },
-  ["storefront-catalog-facets-v3"],
+  ["storefront-catalog-facets-v4"],
   {
     revalidate: 300,
     tags: ["storefront-catalog", "products", "categories", "site-settings"],

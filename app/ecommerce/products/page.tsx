@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Filter, PackageSearch, Search, SlidersHorizontal } from "lucide-react";
+import { Filter, PackageSearch, Search } from "lucide-react";
+import CatalogFilterForm from "@/components/ecommarce/catalog/CatalogFilterForm";
 import CatalogProductGrid from "@/components/ecommarce/catalog/CatalogProductGrid";
 import {
   CATALOG_MAX_PRICE,
@@ -230,9 +231,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               ) : null}
             </div>
 
-            <form
-              method="get"
-              action="/ecommerce/products"
+            <CatalogFilterForm
+              key={catalogUrl(filters)}
               className="hidden space-y-5 border-t p-4 peer-checked:block lg:block lg:border-t-0"
             >
               {activeFilterCount ? (
@@ -399,14 +399,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                 </select>
               </label>
 
-              <button
-                type="submit"
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary/90"
-              >
-                <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-                Apply filters
-              </button>
-            </form>
+            </CatalogFilterForm>
           </aside>
 
           <main className="min-w-0">

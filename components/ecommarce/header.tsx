@@ -425,7 +425,11 @@ function MobileCategoryTree({
     const markerLeft = padLeft - 9;
 
     return (
-      <div className="relative border-b border-border/50 last:border-b-0">
+      <div
+        data-category-slug={node.slug}
+        data-menu-level={level + 1}
+        className="relative border-b border-border/50 last:border-b-0"
+      >
         {level > 0 && (
           <>
             <span
@@ -470,9 +474,12 @@ function MobileCategoryTree({
             <button
               type="button"
               onClick={() => toggle(node.id)}
+              aria-expanded={isOpen}
+              aria-label={`${isOpen ? "Collapse" : "Expand"} ${node.name}`}
               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted"
             >
               <ChevronRight
+                aria-hidden="true"
                 className={`h-5 w-5 transition-transform ${
                   isOpen ? "rotate-90" : ""
                 }`}
@@ -1387,7 +1394,7 @@ export default function Header({
             onMouseEnter={clearNavCloseTimer}
             onMouseLeave={scheduleNavClose}
           >
-            <div className="w-[min(960px,calc(100vw-24px))] overflow-hidden rounded-b-xl border border-slate-200 bg-white text-slate-800 shadow-2xl animate-in slide-in-from-top-2 duration-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+            <div className="w-[min(960px,calc(100vw-24px))] overflow-visible rounded-b-xl border border-slate-200 bg-white text-slate-800 shadow-2xl animate-in slide-in-from-top-2 duration-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 dark:border-slate-800">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400">
@@ -1407,33 +1414,73 @@ export default function Header({
               </div>
 
               <div className="grid grid-cols-3 gap-x-8 gap-y-1 p-4">
-                {hoveredNavCat.children.map((sub) => (
-                  <div key={sub.id} className="min-w-0">
-                    <Link
-                      href={`/ecommerce/products?category=${encodeURIComponent(sub.slug)}`}
-                      onClick={() => setNavHoverCatId(null)}
-                      className="group/item flex min-h-10 items-center justify-between gap-3 rounded-md px-2.5 py-2 text-sm font-bold transition hover:bg-slate-100 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-blue-400"
-                    >
-                      <span className="truncate">{sub.name}</span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition group-hover/item:translate-x-0.5 group-hover/item:text-blue-600" />
-                    </Link>
+                {hoveredNavCat.children.map((sub, index) => {
+                  const hasChildren = sub.children.length > 0;
+                  const opensToLeft = index % 3 === 2;
 
-                    {sub.children.length > 0 && (
-                      <div className="space-y-0.5 pl-3">
-                        {sub.children.map((child) => (
-                          <Link
-                            key={child.id}
-                            href={`/ecommerce/products?category=${encodeURIComponent(child.slug)}`}
-                            onClick={() => setNavHoverCatId(null)}
-                            className="block truncate rounded px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-50 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-400"
-                          >
-                            {child.name}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  return (
+                    <div
+                      key={sub.id}
+                      data-category-slug={sub.slug}
+                      data-menu-level="2"
+                      className="group/sub relative min-w-0 hover:z-20 focus-within:z-20"
+                    >
+                      <Link
+                        href={`/ecommerce/products?category=${encodeURIComponent(sub.slug)}`}
+                        onClick={() => setNavHoverCatId(null)}
+                        className="group/item flex min-h-10 items-center justify-between gap-3 rounded-md px-2.5 py-2 text-sm font-bold transition hover:bg-slate-100 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+                      >
+                        <span className="truncate">{sub.name}</span>
+                        {hasChildren && (
+                          <ChevronRight
+                            aria-hidden="true"
+                            className="h-4 w-4 shrink-0 text-slate-400 transition group-hover/item:translate-x-0.5 group-hover/item:text-blue-600"
+                          />
+                        )}
+                      </Link>
+
+                      {hasChildren && (
+                        <div
+                          data-menu-level="3"
+                          aria-label={`${sub.name} subcategories`}
+                          className={`pointer-events-none invisible absolute top-0 z-30 w-72 rounded-xl border border-slate-200 bg-white p-2 opacity-0 shadow-2xl transition duration-150 group-hover/sub:pointer-events-auto group-hover/sub:visible group-hover/sub:opacity-100 group-focus-within/sub:pointer-events-auto group-focus-within/sub:visible group-focus-within/sub:opacity-100 dark:border-slate-700 dark:bg-slate-900 ${
+                            opensToLeft
+                              ? "right-[calc(100%-0.25rem)]"
+                              : "left-[calc(100%-0.25rem)]"
+                          }`}
+                        >
+                          <div className="mb-1 flex items-center justify-between gap-3 border-b border-slate-100 px-2 py-2 dark:border-slate-800">
+                            <span className="truncate text-xs font-extrabold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              {sub.name}
+                            </span>
+                            <Link
+                              href={`/ecommerce/products?category=${encodeURIComponent(sub.slug)}`}
+                              onClick={() => setNavHoverCatId(null)}
+                              className="shrink-0 text-xs font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                            >
+                              View all
+                            </Link>
+                          </div>
+
+                          <div className="max-h-72 space-y-0.5 overflow-y-auto">
+                            {sub.children.map((child) => (
+                              <Link
+                                key={child.id}
+                                href={`/ecommerce/products?category=${encodeURIComponent(child.slug)}`}
+                                onClick={() => setNavHoverCatId(null)}
+                                data-category-slug={child.slug}
+                                data-menu-level="3-item"
+                                className="flex min-h-9 items-center rounded-lg px-2.5 py-2 text-sm font-semibold text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 focus-visible:bg-blue-50 focus-visible:text-blue-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+                              >
+                                <span className="truncate">{child.name}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

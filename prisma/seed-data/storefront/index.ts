@@ -277,19 +277,11 @@ async function enforceTechOnlyStorefront(
   };
 }
 
-export async function seedStorefrontDemo(
+export async function seedStorefrontCategories(
   prisma: PrismaClient,
-  adminUserId?: string | null,
-): Promise<StorefrontSeedSummary> {
-  console.log("🛍️  Seeding technology storefront demo...");
-
-  const [admin, customers, warehouse] = await Promise.all([
-    ensureAdmin(prisma, adminUserId),
-    ensureCustomers(prisma),
-    ensureWarehouse(prisma),
-  ]);
-
+): Promise<Record<string, number>> {
   const categoryIds: Record<string, number> = {};
+
   for (const category of STOREFRONT_CATEGORIES) {
     const parentId = category.parentKey
       ? categoryIds[category.parentKey]
@@ -318,6 +310,23 @@ export async function seedStorefrontDemo(
     });
     categoryIds[category.key] = record.id;
   }
+
+  return categoryIds;
+}
+
+export async function seedStorefrontDemo(
+  prisma: PrismaClient,
+  adminUserId?: string | null,
+): Promise<StorefrontSeedSummary> {
+  console.log("🛍️  Seeding technology storefront demo...");
+
+  const [admin, customers, warehouse] = await Promise.all([
+    ensureAdmin(prisma, adminUserId),
+    ensureCustomers(prisma),
+    ensureWarehouse(prisma),
+  ]);
+
+  const categoryIds = await seedStorefrontCategories(prisma);
 
   const brandIds: Record<string, number> = {};
   for (const brand of STOREFRONT_BRANDS) {
