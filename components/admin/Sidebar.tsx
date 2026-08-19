@@ -1159,7 +1159,7 @@ export default function Sidebar({
   // Using CSS variables from global.css
   const themeBg = "bg-background";
   const themeBorder = "border-border";
-  const siteTitle = siteSettings?.siteTitle?.trim() || "BOED";
+  const siteTitle = siteSettings?.siteTitle?.trim() || "Tech Ecommerce";
   const headerTitle = userRoleLabel || siteTitle;
   const adminSubtitle = siteTitle ? `${siteTitle}` : "Admin Panel";
 
@@ -1226,7 +1226,7 @@ export default function Sidebar({
       {/* Version */}
       <div className="p-4 border-t border-border/50">
         <h3 className="text-sm font-semibold text-foreground text-center">
-          BOED E-Commerce
+          Tech Ecommerce
         </h3>
         <p className="text-[10px] text-muted-foreground/40 text-center">
           V1.1.0

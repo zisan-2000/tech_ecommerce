@@ -26,8 +26,6 @@ import {
 const productInclude = {
   category: true,
   brand: true,
-  writer: true,
-  publisher: true,
   VatClass: true,
   variantOptions: {
     orderBy: { position: "asc" },
@@ -106,8 +104,6 @@ function toProductLogSnapshot(product: any) {
     type: product.type,
     category: product.category?.name ?? null,
     brand: product.brand?.name ?? null,
-    writer: product.writer?.name ?? null,
-    publisher: product.publisher?.name ?? null,
     VatClassId: product.VatClassId ?? null,
     basePrice: Number(product.basePrice),
     originalPrice: product.originalPrice === null ? null : Number(product.originalPrice),
@@ -444,18 +440,6 @@ export async function PUT(
                 ? Number(body.brandId)
                 : null
               : existing.brandId,
-          writerId:
-            body.writerId !== undefined
-              ? body.writerId
-                ? Number(body.writerId)
-                : null
-              : existing.writerId,
-          publisherId:
-            body.publisherId !== undefined
-              ? body.publisherId
-                ? Number(body.publisherId)
-                : null
-              : existing.publisherId,
           description: body.description ?? existing.description,
           shortDesc: body.shortDesc ?? existing.shortDesc,
           basePrice: nextBasePrice,

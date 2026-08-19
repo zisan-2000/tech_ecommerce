@@ -14,7 +14,6 @@ import {
 import type { StorefrontCatalogProduct } from "@/lib/storefront-catalog";
 import {
   getProductAvailableStock,
-  parseStorefrontProductId,
   toProductPurchaseData,
 } from "@/lib/product-purchase";
 import { getStorefrontProductDetail } from "@/lib/storefront-product-detail";
@@ -25,9 +24,7 @@ const getProduct = cache(getStorefrontProductDetail);
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { id: rawId } = await params;
-  const id = parseStorefrontProductId(rawId);
-  if (!id) return { title: "Product not found" };
-  const product = await getProduct(id);
+  const product = await getProduct(rawId);
   if (!product) return { title: "Product not found" };
   const description = truncateText(
     stripHtml(product.shortDesc || product.description) ||
@@ -58,9 +55,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { id: rawId } = await params;
-  const id = parseStorefrontProductId(rawId);
-  if (!id) notFound();
-  const product = await getProduct(id);
+  const product = await getProduct(rawId);
   if (!product) notFound();
 
   const categoryData = await getStorefrontCatalog(

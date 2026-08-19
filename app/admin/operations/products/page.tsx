@@ -29,12 +29,8 @@ interface Product {
   featured?: boolean;
   categoryId?: number;
   brandId?: number | null;
-  writerId?: number | null;
-  publisherId?: number | null;
   category?: Category;
   brand?: Brand;
-  writer?: Writer | null;
-  publisher?: Publisher | null;
   variants?: any[];
 }
 
@@ -44,16 +40,6 @@ interface Category {
 }
 
 interface Brand {
-  id: number;
-  name: string;
-}
-
-interface Writer {
-  id: number;
-  name: string;
-}
-
-interface Publisher {
   id: number;
   name: string;
 }
@@ -73,8 +59,6 @@ interface ProductsPageCache {
   products: Product[];
   categories: Category[];
   brands: Brand[];
-  writers: Writer[];
-  publishers: Publisher[];
   vatClasses: VatClass[];
   digitalAssets: DigitalAsset[];
 }
@@ -98,12 +82,6 @@ export default function ProductsPage() {
   const [brands, setBrands] = useState<Brand[]>(
     () => productsPageCache?.brands ?? [],
   );
-  const [writers, setWriters] = useState<Writer[]>(
-    () => productsPageCache?.writers ?? [],
-  );
-  const [publishers, setPublishers] = useState<Publisher[]>(
-    () => productsPageCache?.publishers ?? [],
-  );
   const [vatClasses, setVatClasses] = useState<VatClass[]>(
     () => productsPageCache?.vatClasses ?? [],
   );
@@ -117,8 +95,6 @@ export default function ProductsPage() {
       setProducts(productsPageCache.products);
       setCategories(productsPageCache.categories);
       setBrands(productsPageCache.brands);
-      setWriters(productsPageCache.writers);
-      setPublishers(productsPageCache.publishers);
       setVatClasses(productsPageCache.vatClasses);
       setDigitalAssets(productsPageCache.digitalAssets);
       setLoading(false);
@@ -127,12 +103,10 @@ export default function ProductsPage() {
 
     setLoading(true);
     try {
-      const [p, c, b, w, pub, vat, da] = await Promise.all([
+      const [p, c, b, vat, da] = await Promise.all([
         fetch("/api/products").then((r) => r.json()),
         fetch("/api/categories").then((r) => r.json()),
         fetch("/api/brands").then((r) => r.json()),
-        fetch("/api/writers").then((r) => r.json()),
-        fetch("/api/publishers").then((r) => r.json()),
         fetch("/api/vat-classes").then((r) => r.json()),
         fetch("/api/digital-assets").then((r) => r.json()),
       ]);
@@ -141,8 +115,6 @@ export default function ProductsPage() {
         products: p,
         categories: c,
         brands: b,
-        writers: w,
-        publishers: pub,
         vatClasses: vat,
         digitalAssets: da,
       };
@@ -150,8 +122,6 @@ export default function ProductsPage() {
       setProducts(p);
       setCategories(c);
       setBrands(b);
-      setWriters(w);
-      setPublishers(pub);
       setVatClasses(vat);
       setDigitalAssets(da);
     } catch (error) {
@@ -280,8 +250,6 @@ export default function ProductsPage() {
   const memoizedProducts = useMemo(() => products, [products]);
   const memoizedCategories = useMemo(() => categories, [categories]);
   const memoizedBrands = useMemo(() => brands, [brands]);
-  const memoizedWriters = useMemo(() => writers, [writers]);
-  const memoizedPublishers = useMemo(() => publishers, [publishers]);
   const memoizedVatClasses = useMemo(() => vatClasses, [vatClasses]);
   const memoizedDigitalAssets = useMemo(() => digitalAssets, [digitalAssets]);
 
@@ -291,8 +259,6 @@ export default function ProductsPage() {
         products={memoizedProducts}
         categories={memoizedCategories}
         brands={memoizedBrands}
-        writers={memoizedWriters}
-        publishers={memoizedPublishers}
         vatClasses={memoizedVatClasses}
         digitalAssets={memoizedDigitalAssets}
         loading={loading}

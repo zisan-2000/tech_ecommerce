@@ -9,7 +9,7 @@ import { Calendar, Clock, User, ArrowLeft, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import RecentBlogs from "./RecentBlogs";
-import { TopSellingBooks } from "@/components/ecommarce/TopSellingBooks";
+import TopSellingProducts from "@/components/ecommarce/TopSellingProducts";
 
 interface Blog {
   id: number;
@@ -354,7 +354,7 @@ export default function BlogDetails() {
       {/* ======== Desktop Layout (3 Columns) ======== */}
       <div className="hidden lg:block">
         <div className="grid grid-cols-12 gap-6">
-          {/* Left Side: Blog-specific Image Ad or Top Selling Books */}
+          {/* Left side: blog-specific image ad or popular products */}
           <div className="col-span-2 space-y-6 sticky top-56 mt-24 pl-10 h-fit">
             {blog?.ads ? (
               <div className="w-full h-96 border rounded-lg bg-muted flex items-center justify-center overflow-hidden">
@@ -365,7 +365,7 @@ export default function BlogDetails() {
                 />
               </div>
             ) : (
-              <TopSellingBooks />
+              <TopSellingProducts />
             )}
           </div>
 
@@ -552,7 +552,7 @@ export default function BlogDetails() {
             <RecentBlogs />
           </div>
 
-          {/* 3. Mobile: Blog-specific Image Ad or Top Selling Books */}
+          {/* 3. Mobile: blog-specific image ad or popular products */}
           <div className="mt-10 space-y-6">
             {blog?.ads ? (
               <div className="w-full h-56 border rounded-lg bg-muted flex items-center justify-center overflow-hidden">
@@ -563,7 +563,7 @@ export default function BlogDetails() {
                 />
               </div>
             ) : (
-              <TopSellingBooks />
+              <TopSellingProducts />
             )}
           </div>
         </div>

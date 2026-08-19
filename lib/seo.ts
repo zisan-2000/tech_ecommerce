@@ -11,9 +11,9 @@ type SiteSettingsSeo = {
   address: string | null;
 };
 
-const DEFAULT_SITE_TITLE = "Universal Ecommerce";
+const DEFAULT_SITE_TITLE = "Tech Ecommerce";
 const DEFAULT_SITE_DESCRIPTION =
-  "Shop products online with fast delivery, verified inventory, and secure checkout.";
+  "Shop computers, components, accessories and gadgets with verified inventory, secure checkout and nationwide delivery across Bangladesh.";
 const DEFAULT_SITE_LOGO = "/assets/favicon.png";
 
 export function getSiteUrl() {
@@ -102,7 +102,11 @@ export async function buildDefaultMetadata(): Promise<Metadata> {
     settings.siteTitle,
     "ecommerce",
     "online shopping",
-    "products",
+    "computers",
+    "computer components",
+    "laptops",
+    "gadgets",
+    "technology products",
     "secure checkout",
     "Bangladesh ecommerce",
     "online store",
@@ -110,7 +114,6 @@ export async function buildDefaultMetadata(): Promise<Metadata> {
     "shopping Bangladesh",
     "e-commerce platform",
     "digital shopping",
-    "online marketplace",
     "best prices",
     "fast delivery",
     "quality products",
@@ -134,10 +137,6 @@ export async function buildDefaultMetadata(): Promise<Metadata> {
     description: settings.siteDescription,
     alternates: {
       canonical: siteUrl,
-      languages: {
-        'en': siteUrl,
-        'bn': `${siteUrl}/bn`,
-      },
     },
     keywords: uniqueKeywords,
     authors: [{ name: settings.siteTitle }],
@@ -179,8 +178,6 @@ export async function buildDefaultMetadata(): Promise<Metadata> {
       title: settings.siteTitle,
       description: settings.siteDescription,
       images: [logoUrl],
-      creator: settings.siteTitle,
-      site: settings.siteTitle,
     },
     robots: {
       index: true,

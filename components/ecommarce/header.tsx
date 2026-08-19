@@ -55,7 +55,6 @@ import {
   Check,
   X,
   Menu,
-  MapPin,
   BadgePercent,
   Wrench,
   MonitorCog,
@@ -1006,14 +1005,6 @@ export default function Header({
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-5">
-            {/* <Link href="/ecommerce/track-order" className={`${headerIconClass} hidden lg:flex`}>
-
-              <MapPin className="h-6 w-6" />
-
-              <span>Track Order</span>
-
-            </Link> */}
-
             <Link
               href="/ecommerce/products?featured=1"
               className={desktopActionClass}

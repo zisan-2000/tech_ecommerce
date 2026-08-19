@@ -71,10 +71,7 @@ export async function GET(
             deleted: false,
             ...(storefront ? { available: true } : {}),
           },
-          include: {
-            writer: true,
-            brand: true,
-          },
+          include: { brand: true },
         },
       },
     });

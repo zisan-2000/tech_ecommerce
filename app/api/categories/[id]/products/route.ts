@@ -61,8 +61,6 @@ export async function GET(
       include: {
         category: true,
         brand: true,
-        writer: true,
-        publisher: true,
         variants: true,
         _count: {
           select: {

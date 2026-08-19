@@ -199,9 +199,7 @@ export default function WishlistPage() {
                 product={{
                   id: item.id,
                   name: item.name,
-                  href: item.slug
-                    ? `/ecommerce/books/${item.slug}`
-                    : `/ecommerce/books/${item.id}`,
+                  href: `/ecommerce/products/${item.id}`,
                   image: item.image,
                   price: item.price,
                   originalPrice: item.originalPrice,

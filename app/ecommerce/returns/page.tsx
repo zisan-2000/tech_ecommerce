@@ -4,10 +4,10 @@ import {
   CheckCircle,
   XCircle,
   Package,
-  Phone,
-  Mail,
+  Headphones,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function ReturnsPolicyPage() {
   return (
@@ -201,23 +201,12 @@ export default function ReturnsPolicyPage() {
             Our support team is ready to assist you.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex justify-center">
             <Button asChild className="bg-background text-foreground hover:bg-background/90">
-              <a href="tel:+88-01842781978">
-                <Phone className="h-4 w-4 mr-2" />
-                Call Us
-              </a>
-            </Button>
-
-            <Button
-              asChild
-              variant="outline"
-              className="bg-background text-foreground hover:bg-background/90 border-transparent"
-            >
-              <a href="mailto:islamidawainstitute@gmail.com">
-                <Mail className="h-4 w-4 mr-2" />
-                Email Us
-              </a>
+              <Link href="/ecommerce/contact">
+                <Headphones className="h-4 w-4 mr-2" />
+                Contact support
+              </Link>
             </Button>
           </div>
         </div>

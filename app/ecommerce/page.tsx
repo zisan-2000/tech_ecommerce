@@ -1,7 +1,5 @@
-export default function KitabghorPage() {
-  return (
-    <div className="w-full">
-      <p>Kitabghor Page</p>
-    </div>
-  );
+import { permanentRedirect } from "next/navigation";
+
+export default function EcommerceIndexPage() {
+  permanentRedirect("/");
 }

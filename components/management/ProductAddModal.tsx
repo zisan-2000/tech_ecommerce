@@ -48,8 +48,6 @@ interface ProductForm {
   serviceOnlineLink: string;
   categoryId: string;
   brandId: string;
-  writerId: string;
-  publisherId: string;
   available: boolean;
   featured: boolean;
   image: string;
@@ -86,8 +84,6 @@ interface Props {
   editing?: any;
   categories: CategoryEntity[];
   brands: Entity[];
-  writers?: Entity[];
-  publishers?: Entity[];
   vatClasses?: VatClass[];
   digitalAssets?: DigitalAsset[];
 }
@@ -116,8 +112,6 @@ const emptyForm: ProductForm = {
   serviceOnlineLink: "",
   categoryId: "",
   brandId: "",
-  writerId: "",
-  publisherId: "",
   available: true,
   featured: false,
   image: "",
@@ -247,8 +241,6 @@ export default function ProductAddModal({
   editing,
   categories,
   brands,
-  writers = [],
-  publishers = [],
   vatClasses = [],
   digitalAssets = [],
 }: Props) {
@@ -278,9 +270,6 @@ export default function ProductAddModal({
     visit(null, 0);
     return ordered;
   }, [categories]);
-
-  const selectedCategory = categories.find((item) => String(item.id) === String(form.categoryId));
-  const showBookFields = !!selectedCategory?.name && selectedCategory.name.toLowerCase().includes("book");
 
   const normalizedVariantOptions = useMemo(
     () =>
@@ -407,8 +396,6 @@ export default function ProductAddModal({
       serviceOnlineLink: editing.serviceOnlineLink ?? "",
       categoryId: editing.categoryId?.toString?.() ?? "",
       brandId: editing.brandId?.toString?.() ?? "",
-      writerId: editing.writerId?.toString?.() ?? "",
-      publisherId: editing.publisherId?.toString?.() ?? "",
       available: editing.available ?? true,
       featured: editing.featured ?? false,
       image: editing.image ?? "",
@@ -438,12 +425,6 @@ export default function ProductAddModal({
       }),
     );
   }, [colorOptionName, colorVariantImages, hasVariants]);
-
-  useEffect(() => {
-    if (!showBookFields && (form.writerId || form.publisherId)) {
-      setForm((prev) => ({ ...prev, writerId: "", publisherId: "" }));
-    }
-  }, [form.publisherId, form.writerId, showBookFields]);
 
   useEffect(() => {
     if (!open) return;
@@ -782,8 +763,6 @@ export default function ProductAddModal({
         sku: form.sku.trim().toUpperCase() || null,
         categoryId: Number(form.categoryId),
         brandId: form.brandId ? Number(form.brandId) : null,
-        writerId: form.writerId ? Number(form.writerId) : null,
-        publisherId: form.publisherId ? Number(form.publisherId) : null,
         basePrice,
         baseCostPrice,
         originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
@@ -1256,18 +1235,6 @@ export default function ProductAddModal({
                 <Input value={form.videoUrl} onChange={(e) => setForm((prev) => ({ ...prev, videoUrl: e.target.value }))} />
               </div>
             </div>
-            {showBookFields && (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <select className="w-full rounded border border-border bg-background p-2" value={form.writerId} onChange={(e) => setForm((prev) => ({ ...prev, writerId: e.target.value }))}>
-                  <option value="">Select Writer</option>
-                  {writers.map((writer) => <option key={writer.id} value={writer.id}>{writer.name}</option>)}
-                </select>
-                <select className="w-full rounded border border-border bg-background p-2" value={form.publisherId} onChange={(e) => setForm((prev) => ({ ...prev, publisherId: e.target.value }))}>
-                  <option value="">Select Publisher</option>
-                  {publishers.map((publisher) => <option key={publisher.id} value={publisher.id}>{publisher.name}</option>)}
-                </select>
-              </div>
-            )}
             {form.type === "DIGITAL" && (
               <select className="w-full rounded border border-border bg-background p-2" value={form.digitalAssetId} onChange={(e) => setForm((prev) => ({ ...prev, digitalAssetId: e.target.value }))}>
                 <option value="">Select Digital Asset</option>

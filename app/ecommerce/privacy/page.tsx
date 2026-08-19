@@ -1,4 +1,4 @@
-import { Shield, Lock, Eye, User, CreditCard, Mail } from "lucide-react";
+import { Shield, Lock, Eye, User, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -222,23 +222,9 @@ export default function PrivacyPolicyPage() {
             Contact us for any privacy-related inquiries.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              asChild
-              className="bg-background text-foreground hover:bg-background/90"
-            >
-              <a href="mailto:privacy@yourdomain.com">
-                <Mail className="h-4 w-4 mr-2" />
-                Privacy Team
-              </a>
-            </Button>
-
-            <Button
-              asChild
-              variant="outline"
-              className="bg-background text-foreground hover:bg-background/90 border-transparent"
-            >
-              <Link href="/contact">Contact Us</Link>
+          <div className="flex justify-center">
+            <Button asChild className="bg-background text-foreground hover:bg-background/90">
+              <Link href="/ecommerce/contact">Contact our privacy team</Link>
             </Button>
           </div>
 

@@ -31,8 +31,6 @@ const USER_PROFILE_PREFIX = "userProfilePic";
 
 const PRODUCT_IMAGE_PREFIXES = new Set([
   "brands",
-  "writers",
-  "publishers",
   "color-variant",
   "products",
 ]);

@@ -72,8 +72,6 @@ export default function ProductManager({
   onUpdate,
   onAvailabilityChange,
   onDelete,
-  writers,
-  publishers,
   categories,
   brands,
   vatClasses,
@@ -1112,8 +1110,6 @@ export default function ProductManager({
           onSubmit={editing ? onUpdate : onCreate}
           categories={categories}
           brands={brands}
-          writers={writers}
-          publishers={publishers}
           vatClasses={vatClasses}
           digitalAssets={digitalAssets}
         />

@@ -1629,7 +1629,7 @@ const OrderManagement = () => {
                   {/* 2. Items */}
                   <div className="rounded-2xl bg-muted/30 p-4">
                     <h3 className="mb-3 text-xs font-semibold text-muted-foreground">
-                      Order Books
+                      Order items
                     </h3>
                     <div className="space-y-2">
                       {orderDetail.orderItems?.map((item) => {

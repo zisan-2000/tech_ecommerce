@@ -1,140 +1,104 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import AllBlogs from "@/components/admin/blog/AllBlogs";
+import {
+  getSiteSettingsForSeo,
+  getSiteUrl,
+  toAbsoluteUrl,
+} from "@/lib/seo";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  "http://localhost:3000";
-
-export const metadata: Metadata = {
-  title: "সাম্প্রতিক ব্লগ পোস্ট - কিতাবঘর | হিলফুল ফুজুল",
-  description:
-    "কিতাবঘরের সর্বশেষ ব্লগ পোস্টসমূহ পড়ুন। ইসলামিক বই, আধ্যাত্মিক জ্ঞান, জীবনঘনিষ্ঠ আলোচনা ও সমসাময়িক ইসলামিক বিষয় নিয়ে নিয়মিত আপডেট।",
-  keywords: [
-    "ব্লগ",
-    "কিতাবঘর",
-    "ইসলামিক বই",
-    "হিলফুল ফুজুল",
-    "ইসলামী জ্ঞান",
-    "আধ্যাত্মিক আলোচনা",
-    "ইসলামিক ব্লগ",
-    "ধর্মীয় লেখা",
-  ],
-
-  metadataBase: new URL(siteUrl),
-  alternates: {
-    canonical: "/ecommerce/blogs",
-    languages: {
-      "bn-BD": "/ecommerce/blogs",
-    },
-  },
-
-  authors: [{ name: "কিতাবঘর - হিলফুল ফুজুল" }],
-  creator: "কিতাবঘর - হিলফুল ফুজুল",
-  publisher: "কিতাবঘর - হিলফুল ফুজুল",
-
-  openGraph: {
-    title: "সাম্প্রতিক ব্লগ পোস্ট - কিতাবঘর",
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettingsForSeo();
+  return {
+    title: "Technology Guides and Updates",
     description:
-      "ইসলামিক বই, আধ্যাত্মিক জ্ঞান এবং জীবনমুখী আলোচনা নিয়ে কিতাবঘরের সাম্প্রতিক ব্লগ পোস্টসমূহ।",
+      "Read practical guides, product explainers, buying advice and technology updates from " +
+      settings.siteTitle +
+      ".",
+    keywords: [
+      "technology guides",
+      "computer buying guide",
+      "PC components",
+      "gadget tips",
+      "technology Bangladesh",
+    ],
+    alternates: { canonical: "/ecommerce/blogs" },
+    openGraph: {
+      type: "website",
+      title: `Technology Guides and Updates | ${settings.siteTitle}`,
+      description:
+        "Practical buying advice, product explainers and technology updates.",
+      url: "/ecommerce/blogs",
+      siteName: settings.siteTitle,
+      images: [{ url: toAbsoluteUrl(settings.logo), alt: settings.siteTitle }],
+    },
+  };
+}
+
+export default async function BlogsPage() {
+  const [settings, siteUrl] = await Promise.all([
+    getSiteSettingsForSeo(),
+    Promise.resolve(getSiteUrl()),
+  ]);
+
+  const blogJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "@id": `${siteUrl}/ecommerce/blogs#blog`,
+    name: `${settings.siteTitle} Technology Blog`,
+    description:
+      "Technology guides, product explainers, buying advice and store updates.",
     url: `${siteUrl}/ecommerce/blogs`,
-    siteName: "কিতাবঘর - হিলফুল ফুজুল",
-    type: "website",
-    locale: "bn_BD",
-    images: [
+    inLanguage: ["en-BD", "bn-BD"],
+    publisher: {
+      "@type": "Organization",
+      name: settings.siteTitle,
+      url: siteUrl,
+      logo: {
+        "@type": "ImageObject",
+        url: toAbsoluteUrl(settings.logo),
+      },
+    },
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
       {
-        url: `${siteUrl}/assets/favicon.png`,
-        width: 1200,
-        height: 630,
-        alt: "কিতাবঘর ব্লগ - ইসলামিক বই ও জ্ঞানের সমাহার",
+        "@type": "ListItem",
+        position: 2,
+        name: "Technology blog",
+        item: `${siteUrl}/ecommerce/blogs`,
       },
     ],
-  },
+  };
 
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
-
-  category: "Islamic Blog",
-};
-
-export default function BlogsPage() {
   return (
-    <>
-      {/* Blog Schema */}
+    <main className="min-h-screen bg-background text-foreground">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Blog",
-            "@id": `${siteUrl}/ecommerce/blogs`,
-            name: "কিতাবঘর ব্লগ",
-            description:
-              "ইসলামিক বই, আধ্যাত্মিক জ্ঞান ও জীবনমুখী আলোচনাসহ কিতাবঘরের সাম্প্রতিক ব্লগ পোস্টসমূহ।",
-            url: `${siteUrl}/ecommerce/blogs`,
-            inLanguage: "bn-BD",
-            publisher: {
-              "@type": "Organization",
-              name: "কিতাবঘর - হিলফুল ফুজুল",
-              url: siteUrl,
-              logo: {
-                "@type": "ImageObject",
-                url: `${siteUrl}/assets/favicon.png`,
-                width: 512,
-                height: 512,
-              },
-            },
-            author: {
-              "@type": "Organization",
-              name: "কিতাবঘর - হিলফুল ফুজুল",
-            },
-          }),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogJsonLd) }}
       />
-
-      {/* Breadcrumb Schema */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            itemListElement: [
-              {
-                "@type": "ListItem",
-                position: 1,
-                name: "হোম",
-                item: siteUrl,
-              },
-              {
-                "@type": "ListItem",
-                position: 2,
-                name: "কিতাবঘর",
-                item: `${siteUrl}/`,
-              },
-              {
-                "@type": "ListItem",
-                position: 3,
-                name: "ব্লগসমূহ",
-                item: `${siteUrl}/ecommerce/blogs`,
-              },
-            ],
-          }),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-
-      <div className="space-y-6">
+      <section className="border-b border-border bg-muted/35">
+        <div className="container mx-auto px-4 py-10">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">
+            Learn and compare
+          </p>
+          <h1 className="mt-3 text-3xl font-bold">Technology guides and updates</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
+            Practical buying advice, product explainers and useful technology
+            updates for informed purchase decisions.
+          </p>
+        </div>
+      </section>
+      <div className="container mx-auto px-4 py-8">
         <AllBlogs />
       </div>
-    </>
+    </main>
   );
 }

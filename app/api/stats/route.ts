@@ -4,37 +4,27 @@ import { publicJson } from "@/lib/public-cache";
 
 export async function GET() {
   try {
-    // ✅ Total Books (only active + not deleted)
-    const totalBooks = await prisma.product.count({
-      where: {
-        deleted: false,
-        available: true,
-        writer: { deleted: false },
-        publisher: { deleted: false },
-        category: { deleted: false }
-      }
-    });
+    const [totalProducts, totalBrands, totalDelivered] = await Promise.all([
+      prisma.product.count({
+        where: {
+          deleted: false,
+          available: true,
+          category: { deleted: false },
+        },
+      }),
+      prisma.brand.count({ where: { deleted: false } }),
+      prisma.order.count({ where: { status: "DELIVERED" } }),
+    ]);
 
-    // ✅ Total Writers (only active)
-    const totalWriters = await prisma.writer.count({
-      where: { deleted: false }
-    });
-
-    // ✅ Total Delivered Orders
-    const totalDelivered = await prisma.order.count({
-      where: { status: "DELIVERED" }
-    });
-
-    return publicJson({
-      totalBooks,
-      totalWriters,
-      totalDelivered,
-    }, { maxAge: 300, staleWhileRevalidate: 1800 });
+    return publicJson(
+      { totalProducts, totalBrands, totalDelivered },
+      { maxAge: 300, staleWhileRevalidate: 1800 },
+    );
   } catch (error) {
-    console.error("Stats API Error:", error);
+    console.error("Storefront stats loading failed", error);
     return NextResponse.json(
       { error: "Failed to fetch stats" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -52,9 +52,9 @@ function FAQPageContent() {
       questions: [
         {
           id: "general-1",
-          question: "What is BOED E-Commerce?",
+          question: "What can I buy from this store?",
           answer:
-            "BOED E-Commerce is an online marketplace where you can find a wide range of products across different categories. We focus on providing authentic products, transparent pricing, and reliable service.",
+            "We focus on computers, components, accessories, monitors, networking equipment, office technology, cameras, gadgets and related technology products.",
         },
         {
           id: "general-2",
@@ -64,9 +64,9 @@ function FAQPageContent() {
         },
         {
           id: "general-3",
-          question: "Do you sell only a specific type of product?",
+          question: "How can I confirm product compatibility?",
           answer:
-            "No. We offer products across multiple categories. You can browse by category or use the search bar to find what you need.",
+            "Compare the model, interface, dimensions, socket, power and platform requirements shown in the specifications. Contact support before ordering if compatibility is unclear.",
         },
         {
           id: "general-4",

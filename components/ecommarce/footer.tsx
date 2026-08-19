@@ -12,7 +12,7 @@ import {
   Mail,
   Phone,
   MapPin,
-  BookOpen,
+  CircleHelp,
   Shield,
   Truck,
   HeadphonesIcon,
@@ -189,9 +189,9 @@ export default function Footer({
   };
 
   const features = [
-    { icon: Truck, label: "Fast Delivery", desc: "Free shipping over $100" },
-    { icon: Clock, label: "24/7 Support", desc: "Always here to help" },
-    { icon: CreditCard, label: "Secure Payment", desc: "SSL secured payment" },
+    { icon: Truck, label: "Fast Delivery", desc: "Nationwide delivery options" },
+    { icon: Clock, label: "Online Ordering", desc: "Place orders 24/7" },
+    { icon: CreditCard, label: "Secure Payment", desc: "Protected payment flow" },
     {
       icon: Award,
       label: "100% Authentic",
@@ -201,9 +201,11 @@ export default function Footer({
 
   const quickLinks = [
     { href: "/ecommerce/products", label: "All Products" },
+    { href: "/ecommerce/flash-sale", label: "Flash Sale" },
     { href: "/ecommerce/blogs", label: "Blogs" },
     { href: "/ecommerce/bestsellers", label: "Bestsellers" },
-    { href: "/ecommerce/upcoming", label: "Upcoming" },
+    { href: "/ecommerce/about", label: "About Us" },
+    { href: "/ecommerce/contact", label: "Contact Us" },
   ];
 
   const customerService = [
@@ -214,8 +216,17 @@ export default function Footer({
       icon: HeadphonesIcon,
     },
     { href: "/ecommerce/privacy", label: "Privacy Policy", icon: Shield },
-    { href: "/ecommerce/faq", label: "FAQ", icon: BookOpen },
+    { href: "/ecommerce/faq", label: "FAQ", icon: CircleHelp },
   ];
+
+  const socialLinks = [
+    { icon: Facebook, href: siteSettings.facebookLink, label: "Facebook" },
+    { icon: Instagram, href: siteSettings.instagramLink, label: "Instagram" },
+    { icon: Twitter, href: siteSettings.twitterLink, label: "Twitter" },
+    { icon: Youtube, href: siteSettings.youtubeLink, label: "YouTube" },
+  ].filter((social): social is typeof social & { href: string } =>
+    Boolean(social.href),
+  );
 
   return (
     <footer className="bg-card border-t border-border">
@@ -263,10 +274,10 @@ export default function Footer({
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-foreground">
-                    {siteSettings.siteTitle || "BOED ECOMMERCE"}
+                    {siteSettings.siteTitle || "Tech Ecommerce"}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    The all-in-one global marketplace
+                    Computers, components and gadgets
                   </p>
                 </div>
               </div>
@@ -274,7 +285,7 @@ export default function Footer({
 
             <p className="text-sm text-muted-foreground leading-relaxed">
               {siteSettings.footerDescription ||
-                "BOED Universal is a premier digital marketplace designed to bring the world's products to your fingertips. From essential knowledge to everyday lifestyle needs, we are committed to making high-quality resources accessible to everyone, everywhere."}
+                "Shop computers, components, accessories and gadgets with verified inventory, secure checkout and nationwide delivery."}
             </p>
 
             <div className="space-y-3">
@@ -285,7 +296,7 @@ export default function Footer({
                 <div>
                   <p className="text-xs text-muted-foreground">Call us</p>
                   <p className="text-sm font-medium text-foreground">
-                    {siteSettings.contactNumber || "+88-01234567890"}
+                    {siteSettings.contactNumber || "Contact number not configured"}
                   </p>
                 </div>
               </div>
@@ -297,7 +308,7 @@ export default function Footer({
                 <div>
                   <p className="text-xs text-muted-foreground">Email us</p>
                   <p className="text-sm font-medium text-foreground">
-                    {siteSettings.contactEmail || "e-commerce@example.com"}
+                    {siteSettings.contactEmail || "Contact email not configured"}
                   </p>
                 </div>
               </div>
@@ -309,8 +320,7 @@ export default function Footer({
                 <div>
                   <p className="text-xs text-muted-foreground">Address</p>
                   <p className="text-sm font-medium text-foreground leading-relaxed">
-                    {siteSettings.address ||
-                      "10A, Tower 71, ECB Chattar, Dhaka Cantonment\nBangladesh"}
+                    {siteSettings.address || "Business address not configured"}
                   </p>
                 </div>
               </div>
@@ -318,30 +328,7 @@ export default function Footer({
 
             {/* Social Links */}
             <div className="flex gap-2">
-              {[
-                {
-                  icon: Facebook,
-                  href: siteSettings.facebookLink || "https://birdsofeden.me/",
-                  label: "Facebook",
-                },
-                {
-                  icon: Instagram,
-                  href: siteSettings.instagramLink || "https://birdsofeden.me/",
-                  label: "Instagram",
-                },
-                {
-                  icon: Twitter,
-                  href: siteSettings.twitterLink || "https://birdsofeden.me/",
-                  label: "Twitter",
-                },
-                {
-                  icon: Youtube,
-                  href:
-                    siteSettings.youtubeLink ||
-                    "https://www.youtube.com/@channel",
-                  label: "YouTube",
-                },
-              ].map((social) => (
+              {socialLinks.map((social) => (
                 <a
                   key={social.label}
                   href={social.href}
@@ -494,14 +481,14 @@ export default function Footer({
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-xs text-muted-foreground">
-              © {currentYear} {siteSettings?.siteTitle || "BEOD"} All rights reserved.
+              © {currentYear} {siteSettings?.siteTitle || "Tech Ecommerce"} All rights reserved.
             </p>
 
             <div className="flex items-center gap-6">
               {[
-                { href: "/privacy", label: "Privacy Policy" },
-                { href: "/terms", label: "Terms of Service" },
-                { href: "/sitemap", label: "Sitemap" },
+                { href: "/ecommerce/privacy", label: "Privacy Policy" },
+                { href: "/ecommerce/terms", label: "Terms of Service" },
+                { href: "/sitemap.xml", label: "Sitemap" },
               ].map((link) => (
                 <Link
                   key={link.href}

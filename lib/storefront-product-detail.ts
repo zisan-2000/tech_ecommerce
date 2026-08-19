@@ -32,10 +32,37 @@ function serializeProduct(product: RawProduct) {
   };
 }
 
+type ProductIdentifier = { id: number } | { slug: string };
+
+export function parseStorefrontProductIdentifier(
+  value: string,
+): ProductIdentifier | null {
+  let normalized: string;
+  try {
+    normalized = decodeURIComponent(value).trim().toLowerCase();
+  } catch {
+    return null;
+  }
+  if (/^[1-9]\d*$/.test(normalized)) {
+    const id = Number(normalized);
+    return Number.isSafeInteger(id) ? { id } : null;
+  }
+  if (
+    normalized.length > 0 &&
+    normalized.length <= 191 &&
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)
+  ) {
+    return { slug: normalized };
+  }
+  return null;
+}
+
 const readProductDetail = unstable_cache(
-  async (id: number) => {
+  async (identifier: string) => {
+    const where = parseStorefrontProductIdentifier(identifier);
+    if (!where) return null;
     const product = await prisma.product.findFirst({
-      where: { id, deleted: false, available: true },
+      where: { ...where, deleted: false, available: true },
       select: storefrontProductSelect,
     });
     return product ? serializeProduct(product) : null;
@@ -48,6 +75,6 @@ export type StorefrontProductDetail = NonNullable<
   Awaited<ReturnType<typeof readProductDetail>>
 >;
 
-export async function getStorefrontProductDetail(id: number) {
-  return readProductDetail(id);
+export async function getStorefrontProductDetail(identifier: string | number) {
+  return readProductDetail(String(identifier));
 }

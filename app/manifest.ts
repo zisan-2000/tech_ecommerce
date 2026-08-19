@@ -1,25 +1,24 @@
 import type { MetadataRoute } from "next";
-import { getSiteSettingsForSeo, getSiteUrl } from "@/lib/seo";
+import { getSiteSettingsForSeo } from "@/lib/seo";
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
-  const siteUrl = getSiteUrl();
   const settings = await getSiteSettingsForSeo();
 
   return {
     name: settings.siteTitle,
-    short_name: settings.siteTitle.slice(0, 12),
+    short_name: settings.siteTitle.slice(0, 24),
     description: settings.siteDescription,
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#0f172a",
+    categories: ["shopping", "technology"],
     icons: [
       {
         src: settings.logo,
-        sizes: "512x512",
-        type: "image/png",
+        sizes: "any",
+        purpose: "any",
       },
     ],
-    id: siteUrl,
   };
 }

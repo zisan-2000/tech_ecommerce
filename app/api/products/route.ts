@@ -64,8 +64,6 @@ function attachVariantColorImages<T extends { variants?: any[] | null }>(
 const productInclude = {
   category: true,
   brand: true,
-  writer: true,
-  publisher: true,
   VatClass: true,
   variantOptions: {
     orderBy: { position: "asc" },
@@ -111,8 +109,6 @@ function toProductLogSnapshot(product: any) {
     type: product.type,
     category: product.category?.name ?? null,
     brand: product.brand?.name ?? null,
-    writer: product.writer?.name ?? null,
-    publisher: product.publisher?.name ?? null,
     VatClassId: product.VatClassId ?? null,
     basePrice: Number(product.basePrice),
     originalPrice: product.originalPrice === null ? null : Number(product.originalPrice),
@@ -432,8 +428,6 @@ export async function POST(req: Request) {
           categoryId: Number(body.categoryId),
           brandId: body.brandId ? Number(body.brandId) : null,
 
-          writerId: body.writerId ? Number(body.writerId) : null,
-          publisherId: body.publisherId ? Number(body.publisherId) : null,
 
           description: body.description || "",
           shortDesc: body.shortDesc || null,

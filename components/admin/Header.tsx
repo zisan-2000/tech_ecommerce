@@ -271,7 +271,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
             ) : siteSettings?.siteTitle ? (
               siteSettings.siteTitle + " Admin"
             ) : (
-              "BOED Admin"
+              "Tech Ecommerce Admin"
             )}
           </h1>
           <h1 className="text-lg font-bold text-foreground sm:hidden">

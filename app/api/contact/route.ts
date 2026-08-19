@@ -1,156 +1,154 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { rateLimitRequest } from "@/lib/request-security";
+import { getSiteSettingsForSeo } from "@/lib/seo";
 
-// Recipient emails - in testing mode, only send to the verified email
-const getRecipientEmails = () => {
-  const isProductionMode = process.env.NODE_ENV === "production" && process.env.RESEND_DOMAIN_VERIFIED === "true";
-  
-  if (isProductionMode) {
-    return [
-      "islamidawainstitute@gmail.com",
-      "service@birdsofeden.me",
-    ];
-  } else {
-    // Testing mode - only send to verified email
-    return ["islamidawainstitute@gmail.com"];
-  }
-};
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { name, email, subject, message } = body;
-
-    // Validate required fields
-    if (!name || !email || !subject || !message) {
-      return NextResponse.json(
-        { error: "অনুগ্রহ করে সকল ঘর পূরণ করুন" },
-        { status: 400 }
-      );
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: "অনুগ্রহ করে একটি সঠিক ইমেইল ঠিকানা দিন" },
-        { status: 400 }
-      );
-    }
-
-    // Create email content
-    const emailContent = {
-      subject: `নতুন যোগাযোগ মেসেজ: ${subject}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #0E4B4B, #086666); color: #F4F8F7; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-            <h1 style="margin: 0; font-size: 24px;">হিলফুল-ফুযুল বইয়ের দোকান</h1>
-            <p style="margin: 10px 0 0 0; opacity: 0.9;">নতুন যোগাযোগ মেসেজ</p>
-          </div>
-          
-          <div style="background: #F4F8F7; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-            <h2 style="color: #0D1414; margin-top: 0;">মেসেজের বিবরণ</h2>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 8px; font-weight: bold; color: #0E4B4B; width: 100px;">নাম:</td>
-                <td style="padding: 8px; color: #0D1414;">${name}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold; color: #0E4B4B;">ইমেইল:</td>
-                <td style="padding: 8px; color: #0D1414;">${email}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold; color: #0E4B4B;">বিষয়:</td>
-                <td style="padding: 8px; color: #0D1414;">${subject}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold; color: #0E4B4B; vertical-align: top;">মেসেজ:</td>
-                <td style="padding: 8px; color: #0D1414; white-space: pre-wrap;">${message}</td>
-              </tr>
-            </table>
-          </div>
-          
-          <div style="background: #0E4B4B; color: #F4F8F7; padding: 15px; border-radius: 10px; text-align: center; font-size: 12px;">
-            <p style="margin: 0;">এই মেসেজটি হিলফুল-ফুযুল বইয়ের দোকান ওয়েবসাইট থেকে পাঠানো হয়েছে</p>
-            <p style="margin: 5px 0 0 0;">সময়: ${new Date().toLocaleString("bn-BD", { timeZone: "Asia/Dhaka" })}</p>
-          </div>
-        </div>
-      `,
-      text: `
-নাম: ${name}
-ইমেইল: ${email}
-বিষয়: ${subject}
-
-মেসেজ:
-${message}
-
----
-এই মেসেজটি হিলফুল-ফুযুল বইয়ের দোকান ওয়েবসাইট থেকে পাঠানো হয়েছে।
-সময়: ${new Date().toLocaleString("bn-BD", { timeZone: "Asia/Dhaka" })}
-      `,
-    };
-    const emailResult = await sendEmailWithResend(emailContent, email, getRecipientEmails());
-
-    if (emailResult.success) {
-      const isProductionMode = process.env.NODE_ENV === "production" && process.env.RESEND_DOMAIN_VERIFIED === "true";
-      const message = isProductionMode 
-        ? "মেসেজ সফলভাবে পাঠানো হয়েছে!"
-        : "মেসেজ সফলভাবে পাঠানো হয়েছে! (টেস্টিং মোড)";
-      
-      return NextResponse.json({
-        success: true,
-        message,
-      });
-    } else {
-      throw new Error(emailResult.error || "মেসেজ পাঠাতে সমস্যা হয়েছে");
-    }
-  } catch (error) {
-    console.error("Contact form submission error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "মেসেজ পাঠাতে সমস্যা হয়েছে, অনুগ্রহ করে আবার চেষ্টা করুন",
-      },
-      { status: 500 }
-    );
-  }
+function cleanText(value: unknown, maxLength: number) {
+  if (typeof value !== "string") return "";
+  return value.replace(/\0/g, "").trim().slice(0, maxLength);
 }
 
-// Resend email service
-async function sendEmailWithResend(
-  emailContent: { subject: string; html: string; text?: string },
-  replyTo: string,
-  recipients: string[]
-) {
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return entities[character];
+  });
+}
+
+function configuredRecipients(fallbackEmail: string | null) {
+  const configured = (process.env.CONTACT_RECIPIENT_EMAILS || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter((email) => EMAIL_PATTERN.test(email));
+
+  if (configured.length > 0) return Array.from(new Set(configured));
+  if (fallbackEmail && EMAIL_PATTERN.test(fallbackEmail)) return [fallbackEmail];
+  return [];
+}
+
+export async function POST(request: Request) {
   try {
+    const rateLimit = await rateLimitRequest(request, {
+      scope: "contact-form",
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many messages. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfter) },
+        },
+      );
+    }
+
+    const body = await request.json().catch(() => null);
+    const name = cleanText(body?.name, 100);
+    const email = cleanText(body?.email, 254).toLowerCase();
+    const subject = cleanText(body?.subject, 120).replace(/[\r\n]+/g, " ");
+    const message = cleanText(body?.message, 3000);
+
+    if (name.length < 2 || subject.length < 3 || message.length < 10) {
+      return NextResponse.json(
+        { error: "Please complete every field with enough detail." },
+        { status: 400 },
+      );
+    }
+    if (!EMAIL_PATTERN.test(email)) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address." },
+        { status: 400 },
+      );
+    }
+
+    const [settings, apiKey, fromEmail] = await Promise.all([
+      getSiteSettingsForSeo(),
+      Promise.resolve(process.env.RESEND_API_KEY?.trim()),
+      Promise.resolve(process.env.RESEND_FROM_EMAIL?.trim()),
+    ]);
+    const recipients = configuredRecipients(settings.contactEmail);
+
+    if (!apiKey || !fromEmail || recipients.length === 0) {
+      console.error("Contact email is not configured", {
+        hasApiKey: Boolean(apiKey),
+        hasFromEmail: Boolean(fromEmail),
+        hasRecipient: recipients.length > 0,
+      });
+      return NextResponse.json(
+        { error: "Contact service is temporarily unavailable. Please use phone or email support." },
+        { status: 503 },
+      );
+    }
+
+    const safeSiteTitle = escapeHtml(settings.siteTitle);
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
+    const safeSubject = escapeHtml(subject);
+    const safeMessage = escapeHtml(message).replace(/\n/g, "<br />");
+    const submittedAt = new Date().toLocaleString("en-BD", {
+      timeZone: "Asia/Dhaka",
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL,
+        from: fromEmail,
         to: recipients,
-        subject: emailContent.subject,
-        html: emailContent.html,
-        reply_to: replyTo,
+        reply_to: email,
+        subject: `[${settings.siteTitle}] ${subject}`,
+        html: `
+          <main style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;color:#172033">
+            <header style="background:#142033;color:#fff;padding:24px;border-radius:12px 12px 0 0">
+              <h1 style="font-size:20px;margin:0">${safeSiteTitle}</h1>
+              <p style="margin:8px 0 0;color:#dbe4f0">New customer enquiry</p>
+            </header>
+            <section style="border:1px solid #d9e0e8;border-top:0;padding:24px;border-radius:0 0 12px 12px">
+              <p><strong>Name:</strong> ${safeName}</p>
+              <p><strong>Email:</strong> ${safeEmail}</p>
+              <p><strong>Subject:</strong> ${safeSubject}</p>
+              <p><strong>Submitted:</strong> ${escapeHtml(submittedAt)}</p>
+              <hr style="border:0;border-top:1px solid #d9e0e8;margin:20px 0" />
+              <p style="line-height:1.65">${safeMessage}</p>
+            </section>
+          </main>
+        `,
       }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(12_000),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error("Resend API Error Response:", error);
-      throw new Error(error.message || "Unknown Resend failure");
+      const providerError = await response.text().catch(() => "");
+      console.error("Contact email provider rejected the request", {
+        status: response.status,
+        providerError: providerError.slice(0, 500),
+      });
+      return NextResponse.json(
+        { error: "We could not send your message. Please try again later." },
+        { status: 502 },
+      );
     }
 
-    return { success: true };
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Resend sending failed:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Resend error",
-    };
+    console.error("Contact form submission failed", error);
+    return NextResponse.json(
+      { error: "We could not send your message. Please try again later." },
+      { status: 500 },
+    );
   }
 }

@@ -12,8 +12,6 @@ export const storefrontProductSelect = {
   sku: true,
   categoryId: true,
   brandId: true,
-  writerId: true,
-  publisherId: true,
   description: true,
   shortDesc: true,
   basePrice: true,
@@ -44,12 +42,6 @@ export const storefrontProductSelect = {
   },
   brand: {
     select: { id: true, name: true, slug: true, logo: true },
-  },
-  writer: {
-    select: { id: true, name: true, image: true },
-  },
-  publisher: {
-    select: { id: true, name: true, image: true },
   },
   variantOptions: {
     orderBy: { position: "asc" as const },

@@ -5,115 +5,31 @@ import { getSiteUrl } from "@/lib/seo";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = getSiteUrl();
   const now = new Date();
-
-  const staticRoutes: MetadataRoute.Sitemap = [
-    {
-      url: siteUrl,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 1,
-    },
-    {
-      url: `${siteUrl}/ecommerce`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.95,
-    },
-    {
-      url: `${siteUrl}/ecommerce/products`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
-      url: `${siteUrl}/ecommerce/categories`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
-    {
-      url: `${siteUrl}/ecommerce/brands`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
-    {
-      url: `${siteUrl}/ecommerce/authors`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
-    {
-      url: `${siteUrl}/ecommerce/publishers`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
-    {
-      url: `${siteUrl}/ecommerce/bestsellers`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.85,
-    },
-    {
-      url: `${siteUrl}/ecommerce/blogs`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.8,
-    },
-    {
-      url: `${siteUrl}/ecommerce/about`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.6,
-    },
-    {
-      url: `${siteUrl}/ecommerce/contact`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
-    {
-      url: `${siteUrl}/ecommerce/faq`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.6,
-    },
-    {
-      url: `${siteUrl}/ecommerce/privacy`,
-      lastModified: now,
-      changeFrequency: "yearly",
-      priority: 0.3,
-    },
-    {
-      url: `${siteUrl}/ecommerce/terms`,
-      lastModified: now,
-      changeFrequency: "yearly",
-      priority: 0.3,
-    },
-    {
-      url: `${siteUrl}/ecommerce/shipping`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    {
-      url: `${siteUrl}/ecommerce/returns`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    {
-      url: `${siteUrl}/ecommerce/book-fair`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.6,
-    },
-  ];
+  const staticRouteDefinitions = [
+    { path: "", changeFrequency: "daily", priority: 1 },
+    { path: "/ecommerce/products", changeFrequency: "daily", priority: 0.9 },
+    { path: "/ecommerce/categories", changeFrequency: "weekly", priority: 0.8 },
+    { path: "/ecommerce/brands", changeFrequency: "weekly", priority: 0.8 },
+    { path: "/ecommerce/flash-sale", changeFrequency: "daily", priority: 0.85 },
+    { path: "/ecommerce/bestsellers", changeFrequency: "daily", priority: 0.8 },
+    { path: "/ecommerce/blogs", changeFrequency: "weekly", priority: 0.7 },
+    { path: "/ecommerce/about", changeFrequency: "monthly", priority: 0.5 },
+    { path: "/ecommerce/contact", changeFrequency: "monthly", priority: 0.6 },
+    { path: "/ecommerce/faq", changeFrequency: "monthly", priority: 0.5 },
+    { path: "/ecommerce/shipping", changeFrequency: "monthly", priority: 0.5 },
+    { path: "/ecommerce/returns", changeFrequency: "monthly", priority: 0.5 },
+    { path: "/ecommerce/privacy", changeFrequency: "yearly", priority: 0.3 },
+    { path: "/ecommerce/terms", changeFrequency: "yearly", priority: 0.3 },
+  ] as const;
+  const staticRoutes: MetadataRoute.Sitemap = staticRouteDefinitions.map((route) => ({
+    url: `${siteUrl}${route.path}`,
+    lastModified: now,
+    changeFrequency: route.changeFrequency,
+    priority: route.priority,
+  }));
 
   try {
-    const [products, blogs, brands, categories, authors, publishers] =
-      await Promise.all([
+    const [products, blogs, brands, categories] = await Promise.all([
       prisma.product.findMany({
         where: { deleted: false, available: true },
         select: { id: true, updatedAt: true },
@@ -133,16 +49,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         select: { slug: true, updatedAt: true },
         orderBy: { updatedAt: "desc" },
       }),
-      prisma.writer.findMany({
-        where: { deleted: false },
-        select: { id: true, updatedAt: true },
-        orderBy: { updatedAt: "desc" },
-      }),
-      prisma.publisher.findMany({
-        where: { deleted: false },
-        select: { id: true, updatedAt: true },
-        orderBy: { updatedAt: "desc" },
-      }),
     ]);
 
     return [
@@ -154,13 +60,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
       })),
       ...blogs.map((blog) => ({
-        url: `${siteUrl}/ecommerce/blogs/${blog.slug}`,
+        url: `${siteUrl}/ecommerce/blogs/${encodeURIComponent(blog.slug)}`,
         lastModified: blog.updatedAt,
         changeFrequency: "monthly" as const,
-        priority: 0.75,
+        priority: 0.65,
       })),
       ...brands.map((brand) => ({
-        url: `${siteUrl}/ecommerce/products?brand=${encodeURIComponent(brand.slug)}`,
+        url: `${siteUrl}/ecommerce/brands/${encodeURIComponent(brand.slug)}`,
         lastModified: brand.updatedAt,
         changeFrequency: "weekly" as const,
         priority: 0.7,
@@ -169,22 +75,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: `${siteUrl}/ecommerce/products?category=${encodeURIComponent(category.slug)}`,
         lastModified: category.updatedAt,
         changeFrequency: "weekly" as const,
-        priority: 0.75,
-      })),
-      ...authors.map((author) => ({
-        url: `${siteUrl}/ecommerce/authors/${author.id}`,
-        lastModified: author.updatedAt,
-        changeFrequency: "weekly" as const,
-        priority: 0.65,
-      })),
-      ...publishers.map((publisher) => ({
-        url: `${siteUrl}/ecommerce/publishers/${publisher.id}`,
-        lastModified: publisher.updatedAt,
-        changeFrequency: "weekly" as const,
-        priority: 0.65,
+        priority: 0.7,
       })),
     ];
-  } catch {
+  } catch (error) {
+    console.error("Sitemap data loading failed", error);
     return staticRoutes;
   }
 }

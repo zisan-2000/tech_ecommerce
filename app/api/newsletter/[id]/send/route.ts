@@ -5,6 +5,7 @@ import nodemailer from "nodemailer";
 import { authOptions } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-log";
 import { getAccessContext } from "@/lib/rbac";
+import { getSiteSettingsForSeo } from "@/lib/seo";
 
 // ----------- SMTP CONFIG -------------
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
@@ -90,12 +91,14 @@ export async function POST(
       return NextResponse.json({ error: "No subscribers found." }, { status: 404 });
     }
 
+    const settings = await getSiteSettingsForSeo();
+
     // 4) Email HTML
     const buildEmailHTML = (email: string) => `
       <div style="font-family: Arial; max-width: 600px; margin: auto; padding: 20px;">
         <div style="background:#086666; color:#fff; padding:20px; border-radius:8px;">
           <h1>${newsletter.title}</h1>
-          <p>হিলফুল-ফুযুল বইয়ের দোকান - নিউজলেটার</p>
+          <p>${settings.siteTitle} - Newsletter</p>
         </div>
 
         <div style="background:#F4F8F7; padding:20px; margin-top:20px; border-radius:8px;">

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import { getSiteSettingsForSeo } from "@/lib/seo";
+import { rateLimitRequest } from "@/lib/request-security";
 
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
@@ -32,11 +34,23 @@ function getBaseUrl() {
   );
 }
 
-const buildEmailHTML = (resetLink: string) => `
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return entities[character];
+  });
+
+const buildEmailHTML = (resetLink: string, siteTitle: string) => `
   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px;">
     <div style="background: linear-gradient(135deg, #0E4B4B 0%, #086666 100%); color: #fff; padding: 30px; border-radius: 12px; text-align: center;">
       <h1 style="margin: 0; font-size: 28px;">পাসওয়ার্ড রিসেট</h1>
-      <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">হিলফুল-ফুযুল বইয়ের দোকান</p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">${escapeHtml(siteTitle)}</p>
     </div>
 
     <div style="background: #F4F8F7; padding: 30px; margin-top: 20px; border-radius: 12px; border: 1px solid #D1D8BE;">
@@ -74,7 +88,7 @@ const buildEmailHTML = (resetLink: string) => `
         যদি আপনি এই অনুরোধ না করে থাকেন, তাহলে এই ইমেইলটি নিরাপদে উপেক্ষা করুন।
       </p>
       <p style="margin: 0; opacity: 0.8;">
-        © হিলফুল-ফুযুল বইয়ের দোকান • সকল অধিকার সংরক্ষিত
+        © ${escapeHtml(siteTitle)} • সকল অধিকার সংরক্ষিত
       </p>
     </div>
   </div>
@@ -82,6 +96,18 @@ const buildEmailHTML = (resetLink: string) => `
 
 export async function POST(req: Request) {
   try {
+    const rateLimit = await rateLimitRequest(req, {
+      scope: "forgot-password",
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } },
+      );
+    }
+
     // Validate SMTP config
     if (!SMTP_USER || !SMTP_PASS) {
       return NextResponse.json(
@@ -90,7 +116,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const { email } = await req.json();
+    const body = await req.json().catch(() => null);
+    const email = typeof body?.email === "string"
+      ? body.email.trim().toLowerCase().slice(0, 254)
+      : "";
 
     // Validate email format
     if (!email || typeof email !== "string") {
@@ -133,17 +162,16 @@ export async function POST(req: Request) {
     });
 
     const resetLink = `${getBaseUrl()}/reset-password?token=${token}`;
+    const settings = await getSiteSettingsForSeo();
 
     // Send email
     await transporter.sendMail({
       from: SMTP_FROM,
       to: email,
-      subject: "হিলফুল-ফুযুল - পাসওয়ার্ড রিসেট",
-      html: buildEmailHTML(resetLink),
+      subject: `${settings.siteTitle} - পাসওয়ার্ড রিসেট`,
+      html: buildEmailHTML(resetLink, settings.siteTitle),
       text: `পাসওয়ার্ড রিসেট করতে এই লিঙ্কে যান: ${resetLink}`,
     });
-
-    console.log(`✓ Password reset email sent to: ${email}`);
 
     return NextResponse.json({ 
       success: true,
@@ -156,7 +184,7 @@ export async function POST(req: Request) {
         : "Unknown error";
     console.error("Forgot password SMTP Error:", message);
     return NextResponse.json(
-      { error: "Failed to process request", details: message },
+      { error: "Failed to process request" },
       { status: 500 }
     );
   }
