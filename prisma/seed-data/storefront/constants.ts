@@ -367,9 +367,66 @@ export const STOREFRONT_PRODUCTS: StorefrontProductSeed[] = [
 ];
 
 export const STOREFRONT_BANNERS = [
-  { title: "Storefront Demo | Laptop & PC Festival", subtitle: "Power up your work and play", description: "Explore featured laptops, desktops and gaming gear with demo-ready pricing.", image: "/upload/banners/1772684171822-image-asus-gaming-fest-1772102451.webp", mobileImage: "/upload/banners/1772684171822-image-asus-gaming-fest-1772102451.webp", buttonText: "Shop Computers", buttonLink: "/products?category=desktop-pc", position: 1, type: "HERO" as const },
-  { title: "Storefront Demo | Corporate Technology", subtitle: "Business purchase support", description: "Reliable devices and accessories for growing teams.", image: "/upload/banners/1772524720708-s2.webp", mobileImage: "/upload/banners/1772524720708-s2.webp", buttonText: "View Laptops", buttonLink: "/products?category=laptop", position: 2, type: "HERO" as const },
-  { title: "Storefront Demo | Components Deal", subtitle: "Build your next PC", description: "Processors, SSDs, power supplies and displays in one catalog.", image: "/upload/banners/1772524740986-s3.webp", mobileImage: "/upload/banners/1772524740986-s3.webp", buttonText: "Browse Components", buttonLink: "/products?category=processor", position: 3, type: "HERO" as const },
+  {
+    title: "Upgrade Your Workspace",
+    subtitle: "Tech Essentials Event",
+    description:
+      "Refresh your desk with selected keyboards, mice and audio gear at demo-ready prices.",
+    image: "/upload/banners/techhub-workspace-hero-v2.webp",
+    mobileImage: "/upload/banners/techhub-workspace-hero-v2.webp",
+    buttonText: "Shop Accessories",
+    buttonLink: "/ecommerce/products?category=accessories",
+    position: 1,
+    type: "HERO" as const,
+  },
+  {
+    title: "Performance Without Limits",
+    subtitle: "Laptop Upgrade Days",
+    description:
+      "Discover capable laptops for work, study and play with nationwide delivery.",
+    image: "/upload/banners/techhub-laptop-hero-v2.webp",
+    mobileImage: "/upload/banners/techhub-laptop-hero-v2.webp",
+    buttonText: "Explore Laptops",
+    buttonLink: "/ecommerce/products?category=laptop",
+    position: 2,
+    type: "HERO" as const,
+  },
+  {
+    title: "Build Your Next Powerhouse",
+    subtitle: "PC Builder Essentials",
+    description:
+      "Choose performance components and create a balanced setup for your next build.",
+    image: "/upload/banners/techhub-components-hero-v2.webp",
+    mobileImage: "/upload/banners/techhub-components-hero-v2.webp",
+    buttonText: "Browse Components",
+    buttonLink: "/ecommerce/products?category=components",
+    position: 3,
+    type: "HERO" as const,
+  },
+  {
+    title: "Corporate Sales",
+    subtitle: "Technology for Teams",
+    description:
+      "Devices, volume pricing and purchase support for growing businesses.",
+    image: "/upload/banners/techhub-corporate-sales-v2.webp",
+    mobileImage: "/upload/banners/techhub-corporate-sales-v2.webp",
+    buttonText: "Contact Sales",
+    buttonLink: "/ecommerce/contact?subject=corporate-sales",
+    position: 1,
+    type: "BANNER1" as const,
+  },
+  {
+    title: "Book a Service",
+    subtitle: "Expert Device Care",
+    description:
+      "Fast and reliable setup, diagnostics and repair support.",
+    image: "/upload/banners/techhub-service-v2.webp",
+    mobileImage: "/upload/banners/techhub-service-v2.webp",
+    buttonText: "Book Now",
+    buttonLink: "/ecommerce/contact?subject=service-booking",
+    position: 1,
+    type: "BANNER2" as const,
+  },
 ];
 
 export const STOREFRONT_REVIEW_COMMENTS = [
