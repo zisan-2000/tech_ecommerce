@@ -496,14 +496,14 @@ export default function MapComponent({
       {/* Loading indicator */}
       {loading && (
         <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black bg-opacity-30 z-[1000]">
-          <div className="bg-white p-4 rounded-lg shadow-lg">
+          <div className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow-lg">
             Loading stations...
           </div>
         </div>
       )}
 
       {/* Weather Parameter Buttons */}
-      <div className="absolute top-4 md:left-14 left-4 bg-white p-3 rounded-lg shadow-lg z-[1000] max-w-xs">
+      <div className="absolute left-4 top-4 z-[1000] max-w-xs rounded-lg border border-border bg-card p-3 text-card-foreground shadow-lg md:left-14">
         <div className="grid grid-cols-8 gap-2">
           {weatherParameters.map((param) => {
             const Icon = param.icon;
@@ -529,14 +529,14 @@ export default function MapComponent({
           })}
         </div>
         {layerLoading && (
-          <div className="text-xs text-gray-500 mt-2 text-center">
+          <div className="mt-2 text-center text-xs text-muted-foreground">
             Loading animation data...
           </div>
         )}
       </div>
 
       {/* Timeline Controls */}
-      <div className="absolute bottom-4 left-4 right-4 bg-white p-3 rounded-lg shadow-lg z-[1000]">
+      <div className="absolute bottom-4 left-4 right-4 z-[1000] rounded-lg border border-border bg-card p-3 text-card-foreground shadow-lg">
         <div className="flex items-center gap-3">
           <Button
             size="icon"
@@ -551,14 +551,14 @@ export default function MapComponent({
             )}
           </Button>
 
-          <div className="w-20 text-center font-medium text-sm bg-gray-100 py-1 px-2 rounded">
+          <div className="w-20 rounded bg-muted px-2 py-1 text-center text-sm font-medium">
             {currentDate}
           </div>
         </div>
       </div>
 
       {/* User role indicator */}
-      <div className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-lg z-[1000]">
+      <div className="absolute right-4 top-4 z-[1000] rounded-lg border border-border bg-card p-2 text-card-foreground shadow-lg">
         <div className="text-sm font-medium">
           {session?.user?.role === "super_admin" ||
           session?.user?.role === "root_admin"
@@ -569,7 +569,7 @@ export default function MapComponent({
                 ? "Observer"
                 : "Guest"}
         </div>
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-muted-foreground">
           {session?.user?.role === "super_admin" ||
           session?.user?.role === "root_admin"
             ? "Viewing all stations"
@@ -582,7 +582,7 @@ export default function MapComponent({
 
       {/* Weather summary panel */}
       {selectedStation && (
-        <div className="absolute bottom-20 right-4 bg-white p-3 rounded-lg shadow-lg z-[1000] w-64">
+        <div className="absolute bottom-20 right-4 z-[1000] w-64 rounded-lg border border-border bg-card p-3 text-card-foreground shadow-lg">
           <div className="text-sm font-medium mb-2">Weather Summary</div>
           {loading ? (
             <div className="text-xs">Loading weather data...</div>

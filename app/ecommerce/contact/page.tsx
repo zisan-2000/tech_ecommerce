@@ -119,7 +119,7 @@ ${formData.message}
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F8F7]">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Hero Section */}
       <section className="relative py-20 bg-gradient-to-r from-[#0E4B4B] to-[#086666]">
         <div className="container mx-auto px-4 text-center">
@@ -133,72 +133,72 @@ ${formData.message}
       </section>
 
       {/* Contact Information */}
-      <section className="py-16 bg-[#F4F8F7]">
+      <section className="bg-background py-16">
         <div className="container mx-auto px-4 max-w-6xl">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-[#0D1414] mb-4">
+            <h2 className="mb-4 text-3xl font-bold text-foreground md:text-4xl">
               আমরা আপনার কথাগুলো শুনতে চাই
             </h2>
             <div className="w-24 h-1 bg-[#C0704D] mx-auto mb-4"></div>
-            <p className="text-lg text-[#0D1414] max-w-2xl mx-auto">
+            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
               বই, অর্ডার, বা সাধারণ যেকোনো প্রশ্নে আমরা সাহায্য করতে প্রস্তুত
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-            <div className="text-center p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-[#5FA3A3] border-opacity-30">
-              <div className="w-16 h-16 bg-[#0E4B4B] bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MapPin className="h-8 w-8 text-[#0E4B4B]" />
+            <div className="rounded-lg border border-border bg-card p-6 text-center text-card-foreground shadow-sm transition-shadow hover:shadow-md">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <MapPin className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold text-[#0D1414] mb-3">
+              <h3 className="mb-3 text-xl font-semibold text-foreground">
                 আমাদের ঠিকানা
               </h3>
-              <p className="text-[#0D1414]">গ্রীন রোড, ঢাকা-১২১৫ বাংলাদেশ</p>
+              <p className="text-muted-foreground">গ্রীন রোড, ঢাকা-১২১৫ বাংলাদেশ</p>
             </div>
 
-            <div className="text-center p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-[#5FA3A3] border-opacity-30">
-              <div className="w-16 h-16 bg-[#0E4B4B] bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Phone className="h-8 w-8 text-[#0E4B4B]" />
+            <div className="rounded-lg border border-border bg-card p-6 text-center text-card-foreground shadow-sm transition-shadow hover:shadow-md">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <Phone className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold text-[#0D1414] mb-3">
+              <h3 className="mb-3 text-xl font-semibold text-foreground">
                 ফোন করুন
               </h3>
-              <p className="text-[#0D1414]">
+              <p className="text-muted-foreground">
                 +88-01842781978
                 <br />
                 সকাল ৯টা - রাত ১০টা
               </p>
             </div>
 
-            <div className="text-center p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-[#5FA3A3] border-opacity-30">
-              <div className="w-16 h-16 bg-[#0E4B4B] bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Mail className="h-8 w-8 text-[#0E4B4B]" />
+            <div className="rounded-lg border border-border bg-card p-6 text-center text-card-foreground shadow-sm transition-shadow hover:shadow-md">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <Mail className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold text-[#0D1414] mb-3">
+              <h3 className="mb-3 text-xl font-semibold text-foreground">
                 ইমেইল করুন
               </h3>
-              <p className="text-[#0D1414]">
+              <p className="break-words text-muted-foreground">
                 islamidawainstitute@gmail.com
               </p>
             </div>
 
-            <div className="text-center p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-[#5FA3A3] border-opacity-30">
-              <div className="w-16 h-16 bg-[#0E4B4B] bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Clock className="h-8 w-8 text-[#0E4B4B]" />
+            <div className="rounded-lg border border-border bg-card p-6 text-center text-card-foreground shadow-sm transition-shadow hover:shadow-md">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <Clock className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold text-[#0D1414] mb-3">
+              <h3 className="mb-3 text-xl font-semibold text-foreground">
                 কাজের সময়
               </h3>
-              <p className="text-[#0D1414]">২৪/৭ অনলাইন অর্ডার</p>
+              <p className="text-muted-foreground">২৪/৭ অনলাইন অর্ডার</p>
             </div>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Contact Form */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 border border-[#5FA3A3] border-opacity-30">
+            <div className="rounded-2xl border border-border bg-card p-8 text-card-foreground shadow-sm">
               <div className="flex items-center mb-6">
                 <MessageCircle className="h-6 w-6 text-[#C0704D] mr-3" />
-                <h3 className="text-2xl font-bold text-[#0D1414]">
+                <h3 className="text-2xl font-bold text-foreground">
                   মেসেজ পাঠান
                 </h3>
               </div>
@@ -208,7 +208,7 @@ ${formData.message}
                   <div className="space-y-2">
                     <label
                       htmlFor="name"
-                      className="block text-sm font-medium text-[#0D1414]"
+                      className="block text-sm font-medium text-foreground"
                     >
                       আপনার নাম *
                     </label>
@@ -221,7 +221,7 @@ ${formData.message}
                         required
                         value={formData.name}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2 border border-[#5FA3A3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C0704D] focus:border-transparent bg-[#F4F8F7]"
+                        className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="আপনার পুরো নাম"
                       />
                     </div>
@@ -230,7 +230,7 @@ ${formData.message}
                   <div className="space-y-2">
                     <label
                       htmlFor="email"
-                      className="block text-sm font-medium text-[#0D1414]"
+                      className="block text-sm font-medium text-foreground"
                     >
                       ইমেইল ঠিকানা *
                     </label>
@@ -243,7 +243,7 @@ ${formData.message}
                         required
                         value={formData.email}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2 border border-[#5FA3A3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C0704D] focus:border-transparent bg-[#F4F8F7]"
+                        className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="your@email.com"
                       />
                     </div>
@@ -253,7 +253,7 @@ ${formData.message}
                 <div className="space-y-2">
                   <label
                     htmlFor="subject"
-                    className="block text-sm font-medium text-[#0D1414]"
+                    className="block text-sm font-medium text-foreground"
                   >
                     বিষয় *
                   </label>
@@ -266,7 +266,7 @@ ${formData.message}
                       required
                       value={formData.subject}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-2 border border-[#5FA3A3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C0704D] focus:border-transparent bg-[#F4F8F7]"
+                      className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring"
                       placeholder="মেসেজের বিষয়"
                     />
                   </div>
@@ -275,7 +275,7 @@ ${formData.message}
                 <div className="space-y-2">
                   <label
                     htmlFor="message"
-                    className="block text-sm font-medium text-[#0D1414]"
+                    className="block text-sm font-medium text-foreground"
                   >
                     আপনার মেসেজ *
                   </label>
@@ -286,20 +286,20 @@ ${formData.message}
                     rows={6}
                     value={formData.message}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-[#5FA3A3] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C0704D] focus:border-transparent bg-[#F4F8F7] resize-none"
+                    className="w-full resize-none rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring"
                     placeholder="আপনার মেসেজটি এখানে লিখুন..."
                   />
                 </div>
 
                 {/* Status Messages */}
                 {submitStatus === "success" && (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-3">
-                    <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                  <div className="flex items-center space-x-3 rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-4">
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
                     <div>
-                      <p className="text-green-800 font-semibold">
+                      <p className="font-semibold text-emerald-800 dark:text-emerald-300">
                         মেসেজ সফলভাবে পাঠানো হয়েছে!
                       </p>
-                      <p className="text-green-700 text-sm">
+                      <p className="text-sm text-emerald-700 dark:text-emerald-400">
                         আমরা শীঘ্রই আপনার সাথে যোগাযোগ করব।
                       </p>
                     </div>
@@ -307,13 +307,13 @@ ${formData.message}
                 )}
 
                 {submitStatus === "error" && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3">
-                    <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                  <div className="flex items-center space-x-3 rounded-lg border border-destructive/25 bg-destructive/10 p-4">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 text-destructive" />
                     <div>
-                      <p className="text-red-800 font-semibold">
+                      <p className="font-semibold text-destructive">
                         মেসেজ পাঠাতে সমস্যা হয়েছে
                       </p>
-                      <p className="text-red-700 text-sm">{errorMessage}</p>
+                      <p className="text-sm text-destructive/90">{errorMessage}</p>
                     </div>
                   </div>
                 )}
@@ -340,37 +340,37 @@ ${formData.message}
 
             {/* FAQ & Additional Info */}
             <div className="space-y-8">
-              <div className="bg-white rounded-2xl shadow-lg p-8 border border-[#5FA3A3] border-opacity-30">
-                <h3 className="text-2xl font-bold text-[#0D1414] mb-6">
+              <div className="rounded-2xl border border-border bg-card p-8 text-card-foreground shadow-sm">
+                <h3 className="mb-6 text-2xl font-bold text-foreground">
                   দ্রুত জরুরী তথ্য
                 </h3>
 
                 <div className="space-y-4">
-                  <div className="p-4 bg-[#F4F8F7] rounded-lg border-l-4 border-[#C0704D]">
-                    <h4 className="font-semibold text-[#0D1414] mb-2">
+                  <div className="rounded-lg border-l-4 border-[#C0704D] bg-muted/60 p-4">
+                    <h4 className="mb-2 font-semibold text-foreground">
                       অর্ডার সম্পর্কিত প্রশ্ন
                     </h4>
-                    <p className="text-sm text-[#0D1414]">
+                    <p className="text-sm text-muted-foreground">
                       আপনার অর্ডার স্ট্যাটাস, পরিবর্তন বা বাতিল সম্পর্কে জানতে
                       আমাদের কল করুন বা ইমেইল করুন।
                     </p>
                   </div>
 
-                  <div className="p-4 bg-[#F4F8F7] rounded-lg border-l-4 border-[#0E4B4B]">
-                    <h4 className="font-semibold text-[#0D1414] mb-2">
+                  <div className="rounded-lg border-l-4 border-primary bg-muted/60 p-4">
+                    <h4 className="mb-2 font-semibold text-foreground">
                       বইয়ের প্রাপ্যতা
                     </h4>
-                    <p className="text-sm text-[#0D1414]">
+                    <p className="text-sm text-muted-foreground">
                       নির্দিষ্ট বই পাওয়া যাচ্ছে কিনা জানতে সরাসরি ফোনে যোগাযোগ
                       করুন দ্রুত জানার জন্য।
                     </p>
                   </div>
 
-                  <div className="p-4 bg-[#F4F8F7] rounded-lg border-l-4 border-[#5FA3A3]">
-                    <h4 className="font-semibold text-[#0D1414] mb-2">
+                  <div className="rounded-lg border-l-4 border-primary/60 bg-muted/60 p-4">
+                    <h4 className="mb-2 font-semibold text-foreground">
                       লেখক হওয়ার জন্য
                     </h4>
-                    <p className="text-sm text-[#0D1414]">
+                    <p className="text-sm text-muted-foreground">
                       আপনার বই প্রকাশ করতে চাইলে islamidawainstitute@gmail.com এ
                       মেইল করুন।
                     </p>

@@ -13,6 +13,7 @@
     "test:phase1": "tsx --test tests/phase1-storefront.test.mjs",
     "test:phase2": "tsx --test tests/phase2-product-detail.test.mjs",
     "test:flash-sale": "tsx --test tests/flash-sale.test.mjs",
+    "test:theme": "node tests/theme-contract.test.mjs",
     "test:product-security": "tsx --test --test-name-pattern=\"storefront product projection|upload validation rejects|protected uploads\" tests/phase0-security.test.mjs",
     "test:products": "npm run test:product-security && npm run test:phase1 && npm run test:phase2 && npm run test:flash-sale",
     "test:phases": "npm run test:phase0 && npm run test:phase1 && npm run test:phase2",

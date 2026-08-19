@@ -72,7 +72,7 @@ export function TopSellingBooks() {
     <div className="space-y-4 mt-10">
       <h3 className="text-lg font-semibold text-center mb-4">সর্বাধিক বিক্রিত বই</h3>
       {books.map((book) => (
-        <div key={book.id} className="border rounded-lg p-3 bg-white shadow-sm hover:shadow-md transition-shadow">
+        <div key={book.id} className="rounded-lg border border-border bg-card p-3 text-card-foreground shadow-sm transition-shadow hover:shadow-md">
           <Link href={`/ecommerce/books/${book.slug}`} className="block">
             <div className="flex gap-3">
               <div className="w-20 h-24 relative flex-shrink-0">

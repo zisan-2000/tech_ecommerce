@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Menu, Sun, Moon, Leaf } from "lucide-react";
+import { Menu, Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
 import InvestorNav from "./InvestorNav";
 
@@ -74,18 +74,21 @@ export default function InvestorLayoutClient({ investorName, investorCode, child
           {mounted && (
             <button
               onClick={() => {
-                const active = theme === "system" ? resolvedTheme : theme;
-                if (active === "light") setTheme("dark");
-                else if (active === "dark") setTheme("green");
-                else setTheme("light");
+                const active =
+                  theme === "dark" || resolvedTheme === "dark"
+                    ? "dark"
+                    : "light";
+                setTheme(active === "dark" ? "light" : "dark");
               }}
               className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
               aria-label="Toggle theme"
             >
               {(() => {
-                const active = theme === "system" ? resolvedTheme : theme;
+                const active =
+                  theme === "dark" || resolvedTheme === "dark"
+                    ? "dark"
+                    : "light";
                 if (active === "dark") return <Moon className="h-5 w-5" />;
-                if (active === "green") return <Leaf className="h-5 w-5" />;
                 return <Sun className="h-5 w-5" />;
               })()}
             </button>

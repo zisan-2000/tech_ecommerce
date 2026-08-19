@@ -213,9 +213,9 @@ export default function ProductPurchasePanel({
   };
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
+    <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
         <div className="grid lg:grid-cols-[minmax(340px,0.95fr)_minmax(0,1.25fr)]">
-          <div className="border-b border-slate-200 p-4 lg:border-b-0 lg:border-r sm:p-5">
+          <div className="border-b border-border p-4 lg:border-b-0 lg:border-r sm:p-5">
             <div className="relative h-[310px] overflow-hidden rounded-md bg-white sm:h-[390px]">
               {savings > 0 ? (
                 <span className="absolute left-2 top-2 z-10 rounded bg-emerald-700 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
@@ -261,11 +261,11 @@ export default function ProductPurchasePanel({
           </div>
 
           <div className="p-4 sm:p-5">
-            <h1 className="text-[18px] font-bold leading-[1.4] text-slate-900 sm:text-[20px]">
+            <h1 className="text-[18px] font-bold leading-[1.4] text-foreground sm:text-[20px]">
               {product.name}
             </h1>
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12px] text-slate-500">
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12px] text-muted-foreground">
               <span className="inline-flex items-center gap-0.5" aria-label={`${product.ratingAvg.toFixed(1)} out of 5 stars`}>
                 {Array.from({ length: 5 }).map((_, index) => (
                   <Star
@@ -273,7 +273,7 @@ export default function ProductPurchasePanel({
                     className={`h-4 w-4 ${
                       index < Math.round(product.ratingAvg)
                         ? "fill-amber-400 text-amber-400"
-                        : "fill-slate-200 text-slate-200"
+                        : "fill-muted text-muted"
                     }`}
                     aria-hidden="true"
                   />
@@ -283,7 +283,7 @@ export default function ProductPurchasePanel({
               <button
                 type="button"
                 onClick={share}
-                className="inline-flex h-7 items-center gap-1 rounded border border-slate-200 px-2 text-[11px] font-medium text-[#174a92] hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92]"
+                className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 text-[11px] font-medium text-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
                 Share
@@ -291,44 +291,44 @@ export default function ProductPurchasePanel({
             </div>
 
             <div className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
-              <span className="rounded border border-slate-200 px-2.5 py-1.5 text-slate-600">
+              <span className="rounded border border-border px-2.5 py-1.5 text-muted-foreground">
                 Stock: {" "}
                 <strong className={stock > 0 ? "text-emerald-700" : "text-rose-600"}>
                   {stock > 0 ? "In Stock" : "Out of Stock"}
                 </strong>
               </span>
-              <span className="rounded border border-slate-200 px-2.5 py-1.5 text-slate-600">
-                PID: <strong className="text-slate-900">P{String(product.id).padStart(9, "0")}</strong>
+              <span className="rounded border border-border px-2.5 py-1.5 text-muted-foreground">
+                PID: <strong className="text-foreground">P{String(product.id).padStart(9, "0")}</strong>
               </span>
               {selectedVariant?.sku || product.sku ? (
-                <span className="rounded border border-slate-200 px-2.5 py-1.5 text-slate-600">
-                  SKU: <strong className="text-slate-900">{selectedVariant?.sku || product.sku}</strong>
+                <span className="rounded border border-border px-2.5 py-1.5 text-muted-foreground">
+                  SKU: <strong className="text-foreground">{selectedVariant?.sku || product.sku}</strong>
                 </span>
               ) : null}
               {details.brandName ? (
-                <span className="rounded border border-slate-200 px-2.5 py-1.5 text-slate-600">
-                  Brand: <strong className="text-slate-900">{details.brandName}</strong>
+                <span className="rounded border border-border px-2.5 py-1.5 text-muted-foreground">
+                  Brand: <strong className="text-foreground">{details.brandName}</strong>
                 </span>
               ) : null}
               {model ? (
-                <span className="rounded border border-slate-200 px-2.5 py-1.5 text-slate-600">
-                  Model: <strong className="text-slate-900">{model}</strong>
+                <span className="rounded border border-border px-2.5 py-1.5 text-muted-foreground">
+                  Model: <strong className="text-foreground">{model}</strong>
                 </span>
               ) : null}
               {warranty ? (
-                <span className="rounded border border-slate-200 px-2.5 py-1.5 text-slate-600">
-                  Warranty: <strong className="text-slate-900">{warranty}</strong>
+                <span className="rounded border border-border px-2.5 py-1.5 text-muted-foreground">
+                  Warranty: <strong className="text-foreground">{warranty}</strong>
                 </span>
               ) : null}
             </div>
 
             {keySpecifications.length > 0 ? (
-              <ul className="mt-3 space-y-0.5 text-[12px] leading-[1.55] text-slate-600 sm:text-[12px]">
+              <ul className="mt-3 space-y-0.5 text-[12px] leading-[1.55] text-muted-foreground sm:text-[12px]">
                 {keySpecifications.map((item) => (
                   <li key={item.id} className="flex items-start gap-2">
-                    <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-500" />
+                    <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted-foreground" />
                     <span>
-                      <strong className="font-medium text-slate-700">{item.attribute.name}:</strong>{" "}
+                      <strong className="font-medium text-foreground/80">{item.attribute.name}:</strong>{" "}
                       {item.value}
                     </span>
                   </li>
@@ -338,7 +338,7 @@ export default function ProductPurchasePanel({
 
             {product.variants.filter((variant) => variant.active).length > 1 ? (
               <fieldset className="mt-3">
-                <legend className="text-[12px] font-bold text-slate-800">Choose an option</legend>
+                <legend className="text-[12px] font-bold text-foreground">Choose an option</legend>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   {product.variants
                     .filter((variant) => variant.active)
@@ -357,15 +357,15 @@ export default function ProductPurchasePanel({
                           disabled={variant.stock <= 0}
                           className={`flex min-h-10 items-center justify-between rounded border px-3 py-2 text-left text-[11px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92] disabled:cursor-not-allowed disabled:opacity-40 ${
                             selectedVariantId === variant.id
-                              ? "border-[#174a92] bg-blue-50 text-[#174a92]"
-                              : "border-slate-200 hover:border-slate-400"
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border hover:border-primary/50"
                           }`}
                         >
                           <span className="truncate">{label}</span>
                           {selectedVariantId === variant.id ? (
                             <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
                           ) : (
-                            <span className="ml-2 shrink-0 text-[10px] text-slate-400">
+                            <span className="ml-2 shrink-0 text-[10px] text-muted-foreground">
                               {variant.stock} left
                             </span>
                           )}
@@ -381,17 +381,17 @@ export default function ProductPurchasePanel({
                 {telephoneHref ? (
                   <a
                     href={telephoneHref}
-                    className="inline-flex h-9 items-center gap-2 rounded border border-slate-200 px-3 text-[11px] font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                    className="inline-flex h-9 items-center gap-2 rounded border border-border px-3 text-[11px] font-medium text-muted-foreground hover:border-primary/40 hover:bg-accent"
                   >
-                    <Phone className="h-4 w-4 text-[#174a92]" aria-hidden="true" />
+                    <Phone className="h-4 w-4 text-primary" aria-hidden="true" />
                     <span>Hotline</span>
-                    <strong className="text-[#174a92]">{details.contactNumber}</strong>
+                    <strong className="text-primary">{details.contactNumber}</strong>
                   </a>
                 ) : null}
                 {details.contactEmail ? (
                   <a
                     href={`mailto:${details.contactEmail}`}
-                    className="inline-flex h-9 items-center gap-2 rounded border border-slate-200 px-3 text-[11px] font-medium text-[#174a92] hover:border-slate-300 hover:bg-slate-50"
+                    className="inline-flex h-9 items-center gap-2 rounded border border-border px-3 text-[11px] font-medium text-primary hover:border-primary/40 hover:bg-accent"
                   >
                     <Mail className="h-4 w-4" aria-hidden="true" />
                     {details.contactEmail}
@@ -401,14 +401,14 @@ export default function ProductPurchasePanel({
             ) : null}
 
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3">
-                <p className="text-[11px] font-medium text-slate-500">Discount Price</p>
+              <div className="rounded-md border border-border bg-muted/60 p-3">
+                <p className="text-[11px] font-medium text-muted-foreground">Discount Price</p>
                 <div className="mt-2 flex flex-wrap items-baseline gap-2">
                   <strong className="text-[21px] text-rose-600">
                     {money(price, product.currency)}
                   </strong>
                   {originalPrice && originalPrice > price ? (
-                    <span className="text-[12px] text-slate-400 line-through">
+                    <span className="text-[12px] text-muted-foreground line-through">
                       {money(originalPrice, product.currency)}
                     </span>
                   ) : null}
@@ -419,8 +419,8 @@ export default function ProductPurchasePanel({
                   </p>
                 ) : null}
               </div>
-              <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3">
-                <p className="text-[11px] font-medium text-slate-500">EMI Starts From*</p>
+              <div className="rounded-md border border-border bg-muted/60 p-3">
+                <p className="text-[11px] font-medium text-muted-foreground">EMI Starts From*</p>
                 <strong className="mt-2 block text-[20px] text-[#2563eb]">
                   {money(emiMonthly, product.currency)}
                 </strong>
@@ -432,24 +432,24 @@ export default function ProductPurchasePanel({
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              <div className="flex h-10 items-center overflow-hidden rounded border border-slate-200">
+              <div className="flex h-10 items-center overflow-hidden rounded border border-border">
                 <button
                   type="button"
                   onClick={() => setQuantity((value) => Math.max(1, value - 1))}
                   disabled={quantity <= 1}
-                  className="flex h-full w-10 items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+                  className="flex h-full w-10 items-center justify-center text-muted-foreground hover:bg-muted disabled:opacity-40"
                   aria-label="Decrease quantity"
                 >
                   <Minus className="h-4 w-4" aria-hidden="true" />
                 </button>
-                <span className="flex h-full min-w-12 items-center justify-center border-x border-slate-200 text-[13px] font-semibold">
+                <span className="flex h-full min-w-12 items-center justify-center border-x border-border text-[13px] font-semibold">
                   {quantity}
                 </span>
                 <button
                   type="button"
                   onClick={() => setQuantity((value) => Math.min(Math.max(1, stock), value + 1))}
                   disabled={stock <= 0 || quantity >= stock}
-                  className="flex h-full w-10 items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+                  className="flex h-full w-10 items-center justify-center text-muted-foreground hover:bg-muted disabled:opacity-40"
                   aria-label="Increase quantity"
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
@@ -459,7 +459,7 @@ export default function ProductPurchasePanel({
                 type="button"
                 onClick={addProduct}
                 disabled={stock <= 0}
-                className="inline-flex h-10 min-w-[180px] flex-1 items-center justify-center gap-2 rounded bg-[#174a92] px-5 text-[12px] font-bold text-white transition hover:bg-[#103b76] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="inline-flex h-10 min-w-[180px] flex-1 items-center justify-center gap-2 rounded bg-primary px-5 text-[12px] font-bold text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
               >
                 <ShoppingCart className="h-4 w-4" aria-hidden="true" />
                 {stock > 0 ? "Add to Cart" : "Out of Stock"}
@@ -467,7 +467,7 @@ export default function ProductPurchasePanel({
               <button
                 type="button"
                 onClick={toggleWishlist}
-                className="inline-flex h-10 items-center justify-center gap-1.5 rounded border border-slate-200 bg-slate-50 px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92]"
+                className="inline-flex h-10 items-center justify-center gap-1.5 rounded border border-border bg-muted px-3 text-[11px] font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-pressed={wishlisted}
               >
                 <Heart
@@ -479,10 +479,10 @@ export default function ProductPurchasePanel({
               <button
                 type="button"
                 onClick={toggleCompare}
-                className={`inline-flex h-10 items-center justify-center gap-1.5 rounded border border-slate-200 px-3 text-[11px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92] ${
+                className={`inline-flex h-10 items-center justify-center gap-1.5 rounded border border-border px-3 text-[11px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   compare.isCompared(product.id)
-                    ? "bg-blue-50 text-[#174a92]"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-foreground hover:bg-accent"
                 }`}
                 aria-pressed={compare.isCompared(product.id)}
               >
@@ -496,14 +496,14 @@ export default function ProductPurchasePanel({
                 type="button"
                 onClick={buyNow}
                 disabled={stock <= 0}
-                className="text-[11px] font-semibold text-[#174a92] hover:underline disabled:text-slate-400"
+                className="text-[11px] font-semibold text-primary hover:underline disabled:text-muted-foreground"
               >
                 Buy now with secure checkout
               </button>
               {compare.count > 0 ? (
                 <Link
                   href={compare.href}
-                  className="text-[11px] font-semibold text-[#174a92] hover:underline"
+                  className="text-[11px] font-semibold text-primary hover:underline"
                 >
                   Compare selected ({compare.count})
                 </Link>

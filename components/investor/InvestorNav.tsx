@@ -27,14 +27,12 @@ import {
   LogOut,
   Sun,
   Moon,
-  Leaf,
   Check,
 } from "lucide-react";
 
 const THEME_OPTIONS = [
   { value: "light", label: "Light", icon: Sun },
   { value: "dark", label: "Dark", icon: Moon },
-  { value: "green", label: "Green", icon: Leaf },
 ] as const;
 
 type InvestorNavProps = {
@@ -140,14 +138,18 @@ export default function InvestorNav({ investorName, investorCode, onNavClick }: 
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="w-full justify-start gap-2">
                   {(() => {
-                    const active = theme === "system" ? resolvedTheme : theme;
+                    const active =
+                      theme === "dark" || resolvedTheme === "dark"
+                        ? "dark"
+                        : "light";
                     if (active === "dark") return <Moon className="h-4 w-4" />;
-                    if (active === "green") return <Leaf className="h-4 w-4" />;
                     return <Sun className="h-4 w-4" />;
                   })()}
                   <span className="flex-1 text-left">Theme</span>
                   <span className="text-xs text-muted-foreground capitalize">
-                    {theme === "system" ? resolvedTheme : theme}
+                    {theme === "dark" || resolvedTheme === "dark"
+                      ? "dark"
+                      : "light"}
                   </span>
                 </Button>
               </DropdownMenuTrigger>
@@ -160,7 +162,7 @@ export default function InvestorNav({ investorName, investorCode, onNavClick }: 
                   >
                     <opt.icon className="h-4 w-4" />
                     <span className="flex-1">{opt.label}</span>
-                    {(theme === opt.value || (theme === "system" && resolvedTheme === opt.value)) && (
+                    {theme === opt.value && (
                       <Check className="h-4 w-4" />
                     )}
                   </DropdownMenuItem>

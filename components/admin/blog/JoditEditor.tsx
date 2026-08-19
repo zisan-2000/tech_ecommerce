@@ -24,14 +24,15 @@ const JoditEditorComponent: React.FC<JoditEditorProps> = ({
 }) => {
   const editor = useRef(null);
   const [content, setContent] = useState(initialValue);
-  const { theme, systemTheme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
   const [currentTheme, setCurrentTheme] = useState<"light" | "dark">("light");
 
   // Update theme when it changes
   useEffect(() => {
-    const resolvedTheme = theme === "system" ? systemTheme : theme;
-    setCurrentTheme(resolvedTheme === "dark" ? "dark" : "light");
-  }, [theme, systemTheme]);
+    setCurrentTheme(
+      theme === "dark" || resolvedTheme === "dark" ? "dark" : "light",
+    );
+  }, [theme, resolvedTheme]);
 
   const config = useMemo(
     () => ({

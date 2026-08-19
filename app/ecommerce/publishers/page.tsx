@@ -259,7 +259,7 @@ function PublishersSkeleton() {
         {/* Grid Skeleton */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {[...Array(8)].map((_, i) => (
-            <Card key={i} className="group overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500">
+            <Card key={i} className="group overflow-hidden rounded-2xl border-border bg-card shadow-lg transition-all duration-500 hover:shadow-2xl">
               <div className="relative h-48 overflow-hidden">
                 <Skeleton className="h-full w-full" />
               </div>

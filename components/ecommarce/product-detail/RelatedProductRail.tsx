@@ -16,18 +16,18 @@ export default function RelatedProductRail({
   if (products.length === 0) return null;
 
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
-      <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3.5">
-        <h2 className="text-[14px] font-bold text-slate-900">Related Products</h2>
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3.5">
+        <h2 className="text-[14px] font-bold text-foreground">Related Products</h2>
         <Link
           href={categoryHref}
-          className="text-[11px] font-semibold text-[#174a92] hover:underline"
+          className="text-[11px] font-semibold text-primary hover:underline"
         >
           View all
         </Link>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col divide-y divide-slate-100 overflow-y-auto px-3 [scrollbar-color:#cbd5e1_transparent] [scrollbar-width:thin]">
+      <div className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-y-auto px-3 [scrollbar-color:hsl(var(--scrollbar-thumb))_transparent] [scrollbar-width:thin]">
         {products.slice(0, 8).map((product) => {
           const savings =
             product.originalPrice && product.originalPrice > product.price
@@ -50,7 +50,7 @@ export default function RelatedProductRail({
                 />
               </span>
               <span className="min-w-0">
-                <span className="line-clamp-2 text-[11px] font-semibold leading-[1.45] text-slate-800 group-hover:text-[#174a92]">
+              <span className="line-clamp-2 text-[11px] font-semibold leading-[1.45] text-foreground group-hover:text-primary">
                   {product.name}
                 </span>
                 <span className="mt-1.5 flex flex-wrap items-baseline gap-2">
@@ -58,7 +58,7 @@ export default function RelatedProductRail({
                     {money(product.price)}
                   </strong>
                   {product.originalPrice && product.originalPrice > product.price ? (
-                    <span className="text-[10px] text-slate-400 line-through">
+                    <span className="text-[10px] text-muted-foreground line-through">
                       {money(product.originalPrice)}
                     </span>
                   ) : null}
@@ -76,7 +76,7 @@ export default function RelatedProductRail({
 
       <Link
         href={categoryHref}
-        className="flex h-11 shrink-0 items-center justify-center border-t border-slate-200 bg-slate-50 text-[11px] font-bold text-[#174a92] transition hover:bg-blue-50"
+        className="flex h-11 shrink-0 items-center justify-center border-t border-border bg-muted text-[11px] font-bold text-primary transition hover:bg-accent"
       >
         Browse all related products
       </Link>

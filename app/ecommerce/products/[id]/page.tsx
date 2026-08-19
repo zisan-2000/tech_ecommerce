@@ -156,7 +156,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   };
 
   return (
-    <div className="product-detail-light min-h-screen bg-[#f5f6f8] text-slate-900 [color-scheme:light]">
+    <div className="min-h-screen bg-background text-foreground">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -164,16 +164,16 @@ export default async function ProductPage({ params }: ProductPageProps) {
         }}
       />
       <div className="container px-3 py-4 sm:px-6 lg:py-5">
-        <nav className="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-slate-500" aria-label="Breadcrumb">
-          <Link href="/" className="hover:text-[#174a92]">Home</Link>
+        <nav className="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground" aria-label="Breadcrumb">
+          <Link href="/" className="hover:text-primary">Home</Link>
           <span aria-hidden="true">›</span>
-          <Link href="/ecommerce/products" className="hover:text-[#174a92]">Products</Link>
+          <Link href="/ecommerce/products" className="hover:text-primary">Products</Link>
           <span aria-hidden="true">›</span>
-          <Link href={categoryHref} className="hover:text-[#174a92]">
+          <Link href={categoryHref} className="hover:text-primary">
             {product.category.name}
           </Link>
           <span aria-hidden="true">›</span>
-          <span className="max-w-72 truncate font-medium text-slate-800">{product.name}</span>
+          <span className="max-w-72 truncate font-medium text-foreground">{product.name}</span>
         </nav>
 
         <div
@@ -212,7 +212,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
               reviewCount={product.ratingCount}
             />
 
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+            <section className="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-6">
               <ProductQuestions productId={product.id} />
             </section>
           </main>
@@ -221,8 +221,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
         {hasRelatedProducts ? (
           <section className="mt-8 xl:mt-10">
             <div className="mb-5 flex items-end justify-between gap-4">
-              <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#174a92]">You may also like</p><h2 className="mt-1.5 text-xl font-bold text-slate-900">Recommended products</h2></div>
-              <Link href={categoryHref} className="text-[12px] font-bold text-[#174a92] hover:underline">View category</Link>
+              <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary">You may also like</p><h2 className="mt-1.5 text-xl font-bold text-foreground">Recommended products</h2></div>
+              <Link href={categoryHref} className="text-[12px] font-bold text-primary hover:underline">View category</Link>
             </div>
             <CatalogProductGrid products={relatedProducts} />
           </section>

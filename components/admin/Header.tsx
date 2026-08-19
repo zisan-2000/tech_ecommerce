@@ -28,10 +28,6 @@ import Image from "next/image";
 const THEME_OPTIONS = [
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
-  { value: "green", label: "green" },
-  { value: "plum", label: "Plum" },
-  { value: "olive", label: "Olive" },
-  { value: "rose", label: "Rose" },
 ] as const;
 
 type ScmNotificationPreview = {
@@ -216,7 +212,8 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     }
   };
 
-  const activeTheme = (theme === "system" ? resolvedTheme : theme) ?? "light";
+  const activeTheme =
+    theme === "dark" || resolvedTheme === "dark" ? "dark" : "light";
   const darkLikeActiveTheme = isDarkLikeTheme(activeTheme);
 
   const userName = (session?.user as any)?.name || "User";

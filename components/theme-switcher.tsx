@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-
-type ThemeMode = "light" | "dark" | "green" | "plum";
 
 export function ThemeSwitcher() {
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -15,34 +14,41 @@ export function ThemeSwitcher() {
 
   if (!mounted) return null;
 
-  const changeTheme = (newTheme: ThemeMode) => {
-    setTheme(newTheme);
-  };
-
-  const activeTheme = (theme === "system" ? resolvedTheme : theme) as ThemeMode | undefined;
+  const activeTheme =
+    theme === "dark" || resolvedTheme === "dark" ? "dark" : "light";
 
   return (
-    <div className="flex gap-2 p-2 bg-card rounded-xl border">
+    <div
+      className="inline-flex gap-1 rounded-xl border border-border bg-muted p-1"
+      role="group"
+      aria-label="Choose color theme"
+    >
       <button
-        onClick={() => changeTheme("green")}
-        className={`px-3 py-1 rounded-md border transition ${
-          activeTheme === "green"
-            ? "bg-primary text-primary-foreground border-primary"
-            : "bg-background text-foreground border-border hover:bg-accent"
+        type="button"
+        onClick={() => setTheme("light")}
+        aria-pressed={activeTheme === "light"}
+        className={`inline-flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition ${
+          activeTheme === "light"
+            ? "bg-card text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
         }`}
       >
-        Green
+        <Sun className="h-4 w-4" aria-hidden="true" />
+        Light
       </button>
 
       <button
-        onClick={() => changeTheme("plum")}
-        className={`px-3 py-1 rounded-md border transition ${
-          activeTheme === "plum"
-            ? "bg-primary text-primary-foreground border-primary"
-            : "bg-background text-foreground border-border hover:bg-accent"
+        type="button"
+        onClick={() => setTheme("dark")}
+        aria-pressed={activeTheme === "dark"}
+        className={`inline-flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium transition ${
+          activeTheme === "dark"
+            ? "bg-card text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
         }`}
       >
-        Plum
+        <Moon className="h-4 w-4" aria-hidden="true" />
+        Dark
       </button>
     </div>
   );

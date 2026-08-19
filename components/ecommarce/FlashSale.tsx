@@ -43,7 +43,7 @@ export function FlashSaleCountdown({ endsAt }: { endsAt: string }) {
     <div className="grid grid-cols-4 overflow-hidden rounded-lg border border-cyan-300 bg-gradient-to-r from-cyan-100 via-sky-50 to-teal-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_2px_8px_rgba(8,145,178,0.12)]" aria-label="Time remaining in this deal" role="timer">
       {values.map(([value, label], index) => (
         <div key={label} className={cn("flex min-w-0 flex-col items-center py-1.5", index > 0 && "border-l border-cyan-300/80")}>
-          <span className="text-sm font-black tabular-nums text-slate-900">{value === undefined || value === null ? "--" : String(value).padStart(2, "0")}</span>
+          <span className="text-sm font-black tabular-nums text-foreground">{value === undefined || value === null ? "--" : String(value).padStart(2, "0")}</span>
           <span className="text-[9px] font-bold uppercase tracking-wide text-teal-800">{label}</span>
         </div>
       ))}

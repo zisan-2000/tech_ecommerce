@@ -240,7 +240,7 @@ export default function Hero({
     <section
       aria-label="Featured promotions"
       aria-roledescription="carousel"
-      className="w-full bg-[#f4f6f8]"
+      className="w-full bg-background"
       onMouseEnter={() => setAutoplayPaused(true)}
       onMouseLeave={() => setAutoplayPaused(false)}
       onFocusCapture={() => setAutoplayPaused(true)}
@@ -282,7 +282,7 @@ export default function Hero({
                     alt=""
                     fill
                     priority={index === 0}
-                    className="object-cover transition-transform duration-[1400ms] group-hover/hero:scale-[1.018] motion-reduce:transition-none"
+                    className="object-cover transition-transform duration-1000 group-hover/hero:scale-[1.018] motion-reduce:transition-none"
                     sizes="(max-width: 1023px) 100vw, 69vw"
                   />
                   <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/55 to-transparent" />

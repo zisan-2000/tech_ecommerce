@@ -117,14 +117,14 @@ export default function BrandSlider({
   };
 
   return (
-    <section className="w-full bg-[#f5f6f8]">
+    <section className="w-full bg-background">
       <div className="w-full px-3 py-5 sm:px-5 sm:py-6">
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-[20px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
+            <h2 className="text-[20px] font-bold tracking-tight text-foreground sm:text-[22px]">
               {title}
             </h2>
-            <p className="mt-1 text-[12px] text-slate-500 sm:text-[13px]">
+            <p className="mt-1 text-[12px] text-muted-foreground sm:text-[13px]">
               {subtitle}
             </p>
           </div>
@@ -134,7 +134,7 @@ export default function BrandSlider({
               type="button"
               onClick={() => scrollByCards("left")}
               disabled={!canScrollLeft}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition hover:border-primary/35 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35"
               aria-label="Previous brands"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -143,14 +143,14 @@ export default function BrandSlider({
               type="button"
               onClick={() => scrollByCards("right")}
               disabled={!canScrollRight}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition hover:border-primary/35 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-35"
               aria-label="Next brands"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
             <Link
               href="/ecommerce/brands"
-              className="hidden h-9 items-center gap-1 rounded-full border border-slate-200 bg-white px-4 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-[#174a92] hover:text-[#174a92] sm:inline-flex"
+              className="hidden h-9 items-center gap-1 rounded-full border border-border bg-card px-4 text-[11px] font-semibold text-foreground shadow-sm transition hover:border-primary hover:text-primary sm:inline-flex"
             >
               View all <ArrowRight className="h-3.5 w-3.5" />
             </Link>
@@ -172,10 +172,10 @@ export default function BrandSlider({
               ? Array.from({ length: 8 }).map((_, index) => (
                   <div
                     key={index}
-                    className="h-[112px] min-w-[132px] animate-pulse snap-start rounded-lg border border-slate-200 bg-white sm:min-w-[156px] lg:min-w-[172px]"
+                    className="h-[112px] min-w-[132px] animate-pulse snap-start rounded-lg border border-border bg-card sm:min-w-[156px] lg:min-w-[172px]"
                   >
-                    <div className="mx-3 mt-3 h-12 rounded bg-slate-100" />
-                    <div className="mx-3 mt-3 h-3 w-20 rounded bg-slate-100" />
+                    <div className="mx-3 mt-3 h-12 rounded bg-muted" />
+                    <div className="mx-3 mt-3 h-3 w-20 rounded bg-muted" />
                   </div>
                 ))
               : visible.map((brand) => (
@@ -184,9 +184,9 @@ export default function BrandSlider({
                     data-brand-card="1"
                     href={`/ecommerce/products?brand=${encodeURIComponent(brand.slug)}`}
                     aria-label={`Shop ${brand.name} products`}
-                    className="group flex h-[112px] min-w-[132px] snap-start flex-col rounded-lg border border-slate-200 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:border-[#174a92]/45 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92] sm:min-w-[156px] lg:min-w-[172px]"
+                    className="group flex h-[112px] min-w-[132px] snap-start flex-col rounded-lg border border-border bg-card p-3 text-card-foreground shadow-[0_1px_2px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-w-[156px] lg:min-w-[172px]"
                   >
-                    <div className="relative flex h-[54px] items-center justify-center overflow-hidden rounded-md border border-slate-100 bg-slate-50 px-3">
+                    <div className="relative flex h-[54px] items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white px-3">
                       {brand.logo ? (
                         <Image
                           src={brand.logo}
@@ -204,21 +204,21 @@ export default function BrandSlider({
 
                     <div className="mt-2 flex min-w-0 items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <h3 className="truncate text-[11px] font-semibold text-slate-800 group-hover:text-[#174a92]">
+                        <h3 className="truncate text-[11px] font-semibold text-foreground group-hover:text-primary">
                           {brand.name}
                         </h3>
-                        <p className="mt-0.5 text-[9px] text-slate-500">
+                        <p className="mt-0.5 text-[9px] text-muted-foreground">
                           {brand.productCount} {brand.productCount === 1 ? "product" : "products"}
                         </p>
                       </div>
-                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#174a92]" />
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition group-hover:translate-x-0.5 group-hover:text-primary" />
                     </div>
                   </Link>
                 ))}
           </div>
 
           {!loading && !error && visible.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-[12px] text-slate-500">
+            <div className="rounded-lg border border-dashed border-border bg-card px-4 py-8 text-center text-[12px] text-muted-foreground">
               Brand products will appear here when they are available.
             </div>
           ) : null}

@@ -38,11 +38,11 @@ export default function ProductDetailTabs({
   const [activeTab, setActiveTab] = useState<TabId>("specifications");
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
+    <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
       <div
         role="tablist"
         aria-label="Product details"
-        className="flex overflow-x-auto border-b border-slate-200 px-3 sm:px-5"
+        className="flex overflow-x-auto border-b border-border px-3 sm:px-5"
       >
         {tabs.map((tab) => {
           const selected = activeTab === tab.id;
@@ -58,7 +58,7 @@ export default function ProductDetailTabs({
               className={`relative h-12 shrink-0 px-4 text-[12px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#174a92] sm:px-6 ${
                 selected
                   ? "text-[#174a92] after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[#2563eb]"
-                  : "text-slate-500 hover:text-slate-800"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {tab.label}
@@ -75,21 +75,21 @@ export default function ProductDetailTabs({
             role="tabpanel"
             aria-labelledby="product-tab-specifications"
           >
-            <h2 className="text-[16px] font-bold uppercase tracking-wide text-slate-900">
+            <h2 className="text-[16px] font-bold uppercase tracking-wide text-foreground">
               Specifications
             </h2>
-            <dl className="mt-4 overflow-hidden rounded-lg border border-slate-200 text-[12px] sm:text-[13px]">
+            <dl className="mt-4 overflow-hidden rounded-lg border border-border text-[12px] sm:text-[13px]">
               {information.map((item, index) => (
                 <div
                   key={item.label}
                   className={`grid grid-cols-[minmax(110px,0.65fr)_minmax(0,1.35fr)] ${
-                    index > 0 ? "border-t border-slate-200" : ""
+                    index > 0 ? "border-t border-border" : ""
                   }`}
                 >
-                  <dt className="bg-slate-50 px-3 py-3 font-medium text-slate-600 sm:px-4">
+                  <dt className="bg-muted px-3 py-3 font-medium text-muted-foreground sm:px-4">
                     {item.label}
                   </dt>
-                  <dd className="px-3 py-3 font-semibold text-slate-800 sm:px-4">
+                  <dd className="px-3 py-3 font-semibold text-foreground sm:px-4">
                     {item.value}
                   </dd>
                 </div>
@@ -99,14 +99,14 @@ export default function ProductDetailTabs({
                   key={item.id}
                   className={`grid grid-cols-[minmax(110px,0.65fr)_minmax(0,1.35fr)] ${
                     information.length > 0 || index > 0
-                      ? "border-t border-slate-200"
+                      ? "border-t border-border"
                       : ""
                   }`}
                 >
-                  <dt className="bg-slate-50 px-3 py-3 font-medium text-slate-600 sm:px-4">
+                  <dt className="bg-muted px-3 py-3 font-medium text-muted-foreground sm:px-4">
                     {item.attribute.name}
                   </dt>
-                  <dd className="px-3 py-3 font-semibold text-slate-800 sm:px-4">
+                  <dd className="px-3 py-3 font-semibold text-foreground sm:px-4">
                     {item.value}
                   </dd>
                 </div>
@@ -121,10 +121,10 @@ export default function ProductDetailTabs({
             role="tabpanel"
             aria-labelledby="product-tab-description"
           >
-            <h2 className="text-[16px] font-bold uppercase tracking-wide text-slate-900">
+            <h2 className="text-[16px] font-bold uppercase tracking-wide text-foreground">
               Description
             </h2>
-            <p className="mt-4 whitespace-pre-line text-[13px] leading-7 text-slate-600 sm:text-[14px]">
+            <p className="mt-4 whitespace-pre-line text-[13px] leading-7 text-muted-foreground sm:text-[14px]">
               {description || "Product description will be available soon."}
             </p>
           </div>

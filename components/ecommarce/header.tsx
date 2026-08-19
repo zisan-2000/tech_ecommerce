@@ -51,7 +51,6 @@ import {
   Boxes,
   Sun,
   Moon,
-  Leaf,
   ChevronLeft,
   Check,
   X,
@@ -68,8 +67,6 @@ const THEME_OPTIONS = [
   { value: "light", label: "Light" },
 
   { value: "dark", label: "Dark" },
-
-  { value: "green", label: "Green" },
 ] as const;
 
 interface ProductSummary {
@@ -637,7 +634,8 @@ export default function Header({
     loadSiteSettings();
   }, [siteSettingsData]);
 
-  const activeTheme = (theme === "system" ? resolvedTheme : theme) ?? "light";
+  const activeTheme =
+    theme === "dark" || resolvedTheme === "dark" ? "dark" : "light";
 
   const activeThemeOption =
     THEME_OPTIONS.find((option) => option.value === activeTheme) ??
@@ -1145,10 +1143,8 @@ export default function Header({
                   >
                     {activeThemeOption.value === "light" ? (
                       <Sun className="h-6 w-6" />
-                    ) : activeThemeOption.value === "dark" ? (
-                      <Moon className="h-6 w-6" />
                     ) : (
-                      <Leaf className="h-6 w-6" />
+                      <Moon className="h-6 w-6" />
                     )}
 
                     <span className="hidden">Theme</span>
@@ -1165,10 +1161,8 @@ export default function Header({
                       <span className="flex items-center gap-2">
                         {option.value === "light" ? (
                           <Sun className="h-4 w-4" />
-                        ) : option.value === "dark" ? (
-                          <Moon className="h-4 w-4" />
                         ) : (
-                          <Leaf className="h-4 w-4" />
+                          <Moon className="h-4 w-4" />
                         )}
 
                         {option.label}

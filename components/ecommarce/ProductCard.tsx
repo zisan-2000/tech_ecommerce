@@ -342,8 +342,8 @@ export default function ProductCardCompact({
   return (
     <div
       className={cn(
-        "group relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition-[border-color,box-shadow,transform] duration-200",
-        "hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_8px_22px_rgba(15,23,42,0.10)]",
+        "group relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition-[border-color,box-shadow,transform] duration-200",
+        "hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[0_8px_22px_rgba(15,23,42,0.10)]",
         className,
       )}
       onMouseLeave={() => setActiveVariantImage(null)}
@@ -386,7 +386,7 @@ export default function ProductCardCompact({
           <button
             type="button"
             onClick={() => void onWishlistClick()}
-            className="absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-sm transition hover:border-rose-200 hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+            className="absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card/95 text-muted-foreground shadow-sm transition hover:border-rose-400 hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
             aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
             aria-pressed={wishlisted}
           >
@@ -401,7 +401,7 @@ export default function ProductCardCompact({
         ) : null}
 
         {isOutOfStock ? (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/65 backdrop-blur-[1px]">
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-card/70 backdrop-blur-[1px]">
             <span className="rounded bg-rose-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm">
               Out of Stock
             </span>
@@ -414,14 +414,14 @@ export default function ProductCardCompact({
           href={product.href}
           className="min-h-[42px] rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92] sm:min-h-[44px]"
         >
-          <h3 className="line-clamp-2 text-[13px] font-semibold leading-[1.45] text-slate-800 transition-colors group-hover:text-[#174a92] sm:text-[14px]">
+          <h3 className="line-clamp-2 text-[13px] font-semibold leading-[1.45] text-foreground transition-colors group-hover:text-primary sm:text-[14px]">
             {product.name}
           </h3>
         </Link>
 
         <div className="mt-2 min-h-[62px] sm:min-h-[72px]">
           {productHighlights.length > 0 ? (
-            <ul className="space-y-0.5 text-[10px] leading-[1.45] text-slate-500 sm:text-[11px]">
+            <ul className="space-y-0.5 text-[10px] leading-[1.45] text-muted-foreground sm:text-[11px]">
               {productHighlights.map((item, index) => (
                 <li
                   key={`${item.label}-${item.value}-${index}`}
@@ -430,7 +430,7 @@ export default function ProductCardCompact({
                   <span className="mt-[0.42rem] h-1 w-1 shrink-0 rounded-full bg-slate-400" />
                   <span className="line-clamp-1 min-w-0">
                     {item.label ? (
-                      <span className="font-medium text-slate-600">
+                      <span className="font-medium text-foreground/75">
                         {item.label}: {" "}
                       </span>
                     ) : null}
@@ -440,7 +440,7 @@ export default function ProductCardCompact({
               ))}
             </ul>
           ) : (
-            <div className="space-y-1 text-[10px] text-slate-500 sm:text-[11px]">
+            <div className="space-y-1 text-[10px] text-muted-foreground sm:text-[11px]">
               {product.sku ? <p className="line-clamp-1">Model: {product.sku}</p> : null}
               <p>{isOutOfStock ? "Currently unavailable" : "Ready to order"}</p>
               {Number(product.ratingCount ?? 0) > 0 ? (
@@ -473,13 +473,13 @@ export default function ProductCardCompact({
               />
             ))}
             {hiddenColorCount > 0 ? (
-              <span className="text-[10px] font-medium text-slate-500">+{hiddenColorCount}</span>
+              <span className="text-[10px] font-medium text-muted-foreground">+{hiddenColorCount}</span>
             ) : null}
           </div>
         ) : null}
 
         {product.type === "BUNDLE" && product.bundleItems?.length ? (
-          <p className="mt-2 line-clamp-1 text-[10px] text-slate-500">
+          <p className="mt-2 line-clamp-1 text-[10px] text-muted-foreground">
             Includes {product.bundleItems.slice(0, 2).map((item) => item.product.name).join(", ")}
             {product.bundleItems.length > 2 ? ` +${product.bundleItems.length - 2}` : ""}
           </p>
@@ -490,7 +490,7 @@ export default function ProductCardCompact({
             {formatPrice(product.price)}
           </span>
           {showOriginal ? (
-            <span className="text-[11px] leading-none text-slate-500 line-through sm:text-[12px]">
+            <span className="text-[11px] leading-none text-muted-foreground line-through sm:text-[12px]">
               {formatPrice(Number(product.originalPrice))}
             </span>
           ) : null}
@@ -515,7 +515,7 @@ export default function ProductCardCompact({
               className={cn(
                 "flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded px-2 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92] focus-visible:ring-offset-1 sm:h-9 sm:text-[12px]",
                 isOutOfStock || isAddingToCart
-                  ? "cursor-not-allowed bg-slate-100 text-slate-400"
+                  ? "cursor-not-allowed bg-muted text-muted-foreground"
                   : "bg-[#174a92] text-white hover:bg-[#103b76]",
                 buttonAnimate && "animate-bounce-in",
               )}
@@ -540,7 +540,7 @@ export default function ProductCardCompact({
                 "flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded border px-2 text-[11px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92] focus-visible:ring-offset-1 sm:h-9 sm:text-[12px]",
                 compared
                   ? "border-[#174a92] bg-blue-50 text-[#174a92]"
-                  : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-slate-100",
+                  : "border-border bg-muted/60 text-foreground/75 hover:border-primary/30 hover:bg-muted",
               )}
             >
               <GitCompareArrows className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

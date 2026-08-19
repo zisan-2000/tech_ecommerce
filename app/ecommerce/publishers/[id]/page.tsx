@@ -314,7 +314,7 @@ export default function PublisherBooksPage() {
           </div>
 
           {/* Empty State */}
-          <div className="text-center py-16 bg-white rounded-2xl shadow-lg">
+          <div className="rounded-2xl border border-border bg-card py-16 text-center text-card-foreground shadow-sm">
             <h3 className="text-xl font-semibold text-[#0D1414] mb-2">
               কোন বই পাওয়া যায়নি
             </h3>

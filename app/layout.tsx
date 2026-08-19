@@ -127,11 +127,7 @@ export default async function RootLayout({
             __html: JSON.stringify(organizationJsonLd),
           }}
         />
-        <ThemeProvider
-          attribute="class"
-          themes={["light", "dark", "steel-blue", "green", "plum"]}
-          defaultTheme="light"
-        >
+        <ThemeProvider>
           <Providers>
             <AnalyticsTracker />
             <TreeProvider>

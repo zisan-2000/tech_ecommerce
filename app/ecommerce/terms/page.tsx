@@ -11,7 +11,7 @@ import Link from "next/link";
 
 export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-[#F4F8F7]">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Hero Section */}
       <section className="relative py-16 bg-gradient-to-r from-[#0E4B4B] to-[#086666]">
         <div className="container mx-auto px-4 text-center">
@@ -28,29 +28,29 @@ export default function TermsOfServicePage() {
       </section>
 
       {/* Quick Overview */}
-      <section className="py-12 bg-[#F4F8F7]">
+      <section className="bg-background py-12">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="grid md:grid-cols-3 gap-6 mb-12">
-            <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-[#5FA3A3] border-opacity-30">
-              <User className="h-8 w-8 text-[#0E4B4B] mx-auto mb-3" />
-              <h3 className="font-semibold text-[#0D1414] mb-2">অ্যাকাউন্ট</h3>
-              <p className="text-sm text-[#0D1414]">
+            <div className="rounded-xl border border-border bg-card p-6 text-center text-card-foreground shadow-sm">
+              <User className="mx-auto mb-3 h-8 w-8 text-primary" />
+              <h3 className="mb-2 font-semibold text-foreground">অ্যাকাউন্ট</h3>
+              <p className="text-sm text-muted-foreground">
                 সঠিক তথ্য দিয়ে অ্যাকাউন্ট তৈরি করুন
               </p>
             </div>
 
-            <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-[#5FA3A3] border-opacity-30">
-              <ShoppingCart className="h-8 w-8 text-[#0E4B4B] mx-auto mb-3" />
-              <h3 className="font-semibold text-[#0D1414] mb-2">অর্ডার</h3>
-              <p className="text-sm text-[#0D1414]">
+            <div className="rounded-xl border border-border bg-card p-6 text-center text-card-foreground shadow-sm">
+              <ShoppingCart className="mx-auto mb-3 h-8 w-8 text-primary" />
+              <h3 className="mb-2 font-semibold text-foreground">অর্ডার</h3>
+              <p className="text-sm text-muted-foreground">
                 অর্ডার দেওয়া মানেই শর্তাবলী মেনে নেওয়া
               </p>
             </div>
 
-            <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-[#5FA3A3] border-opacity-30">
-              <Shield className="h-8 w-8 text-[#0E4B4B] mx-auto mb-3" />
-              <h3 className="font-semibold text-[#0D1414] mb-2">দায়িত্ব</h3>
-              <p className="text-sm text-[#0D1414]">
+            <div className="rounded-xl border border-border bg-card p-6 text-center text-card-foreground shadow-sm">
+              <Shield className="mx-auto mb-3 h-8 w-8 text-primary" />
+              <h3 className="mb-2 font-semibold text-foreground">দায়িত্ব</h3>
+              <p className="text-sm text-muted-foreground">
                 আপনার অ্যাকাউন্টের নিরাপত্তা আপনার দায়িত্ব
               </p>
             </div>
@@ -59,17 +59,17 @@ export default function TermsOfServicePage() {
       </section>
 
       {/* Main Terms */}
-      <section className="py-12 bg-white">
+      <section className="border-y border-border bg-card py-12">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="space-y-8">
             {/* Account Terms */}
             <div className="flex items-start space-x-4">
-              <User className="h-6 w-6 text-[#0E4B4B] mt-1 flex-shrink-0" />
+              <User className="mt-1 h-6 w-6 flex-shrink-0 text-primary" />
               <div>
-                <h3 className="text-xl font-bold text-[#0D1414] mb-3">
+                <h3 className="mb-3 text-xl font-bold text-foreground">
                   অ্যাকাউন্ট শর্তাবলী
                 </h3>
-                <ul className="space-y-2 text-[#0D1414]">
+                <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start space-x-2">
                     <div className="w-2 h-2 bg-[#0E4B4B] rounded-full mt-2 flex-shrink-0"></div>
                     <span>আপনার বয়স 13 বছর হতে হবে</span>
@@ -94,12 +94,12 @@ export default function TermsOfServicePage() {
 
             {/* Order Terms */}
             <div className="flex items-start space-x-4">
-              <ShoppingCart className="h-6 w-6 text-[#0E4B4B] mt-1 flex-shrink-0" />
+              <ShoppingCart className="mt-1 h-6 w-6 flex-shrink-0 text-primary" />
               <div>
-                <h3 className="text-xl font-bold text-[#0D1414] mb-3">
+                <h3 className="mb-3 text-xl font-bold text-foreground">
                   অর্ডার শর্তাবলী
                 </h3>
-                <ul className="space-y-2 text-[#0D1414]">
+                <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start space-x-2">
                     <div className="w-2 h-2 bg-[#0E4B4B] rounded-full mt-2 flex-shrink-0"></div>
                     <span>অর্ডার confirm হওয়ার পর price পরিবর্তন হবে না</span>
@@ -124,12 +124,12 @@ export default function TermsOfServicePage() {
 
             {/* Payment Terms */}
             <div className="flex items-start space-x-4">
-              <FileText className="h-6 w-6 text-[#0E4B4B] mt-1 flex-shrink-0" />
+              <FileText className="mt-1 h-6 w-6 flex-shrink-0 text-primary" />
               <div>
-                <h3 className="text-xl font-bold text-[#0D1414] mb-3">
+                <h3 className="mb-3 text-xl font-bold text-foreground">
                   পেমেন্ট শর্তাবলী
                 </h3>
-                <ul className="space-y-2 text-[#0D1414]">
+                <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start space-x-2">
                     <div className="w-2 h-2 bg-[#0E4B4B] rounded-full mt-2 flex-shrink-0"></div>
                     <span>সমস্ত মূল্য বাংলাদেশী টাকায় (৳) প্রদর্শিত</span>
@@ -154,10 +154,10 @@ export default function TermsOfServicePage() {
             <div className="flex items-start space-x-4">
               <AlertTriangle className="h-6 w-6 text-[#C0704D] mt-1 flex-shrink-0" />
               <div>
-                <h3 className="text-xl font-bold text-[#0D1414] mb-3">
+                <h3 className="mb-3 text-xl font-bold text-foreground">
                   নিষিদ্ধ কার্যক্রম
                 </h3>
-                <ul className="space-y-2 text-[#0D1414]">
+                <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start space-x-2">
                     <div className="w-2 h-2 bg-red-600 rounded-full mt-2 flex-shrink-0"></div>
                     <span>ভুয়া তথ্য প্রদান বা impersonation</span>
@@ -182,23 +182,23 @@ export default function TermsOfServicePage() {
       </section>
 
       {/* Intellectual Property */}
-      <section className="py-12 bg-[#F4F8F7]">
+      <section className="bg-background py-12">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-[#0D1414] mb-4">
+            <h2 className="mb-4 text-2xl font-bold text-foreground">
               মেধাস্বত্ব
             </h2>
             <div className="w-24 h-1 bg-[#C0704D] mx-auto"></div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 border border-[#5FA3A3] border-opacity-30">
+          <div className="rounded-xl border border-border bg-card p-6 text-card-foreground">
             <div className="flex items-center space-x-3 mb-4">
-              <Book className="h-6 w-6 text-[#0E4B4B]" />
-              <h3 className="text-lg font-semibold text-[#0D1414]">
+              <Book className="h-6 w-6 text-primary" />
+              <h3 className="text-lg font-semibold text-foreground">
                 বই এবং কন্টেন্ট
               </h3>
             </div>
-            <div className="space-y-3 text-[#0D1414]">
+            <div className="space-y-3 text-muted-foreground">
               <p>
                 সমস্ত বই এবং কন্টেন্ট সংশ্লিষ্ট লেখক এবং প্রকাশকের মেধাস্বত্ব
                 দ্বারা সুরক্ষিত।
@@ -217,23 +217,23 @@ export default function TermsOfServicePage() {
       </section>
 
       {/* Limitation of Liability */}
-      <section className="py-12 bg-white">
+      <section className="border-y border-border bg-card py-12">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-[#0D1414] mb-4">
+            <h2 className="mb-4 text-2xl font-bold text-foreground">
               দায়িত্ব সীমাবদ্ধতা
             </h2>
             <div className="w-24 h-1 bg-[#C0704D] mx-auto"></div>
           </div>
 
-          <div className="bg-amber-50 rounded-xl p-6 border border-amber-200">
+          <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-6">
             <div className="flex items-start space-x-3">
               <AlertTriangle className="h-6 w-6 text-amber-600 mt-1 flex-shrink-0" />
               <div>
-                <h3 className="text-lg font-semibold text-[#0D1414] mb-2">
+                <h3 className="mb-2 text-lg font-semibold text-foreground">
                   গুরুত্বপূর্ণ নোটিশ
                 </h3>
-                <ul className="space-y-2 text-[#0D1414] text-sm">
+                <ul className="space-y-2 text-sm text-muted-foreground">
                   <li>
                     • আমরা delivery delays, carrier issues, বা force majeure
                     events এর জন্য দায়ী নই

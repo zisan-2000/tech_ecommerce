@@ -1035,33 +1035,33 @@ const OrderManagement = () => {
               className="w-full rounded-full border border-border bg-primary px-4 py-2 text-sm text-primary-foreground shadow-sm focus:outline-none lg:w-auto"
             >
               <option
-                className="bg-white text-black hover:bg-primary/20"
+                className="bg-background text-foreground hover:bg-primary/20"
                 value="ALL"
               >
                 All Status
               </option>
-              <option className="bg-white text-black" value="PENDING">
+              <option className="bg-background text-foreground" value="PENDING">
                 Pending
               </option>
-              <option className="bg-white text-black" value="CONFIRMED">
+              <option className="bg-background text-foreground" value="CONFIRMED">
                 Confirmed
               </option>
-              <option className="bg-white text-black" value="PROCESSING">
+              <option className="bg-background text-foreground" value="PROCESSING">
                 Processing
               </option>
-              <option className="bg-white text-black" value="SHIPPED">
+              <option className="bg-background text-foreground" value="SHIPPED">
                 Shipped
               </option>
-              <option className="bg-white text-black" value="DELIVERED">
+              <option className="bg-background text-foreground" value="DELIVERED">
                 Delivered
               </option>
-              <option className="bg-white text-black" value="FAILED">
+              <option className="bg-background text-foreground" value="FAILED">
                 Failed
               </option>
-              <option className="bg-white text-black" value="RETURNED">
+              <option className="bg-background text-foreground" value="RETURNED">
                 Returned
               </option>
-              <option className="bg-white text-black" value="CANCELLED">
+              <option className="bg-background text-foreground" value="CANCELLED">
                 Cancelled
               </option>
             </select>

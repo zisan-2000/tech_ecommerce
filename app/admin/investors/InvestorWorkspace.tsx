@@ -1178,7 +1178,7 @@ export default function InvestorWorkspace({
 
       {canAccessSelectedSection && showSection("registry") ? (
         <Tabs defaultValue="forms" className="space-y-4">
-          <TabsList className="flex h-9 w-full items-center justify-start gap-1 overflow-x-auto rounded-lg bg-white p-1 text-muted-foreground [&>*]:shrink-0">
+          <TabsList className="flex h-9 w-full items-center justify-start gap-1 overflow-x-auto rounded-lg bg-muted p-1 text-muted-foreground [&>*]:shrink-0">
             <TabsTrigger
               value="forms"
               className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:text-foreground data-[state=active]:shadow"
@@ -1444,7 +1444,7 @@ export default function InvestorWorkspace({
 
       {canAccessSelectedSection && showSection("ledger") ? (
         <Tabs defaultValue="form" className="space-y-4">
-          <TabsList className="flex h-9 w-full items-center justify-start gap-1 overflow-x-auto rounded-lg bg-white p-1 text-muted-foreground [&>*]:shrink-0">
+          <TabsList className="flex h-9 w-full items-center justify-start gap-1 overflow-x-auto rounded-lg bg-muted p-1 text-muted-foreground [&>*]:shrink-0">
             <TabsTrigger
               value="form"
               className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
@@ -1687,7 +1687,7 @@ export default function InvestorWorkspace({
 
       {canAccessSelectedSection && showSection("profit-runs") ? (
         <Tabs defaultValue="form" className="space-y-4">
-          <TabsList className="flex h-9 w-full items-center justify-start gap-1 overflow-x-auto rounded-lg bg-white p-1 text-muted-foreground [&>*]:shrink-0">
+          <TabsList className="flex h-9 w-full items-center justify-start gap-1 overflow-x-auto rounded-lg bg-muted p-1 text-muted-foreground [&>*]:shrink-0">
             <TabsTrigger
               value="form"
               className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
@@ -2237,7 +2237,7 @@ export default function InvestorWorkspace({
 
       {canAccessSelectedSection && showSection("payouts") ? (
         <Tabs defaultValue="form" className="space-y-4">
-          <TabsList className="flex h-9 w-full items-center justify-start gap-1 overflow-x-auto rounded-lg bg-white p-1 text-muted-foreground [&>*]:shrink-0">
+          <TabsList className="flex h-9 w-full items-center justify-start gap-1 overflow-x-auto rounded-lg bg-muted p-1 text-muted-foreground [&>*]:shrink-0">
             <TabsTrigger
               value="form"
               className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
@@ -2700,7 +2700,7 @@ export default function InvestorWorkspace({
 
       {canAccessSelectedSection && showSection("allocations") ? (
         <Tabs defaultValue="form" className="space-y-4">
-          <TabsList className="flex h-9 w-full items-center justify-start gap-1 overflow-x-auto rounded-lg bg-white p-1 text-muted-foreground [&>*]:shrink-0">
+          <TabsList className="flex h-9 w-full items-center justify-start gap-1 overflow-x-auto rounded-lg bg-muted p-1 text-muted-foreground [&>*]:shrink-0">
             <TabsTrigger
               value="form"
               className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
