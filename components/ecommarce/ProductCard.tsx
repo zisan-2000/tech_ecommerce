@@ -3,7 +3,14 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Flame, GitCompareArrows, Heart, Loader2, ShoppingCart } from "lucide-react";
+import {
+  Eye,
+  Flame,
+  GitCompareArrows,
+  Heart,
+  Loader2,
+  ShoppingCart,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/components/ecommarce/CartContext";
 
@@ -62,6 +69,7 @@ type Props = {
   wishlistMode?: string;
   showMeta?: boolean;
   addToCartLabel?: string;
+  primaryAction?: "add-to-cart" | "view-details";
   onWishlistClick?: () => void | Promise<void>;
   onCompareClick?: () => void | Promise<void>;
   compared?: boolean;
@@ -222,6 +230,7 @@ export default function ProductCardCompact({
   onAddToCart,
   formatPrice = defaultFormatPrice,
   addToCartLabel = "Add To Cart",
+  primaryAction = "add-to-cart",
   className,
   imagePriority = false,
 }: Props) {
@@ -488,28 +497,39 @@ export default function ProductCardCompact({
         </div>
 
         <div className="mt-2.5 flex gap-2">
-          <button
-            ref={buttonRef}
-            type="button"
-            disabled={isOutOfStock || isAddingToCart}
-            onClick={handleAddToCart}
-            className={cn(
-              "flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded px-2 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92] focus-visible:ring-offset-1 sm:h-9 sm:text-[12px]",
-              isOutOfStock || isAddingToCart
-                ? "cursor-not-allowed bg-slate-100 text-slate-400"
-                : "bg-[#174a92] text-white hover:bg-[#103b76]",
-              buttonAnimate && "animate-bounce-in",
-            )}
-          >
-            {isAddingToCart ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-            ) : (
-              <ShoppingCart className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            )}
-            <span className="truncate">
-              {isOutOfStock ? "Out of Stock" : addToCartLabel}
-            </span>
-          </button>
+          {primaryAction === "view-details" ? (
+            <Link
+              href={product.href}
+              aria-label={`View details for ${product.name}`}
+              className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded bg-[#174a92] px-2 text-[11px] font-semibold text-white transition hover:bg-[#103b76] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92] focus-visible:ring-offset-1 sm:h-9 sm:text-[12px]"
+            >
+              <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">View Details</span>
+            </Link>
+          ) : (
+            <button
+              ref={buttonRef}
+              type="button"
+              disabled={isOutOfStock || isAddingToCart}
+              onClick={handleAddToCart}
+              className={cn(
+                "flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded px-2 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92] focus-visible:ring-offset-1 sm:h-9 sm:text-[12px]",
+                isOutOfStock || isAddingToCart
+                  ? "cursor-not-allowed bg-slate-100 text-slate-400"
+                  : "bg-[#174a92] text-white hover:bg-[#103b76]",
+                buttonAnimate && "animate-bounce-in",
+              )}
+            >
+              {isAddingToCart ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              ) : (
+                <ShoppingCart className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              )}
+              <span className="truncate">
+                {isOutOfStock ? "Out of Stock" : addToCartLabel}
+              </span>
+            </button>
+          )}
 
           {onCompareClick ? (
             <button

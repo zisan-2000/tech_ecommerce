@@ -11,7 +11,6 @@ import {
 } from "react";
 
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
-import { useCart } from "@/components/ecommarce/CartContext";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
 import {
   normalizeStorefrontCategories,
@@ -157,7 +156,6 @@ export default function FeaturedProducts({
     typeof setTimeout
   > | null>(null);
 
-  const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
   const toggleWishlist = useCallback(
@@ -190,17 +188,6 @@ export default function FeaturedProducts({
       }
     },
     [isAuthenticated, isInWishlist, addToWishlist, removeFromWishlist],
-  );
-
-  const handleAddToCart = useCallback(
-    (p: ProductDTO) => {
-      try {
-        addToCart(p.id);
-      } catch (err) {
-        console.error(err);
-      }
-    },
-    [addToCart],
   );
 
   useEffect(() => {
@@ -618,7 +605,7 @@ export default function FeaturedProducts({
                         }}
                         wishlisted={isWishlisted}
                         onWishlistClick={() => toggleWishlist(p)}
-                        onAddToCart={() => handleAddToCart(p)}
+                        primaryAction="view-details"
                         formatPrice={formatBDT}
                       />
                     </div>

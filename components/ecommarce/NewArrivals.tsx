@@ -11,7 +11,6 @@ import {
 } from "react";
 import { FaRobot } from "react-icons/fa";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
-import { useCart } from "@/components/ecommarce/CartContext";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
 import {
   normalizeStorefrontCategories,
@@ -157,7 +156,6 @@ export default function NewArrivals({
     typeof setTimeout
   > | null>(null);
 
-  const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
   const toggleWishlist = useCallback(
@@ -190,17 +188,6 @@ export default function NewArrivals({
       }
     },
     [isAuthenticated, isInWishlist, addToWishlist, removeFromWishlist],
-  );
-
-  const handleAddToCart = useCallback(
-    (p: ProductDTO) => {
-      try {
-        addToCart(p.id);
-      } catch (err) {
-        console.error(err);
-      }
-    },
-    [addToCart],
   );
 
   useEffect(() => {
@@ -632,7 +619,7 @@ export default function NewArrivals({
                         }}
                         wishlisted={isWishlisted}
                         onWishlistClick={() => toggleWishlist(p)}
-                        onAddToCart={() => handleAddToCart(p)}
+                        primaryAction="view-details"
                         formatPrice={formatBDT}
                       />
                     </div>
