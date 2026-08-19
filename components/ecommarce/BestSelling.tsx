@@ -37,6 +37,8 @@ type ProductDTO = {
   name: string;
   slug: string;
   image: string | null;
+  shortDesc?: string | null;
+  specifications?: Array<{ label: string; value: string }>;
   basePrice: number;
   originalPrice: number | null;
   currency: string;
@@ -305,7 +307,7 @@ export default function BestSelling({
       <div className="w-full px-5 py-5 sm:px-5 sm:py-5 lg:px-5">
         <div className="flex gap-3 justify-between">
           <div>
-            <h2 className="text-xl font-bold text-foreground sm:text-2xl">
+            <h2 className="text-lg font-bold text-foreground sm:text-xl">
               {title}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
@@ -391,6 +393,8 @@ export default function BestSelling({
                           name: p.name,
                           href: `/ecommerce/products/${p.id}`,
                           image: p.image,
+                          shortDesc: p.shortDesc ?? undefined,
+                          specifications: p.specifications,
                           price: p.basePrice,
                           originalPrice: p.originalPrice,
                           stock: p.stock,

@@ -171,6 +171,10 @@ export default function RelatedProducts({
                 sku: product.sku || undefined,
                 type: product.category?.name || undefined,
                 shortDesc: product.shortDesc || undefined,
+                specifications: product.attributes?.slice(0, 4).map((item) => ({
+                  label: item.attribute.name,
+                  value: item.value,
+                })),
                 stock: calculateStock(product),
                 available: calculateStock(product) > 0,
                 ratingAvg: product.ratingAvg,

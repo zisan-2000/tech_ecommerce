@@ -111,6 +111,8 @@ export default function CatalogProductGrid({
               name: product.name,
               href: `/ecommerce/products/${product.id}`,
               image: product.image,
+              shortDesc: product.shortDesc ?? undefined,
+              specifications: product.specifications,
               price: product.price,
               originalPrice: product.originalPrice,
               stock: product.stock,

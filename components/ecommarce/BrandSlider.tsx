@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
-import { ChevronLeft, ChevronRight, Shirt, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 
 type Brand = {
   id: number;
@@ -28,6 +28,8 @@ export default function BrandSlider({
   const [loading, setLoading] = useState(true);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
@@ -60,49 +62,99 @@ export default function BrandSlider({
     };
   }, []);
 
-  const visible = useMemo(() => brands.slice(0, limit), [brands, limit]);
+  const visible = useMemo(
+    () =>
+      [...brands]
+        .filter((brand) => brand.productCount > 0)
+        .sort(
+          (first, second) =>
+            second.productCount - first.productCount ||
+            first.name.localeCompare(second.name),
+        )
+        .slice(0, limit),
+    [brands, limit],
+  );
+
+  const updateScrollControls = useCallback(() => {
+    const element = scrollerRef.current;
+    if (!element) return;
+    const maxScrollLeft = Math.max(0, element.scrollWidth - element.clientWidth);
+    setCanScrollLeft(element.scrollLeft > 2);
+    setCanScrollRight(element.scrollLeft < maxScrollLeft - 2);
+  }, []);
+
+  useEffect(() => {
+    const element = scrollerRef.current;
+    if (!element) return;
+
+    const frame = window.requestAnimationFrame(updateScrollControls);
+    element.addEventListener("scroll", updateScrollControls, { passive: true });
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(updateScrollControls);
+    observer?.observe(element);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      element.removeEventListener("scroll", updateScrollControls);
+      observer?.disconnect();
+    };
+  }, [updateScrollControls, visible.length]);
 
   const scrollByCards = (dir: "left" | "right") => {
     const el = scrollerRef.current;
     if (!el) return;
 
     const card = el.querySelector<HTMLElement>("[data-brand-card='1']");
-    const cardW = card ? card.offsetWidth : 140;
+    const cardWidth = card ? card.offsetWidth : 156;
+    const distance = Math.max(cardWidth * 3, el.clientWidth * 0.72);
 
     el.scrollBy({
-      left: dir === "left" ? -cardW * 1.5 : cardW * 1.5,
+      left: dir === "left" ? -distance : distance,
       behavior: "smooth",
     });
   };
 
-  // Get gradient color based on brand name (for placeholder)
-  const getBrandColor = (name: string) => {
-    const colors = [
-      "from-blue-500 to-blue-600",
-      "from-purple-500 to-purple-600",
-      "from-pink-500 to-pink-600",
-      "from-emerald-500 to-emerald-600",
-      "from-orange-500 to-orange-600",
-      "from-indigo-500 to-indigo-600",
-      "from-rose-500 to-rose-600",
-      "from-teal-500 to-teal-600",
-    ];
-    const index = name.length % colors.length;
-    return colors[index];
-  };
-
   return (
-    <section className="w-full bg-background">
-      <div className="w-full px-3 py-3 sm:px-5 sm:py-4">
-        {/* Header */}
-        <div className="mb-3 sm:mb-4">
-          <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-            {title}
-          </h2>
+    <section className="w-full bg-[#f5f6f8]">
+      <div className="w-full px-3 py-5 sm:px-5 sm:py-6">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-[20px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
+              {title}
+            </h2>
+            <p className="mt-1 text-[12px] text-slate-500 sm:text-[13px]">
+              {subtitle}
+            </p>
+          </div>
 
-          <p className="mt-1 text-xs text-muted-foreground sm:mt-2 sm:text-sm">
-            {subtitle}
-          </p>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => scrollByCards("left")}
+              disabled={!canScrollLeft}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label="Previous brands"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollByCards("right")}
+              disabled={!canScrollRight}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label="Next brands"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <Link
+              href="/ecommerce/brands"
+              className="hidden h-9 items-center gap-1 rounded-full border border-slate-200 bg-white px-4 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-[#174a92] hover:text-[#174a92] sm:inline-flex"
+            >
+              View all <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         </div>
 
         {error ? (
@@ -111,81 +163,65 @@ export default function BrandSlider({
           </div>
         ) : null}
 
-        <div className="relative">
-          {visible.length >= 4 && (
-            <>
-              <button
-                onClick={() => scrollByCards("left")}
-                className="absolute -left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-card text-muted-foreground shadow-md sm:-left-3 sm:h-9 sm:w-9"
-                aria-label="Previous brands"
-              >
-                <ChevronLeft className="h-5 w-5 sm:h-5 sm:w-5" />
-              </button>
-
-              <button
-                onClick={() => scrollByCards("right")}
-                className="absolute -right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-card text-muted-foreground shadow-md sm:-right-3 sm:h-9 sm:w-9"
-                aria-label="Next brands"
-              >
-                <ChevronRight className="h-5 w-5 sm:h-5 sm:w-5" />
-              </button>
-            </>
-          )}
-
+        <div className="relative overflow-hidden">
           <div
             ref={scrollerRef}
-            className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scroll-smooth sm:gap-4 sm:pb-2"
+            className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-1"
           >
             {loading
-              ? Array.from({ length: 4 }).map((_, i) => (
+              ? Array.from({ length: 8 }).map((_, index) => (
                   <div
-                    key={i}
-                    className="min-w-[96px] max-w-[96px] flex-shrink-0 snap-start sm:min-w-[160px] sm:max-w-[160px]"
+                    key={index}
+                    className="h-[112px] min-w-[132px] animate-pulse snap-start rounded-lg border border-slate-200 bg-white sm:min-w-[156px] lg:min-w-[172px]"
                   >
-                    <div className="h-[130px] animate-pulse rounded-2xl border border-border bg-card shadow-sm sm:h-[200px] sm:rounded-[22px]" />
+                    <div className="mx-3 mt-3 h-12 rounded bg-slate-100" />
+                    <div className="mx-3 mt-3 h-3 w-20 rounded bg-slate-100" />
                   </div>
                 ))
               : visible.map((brand) => (
-                  <div
+                  <Link
                     key={brand.id}
                     data-brand-card="1"
-                    className="min-w-[96px] max-w-[96px] flex-shrink-0 snap-start sm:min-w-[160px] sm:max-w-[160px]"
+                    href={`/ecommerce/products?brand=${encodeURIComponent(brand.slug)}`}
+                    aria-label={`Shop ${brand.name} products`}
+                    className="group flex h-[112px] min-w-[132px] snap-start flex-col rounded-lg border border-slate-200 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:border-[#174a92]/45 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174a92] sm:min-w-[156px] lg:min-w-[172px]"
                   >
-                    <Link
-                      href={`/ecommerce/products?brand=${encodeURIComponent(brand.slug)}`}
-                      className="block h-[130px] rounded-2xl border border-border bg-card px-2 py-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-xl sm:h-[200px] sm:rounded-[22px] sm:border-2 sm:px-3 sm:py-5"
-                    >
-                      <div className="mx-auto flex h-[58px] w-[58px] items-center justify-center rounded-full border-[3px] border-primary bg-background p-1 sm:h-[100px] sm:w-[100px] sm:border-[4px] sm:p-1.5">
-                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full bg-secondary sm:h-[80px] sm:w-[80px]">
-                          {brand.logo ? (
-                            <Image
-                              src={brand.logo}
-                              alt={brand.name}
-                              width={96}
-                              height={96}
-                              className="h-full w-full rounded-full object-contain"
-                            />
-                          ) : (
-                            <span className="text-base font-bold text-secondary-foreground sm:text-2xl">
-                              {brand.name.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <h3 className="mt-2 truncate text-sm font-medium text-card-foreground sm:mt-3 sm:text-base">
-                        {brand.name}
-                      </h3>
-
-                      {brand.productCount > 0 && (
-                        <p className="mt-0.5 text-[10px] text-muted-foreground sm:mt-1 sm:text-xs">
-                          {brand.productCount} products
-                        </p>
+                    <div className="relative flex h-[54px] items-center justify-center overflow-hidden rounded-md border border-slate-100 bg-slate-50 px-3">
+                      {brand.logo ? (
+                        <Image
+                          src={brand.logo}
+                          alt={`${brand.name} logo`}
+                          fill
+                          sizes="(max-width: 640px) 108px, 140px"
+                          className="object-contain p-2"
+                        />
+                      ) : (
+                        <span className="max-w-full truncate text-center text-[15px] font-black uppercase tracking-[-0.035em] text-slate-800 sm:text-[16px]">
+                          {brand.name}
+                        </span>
                       )}
-                    </Link>
-                  </div>
+                    </div>
+
+                    <div className="mt-2 flex min-w-0 items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-[11px] font-semibold text-slate-800 group-hover:text-[#174a92]">
+                          {brand.name}
+                        </h3>
+                        <p className="mt-0.5 text-[9px] text-slate-500">
+                          {brand.productCount} {brand.productCount === 1 ? "product" : "products"}
+                        </p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#174a92]" />
+                    </div>
+                  </Link>
                 ))}
           </div>
+
+          {!loading && !error && visible.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-[12px] text-slate-500">
+              Brand products will appear here when they are available.
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

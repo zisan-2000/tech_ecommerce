@@ -20,12 +20,21 @@ export const storefrontHomeProductSelect = {
   available: true,
   featured: true,
   image: true,
+  shortDesc: true,
   soldCount: true,
   ratingAvg: true,
   ratingCount: true,
   createdAt: true,
   updatedAt: true,
   bundleStockLimit: true,
+  attributes: {
+    orderBy: { id: "asc" as const },
+    take: 4,
+    select: {
+      value: true,
+      attribute: { select: { name: true } },
+    },
+  },
   variants: {
     orderBy: { id: "asc" as const },
     select: {

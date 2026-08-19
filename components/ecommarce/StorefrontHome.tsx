@@ -32,7 +32,7 @@ export default function StorefrontHome({
   }));
 
   return (
-    <div className="min-h-screen w-full bg-background">
+    <div className="storefront-type min-h-screen w-full bg-background">
       <Header
         siteSettingsData={data.siteSettings}
         productsData={data.products.map((product) => ({

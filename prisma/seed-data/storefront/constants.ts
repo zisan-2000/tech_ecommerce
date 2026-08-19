@@ -104,6 +104,7 @@ export const STOREFRONT_BRANDS: StorefrontBrandSeed[] = [
   { key: "konka", name: "Konka", slug: "konka" },
   { key: "techvision", name: "TechVision", slug: "techvision" },
   { key: "skyview", name: "SkyView", slug: "skyview" },
+  { key: "aerocam", name: "AeroCam", slug: "aerocam" },
 ];
 
 const standardVariant = (
@@ -295,6 +296,72 @@ export const STOREFRONT_PRODUCTS: StorefrontProductSeed[] = [
     variants: [
       { sku: "DEMO-GAD-SKY-001-1BAT", price: 18900, costPrice: 15300, stock: 14, options: { Package: "Single Battery" }, isDefault: true },
       { sku: "DEMO-GAD-SKY-001-2BAT", price: 21400, costPrice: 17400, stock: 9, options: { Package: "Dual Battery" } },
+    ],
+  },
+  {
+    key: "drone_s8", name: "SkyView S8 Mini Foldable Camera Drone", slug: "skyview-s8-mini-foldable-camera-drone", sku: "DEMO-GAD-SKY-002", categoryKey: "drone", brandKey: "skyview",
+    shortDesc: "Compact beginner drone with dual camera, altitude hold and one-key return.",
+    description: "A lightweight foldable camera drone designed for first-time pilots and casual aerial photography. Altitude hold, headless mode and one-key return make everyday flying simple, while the included propeller guards add confidence indoors.",
+    basePrice: 7490, originalPrice: 8490, image: `${GALLERY_ROOT}/1772431239640-Drone1.jpg`, gallery: [`${PRODUCT_ROOT}/1772431232261-Drone2.jpg`, `${GALLERY_ROOT}/1772431239640-Drone14.jpg`, `${GALLERY_ROOT}/1772431239640-Drone2.jpg`], soldCount: 74, weight: 0.21,
+    specs: { Camera: "Dual HD Camera", "Flight Time": "Up to 18 minutes", Connectivity: "2.4GHz Wi-Fi", Range: "Up to 150m", Features: "Altitude hold / Headless mode / One-key return", Warranty: "3 Months" },
+    variants: [
+      { sku: "DEMO-GAD-SKY-002-1BAT", price: 7490, costPrice: 5900, stock: 22, options: { Package: "Single Battery" }, isDefault: true },
+      { sku: "DEMO-GAD-SKY-002-2BAT", price: 8490, costPrice: 6650, stock: 16, options: { Package: "Dual Battery" } },
+    ],
+  },
+  {
+    key: "drone_x15", name: "SkyView X15 Pro 4K GPS Camera Drone", slug: "skyview-x15-pro-4k-gps-camera-drone", sku: "DEMO-GAD-SKY-003", categoryKey: "drone", brandKey: "skyview",
+    shortDesc: "4K GPS drone with brushless motors, smart tracking and extended range.",
+    description: "The X15 Pro combines stable GPS positioning, efficient brushless motors and intelligent tracking modes for smooth outdoor footage. Its foldable body and carrying case make it a capable travel companion.",
+    basePrice: 26900, originalPrice: 29900, image: `${GALLERY_ROOT}/1772431239640-Drone14.jpg`, gallery: [`${GALLERY_ROOT}/1772431239640-Drone2.jpg`, `${PRODUCT_ROOT}/1772431232261-Drone2.jpg`, `${GALLERY_ROOT}/1772431239640-Drone1.jpg`], featured: true, soldCount: 58, weight: 0.56,
+    specs: { Camera: "4K UHD EIS", "Flight Time": "Up to 32 minutes", Connectivity: "5GHz Wi-Fi", Range: "Up to 2km", Features: "GPS / Follow mode / Waypoint flight / Return-to-home", Warranty: "6 Months" },
+    variants: [
+      { sku: "DEMO-GAD-SKY-003-1BAT", price: 26900, costPrice: 22100, stock: 11, options: { Package: "Single Battery" }, isDefault: true },
+      { sku: "DEMO-GAD-SKY-003-FLYMORE", price: 30900, costPrice: 25400, stock: 7, options: { Package: "Fly More Combo" } },
+    ],
+  },
+  {
+    key: "drone_x20", name: "SkyView X20 Explorer 3-Axis Gimbal Drone", slug: "skyview-x20-explorer-gimbal-drone", sku: "DEMO-GAD-SKY-004", categoryKey: "drone", brandKey: "skyview",
+    shortDesc: "Long-range camera drone with a 3-axis gimbal and obstacle sensing.",
+    description: "Built for enthusiast aerial creators, the X20 Explorer uses a three-axis mechanical gimbal for steady footage and front obstacle sensing for safer flight. Long battery life and GPS-assisted modes support extended outdoor shoots.",
+    basePrice: 42900, originalPrice: 46900, image: `${GALLERY_ROOT}/1772431239640-Drone2.jpg`, gallery: [`${GALLERY_ROOT}/1772431239640-Drone14.jpg`, `${GALLERY_ROOT}/1772431239640-Drone1.jpg`, `${PRODUCT_ROOT}/1772431232261-Drone2.jpg`], featured: true, soldCount: 27, weight: 0.72,
+    specs: { Camera: "4K UHD with 3-axis gimbal", "Flight Time": "Up to 38 minutes", Connectivity: "Dual-band Wi-Fi", Range: "Up to 4km", Features: "Obstacle sensing / GPS / Smart return / Point of interest", Warranty: "1 Year" },
+    variants: [
+      { sku: "DEMO-GAD-SKY-004-STD", price: 42900, costPrice: 35800, stock: 8, options: { Package: "Standard Kit" }, isDefault: true },
+      { sku: "DEMO-GAD-SKY-004-CREATOR", price: 48900, costPrice: 40500, stock: 5, options: { Package: "Creator Combo" } },
+    ],
+  },
+  {
+    key: "drone_aerocam_v9", name: "AeroCam V9 Dual Camera Brushless Drone", slug: "aerocam-v9-dual-camera-brushless-drone", sku: "DEMO-GAD-AERO-001", categoryKey: "drone", brandKey: "aerocam",
+    shortDesc: "Portable brushless drone with dual cameras and optical-flow positioning.",
+    description: "A compact aerial camera platform with quiet brushless motors and optical-flow positioning for stable low-altitude flight. The dual-camera setup and gesture controls are suited to travel clips and family events.",
+    basePrice: 11900, originalPrice: 13500, image: `${PRODUCT_ROOT}/1772431232261-Drone2.jpg`, gallery: [`${GALLERY_ROOT}/1772431239640-Drone1.jpg`, `${GALLERY_ROOT}/1772431239640-Drone2.jpg`, `${GALLERY_ROOT}/1772431239640-Drone14.jpg`], soldCount: 63, weight: 0.32,
+    specs: { Camera: "Dual 2K Camera", "Flight Time": "Up to 22 minutes", Connectivity: "2.4GHz Wi-Fi", Range: "Up to 300m", Features: "Optical flow / Gesture photo / Brushless motors", Warranty: "6 Months" },
+    variants: [
+      { sku: "DEMO-GAD-AERO-001-2BAT", price: 11900, costPrice: 9500, stock: 18, options: { Package: "Dual Battery" }, isDefault: true },
+      { sku: "DEMO-GAD-AERO-001-3BAT", price: 13200, costPrice: 10500, stock: 10, options: { Package: "Triple Battery" } },
+    ],
+  },
+  {
+    key: "drone_aerocam_p16", name: "AeroCam P16 GPS 4K Smart Camera Drone", slug: "aerocam-p16-gps-4k-smart-camera-drone", sku: "DEMO-GAD-AERO-002", categoryKey: "drone", brandKey: "aerocam",
+    shortDesc: "GPS-assisted 4K drone with orbit mode, follow-me and automatic return.",
+    description: "The P16 is a balanced mid-range camera drone with GPS-assisted stability and automated flight modes. Orbit, follow-me and fail-safe return features help creators capture repeatable aerial shots with less manual control.",
+    basePrice: 22490, originalPrice: 24900, image: `${GALLERY_ROOT}/1772431239640-Drone1.jpg`, gallery: [`${GALLERY_ROOT}/1772431239640-Drone14.jpg`, `${PRODUCT_ROOT}/1772431232261-Drone2.jpg`, `${GALLERY_ROOT}/1772431239640-Drone2.jpg`], featured: true, soldCount: 46, weight: 0.51,
+    specs: { Camera: "4K UHD", "Flight Time": "Up to 30 minutes", Connectivity: "5GHz Wi-Fi", Range: "Up to 1.5km", Features: "GPS / Orbit mode / Follow-me / Fail-safe return", Warranty: "6 Months" },
+    variants: [
+      { sku: "DEMO-GAD-AERO-002-STD", price: 22490, costPrice: 18400, stock: 13, options: { Package: "Standard Kit" }, isDefault: true },
+      { sku: "DEMO-GAD-AERO-002-COMBO", price: 25490, costPrice: 20800, stock: 8, options: { Package: "Travel Combo" } },
+    ],
+  },
+  {
+    key: "drone_aerocam_mini", name: "AeroCam Mini 4K Pocket Camera Drone", slug: "aerocam-mini-4k-pocket-camera-drone", sku: "DEMO-GAD-AERO-003", categoryKey: "drone", brandKey: "aerocam",
+    shortDesc: "Sub-250g pocket drone with stabilized 4K video and quick-launch modes.",
+    description: "Designed for portability, the AeroCam Mini folds into a compact travel size while offering stabilized 4K recording and useful quick-launch shooting modes. Its low take-off weight makes it convenient for everyday trips.",
+    basePrice: 32900, originalPrice: 35900, image: `${GALLERY_ROOT}/1772431239640-Drone14.jpg`, gallery: [`${GALLERY_ROOT}/1772431239640-Drone2.jpg`, `${GALLERY_ROOT}/1772431239640-Drone1.jpg`, `${PRODUCT_ROOT}/1772431232261-Drone2.jpg`], soldCount: 34, weight: 0.249,
+    specs: { Camera: "4K Stabilized Camera", "Flight Time": "Up to 31 minutes", Connectivity: "Dual-band Wi-Fi", Range: "Up to 3km", Features: "Quick shots / GPS hover / Automatic return / Panorama", Warranty: "1 Year" },
+    variants: [
+      { sku: "DEMO-GAD-AERO-003-STD", price: 32900, costPrice: 27500, stock: 9, options: { Package: "Standard Kit" }, isDefault: true },
+      { sku: "DEMO-GAD-AERO-003-FLYMORE", price: 38900, costPrice: 32400, stock: 6, options: { Package: "Fly More Combo" } },
     ],
   },
 ];

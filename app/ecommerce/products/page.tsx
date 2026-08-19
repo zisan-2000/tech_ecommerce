@@ -178,7 +178,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               <PackageSearch className="h-4 w-4" aria-hidden="true" />
               Product catalog
             </span>
-            <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+            <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
               Find the right tech for you
             </h1>
             <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">

@@ -901,7 +901,7 @@ export default function Header({
   const headerIconClass =
     "relative flex h-10 w-10 items-center justify-center rounded-full text-primary-foreground transition hover:bg-white/10 hover:text-primary-foreground md:h-11 md:w-11 md:rounded-lg md:bg-slate-700/80 md:text-white md:hover:bg-slate-600 md:hover:text-white";
   const desktopActionClass =
-    "hidden h-11 items-center gap-2 rounded-lg bg-slate-700/80 px-3 text-sm font-bold text-white transition hover:bg-slate-600 hover:text-white lg:flex";
+    "hidden h-11 items-center gap-2 rounded-lg bg-slate-700/80 px-3 text-[13px] font-semibold text-white transition hover:bg-slate-600 hover:text-white lg:flex";
 
   const hoveredNavCat = useMemo(() => {
     if (navHoverCatId === null) return null;
@@ -1369,7 +1369,7 @@ export default function Header({
                     onClick={() => {
                       goCategoryFromDesktop(cat.slug);
                     }}
-                    className="flex h-[53px] items-center gap-1.5 whitespace-nowrap px-3 text-[14px] font-bold text-slate-900 transition-colors hover:text-blue-700 dark:text-slate-100 dark:hover:text-blue-400"
+                    className="flex h-[53px] items-center gap-1.5 whitespace-nowrap px-3 text-[13px] font-semibold text-slate-900 transition-colors hover:text-blue-700 dark:text-slate-100 dark:hover:text-blue-400"
                   >
                     <span>{cat.name}</span>
 
@@ -1428,7 +1428,7 @@ export default function Header({
                       <Link
                         href={`/ecommerce/products?category=${encodeURIComponent(sub.slug)}`}
                         onClick={() => setNavHoverCatId(null)}
-                        className="group/item flex min-h-10 items-center justify-between gap-3 rounded-md px-2.5 py-2 text-sm font-bold transition hover:bg-slate-100 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-blue-400"
+                        className="group/item flex min-h-10 items-center justify-between gap-3 rounded-md px-2.5 py-2 text-[13px] font-semibold transition hover:bg-slate-100 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-blue-400"
                       >
                         <span className="truncate">{sub.name}</span>
                         {hasChildren && (

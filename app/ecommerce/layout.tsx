@@ -29,7 +29,7 @@ async function StorefrontFooter() {
 
 export default function EcommerceLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-full">
+    <div className="storefront-type min-h-full">
       <div className="flex min-h-screen flex-col">
         <Suspense
           fallback={<div className="h-20 border-b bg-background" aria-hidden />}

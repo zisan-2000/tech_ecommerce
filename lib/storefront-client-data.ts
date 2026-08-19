@@ -17,6 +17,8 @@ export type StorefrontClientProduct = {
   name: string;
   slug: string;
   image: string | null;
+  shortDesc: string | null;
+  specifications: Array<{ label: string; value: string }>;
   categoryId: string;
   basePrice: number;
   originalPrice: number | null;
@@ -105,6 +107,29 @@ export function normalizeStorefrontProducts(
         name: String(product.name ?? ""),
         slug: String(product.slug ?? ""),
         image: product.image ?? null,
+        shortDesc:
+          typeof product.shortDesc === "string" ? product.shortDesc : null,
+        specifications: Array.isArray(product.specifications)
+          ? product.specifications
+              .map((item: any) => ({
+                label: String(item?.label ?? "").trim(),
+                value: String(item?.value ?? "").trim(),
+              }))
+              .filter((item: { label: string; value: string }) =>
+                Boolean(item.label && item.value),
+              )
+              .slice(0, 4)
+          : Array.isArray(product.attributes)
+            ? product.attributes
+                .map((item: any) => ({
+                  label: String(item?.attribute?.name ?? "").trim(),
+                  value: String(item?.value ?? "").trim(),
+                }))
+                .filter((item: { label: string; value: string }) =>
+                  Boolean(item.label && item.value),
+                )
+                .slice(0, 4)
+            : [],
         categoryId: String(product?.categoryId ?? ""),
         basePrice: toNumber(product?.basePrice, 0),
         originalPrice:

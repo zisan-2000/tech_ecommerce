@@ -16,7 +16,7 @@ export default async function FlashSalePage() {
         <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-orange-600"><ArrowLeft className="h-4 w-4" /> Back to home</Link>
         <div className="mb-8 flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 text-white shadow-lg shadow-orange-500/20"><Flame className="h-7 w-7 fill-current" /></span>
-          <div><h1 className="text-3xl font-black tracking-tight sm:text-4xl">Flash Sale</h1><p className="text-muted-foreground">Every price and timer is updated from the live sale schedule.</p></div>
+          <div><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Flash Sale</h1><p className="text-muted-foreground">Every price and timer is updated from the live sale schedule.</p></div>
         </div>
         {products.length > 0 ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">{products.map((product) => <FlashSaleCard key={product.id} product={product} />)}</div>

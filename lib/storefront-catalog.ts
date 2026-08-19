@@ -49,10 +49,19 @@ const catalogProductSelect = {
   flashSaleStartsAt: true,
   flashSaleEndsAt: true,
   image: true,
+  shortDesc: true,
   soldCount: true,
   ratingAvg: true,
   ratingCount: true,
   bundleStockLimit: true,
+  attributes: {
+    orderBy: { id: "asc" as const },
+    take: 4,
+    select: {
+      value: true,
+      attribute: { select: { name: true } },
+    },
+  },
   variants: {
     where: { active: true },
     orderBy: { id: "asc" as const },
@@ -246,6 +255,11 @@ function serializeCatalogProduct(product: RawCatalogProduct) {
     originalPrice,
     available: true,
     image: product.image,
+    shortDesc: product.shortDesc,
+    specifications: product.attributes.map((item) => ({
+      label: item.attribute.name,
+      value: item.value,
+    })),
     soldCount: product.soldCount,
     ratingAvg: product.ratingAvg,
     ratingCount: product.ratingCount,

@@ -70,9 +70,9 @@ export function FlashSaleCard({ product }: { product: FlashSaleProduct }) {
       </div>
 
       <div className="flex flex-1 flex-col px-3 pb-3 pt-2.5 sm:px-4 sm:pb-3.5 sm:pt-3">
-        <Link href={`/ecommerce/products/${product.id}`} className="mb-2 line-clamp-2 min-h-[42px] text-[16px] font-semibold leading-tight text-foreground transition-colors group-hover:text-primary sm:min-h-[48px] sm:text-[18px]">{product.name}</Link>
+        <Link href={`/ecommerce/products/${product.id}`} className="mb-2 line-clamp-2 min-h-[42px] text-[14px] font-semibold leading-snug text-foreground transition-colors group-hover:text-primary sm:min-h-[44px] sm:text-[15px]">{product.name}</Link>
         <div className="mb-3 mt-1.5 flex min-h-7 flex-wrap items-baseline gap-2">
-          <span className="text-[18px] font-bold text-primary sm:text-[20px]">{formatPrice(Number(product.basePrice))}</span>
+          <span className="text-[17px] font-bold text-primary sm:text-[18px]">{formatPrice(Number(product.basePrice))}</span>
           <span className="text-[12px] text-muted-foreground line-through sm:text-[13px]">{formatPrice(sale.regularPrice)}</span>
         </div>
 
@@ -105,7 +105,7 @@ export default function FlashSale({ productsData }: { productsData: FlashSalePro
           <div>
             <div className="mb-1 flex items-center gap-2">
               <Flame className="h-7 w-7 fill-orange-500 text-orange-500" aria-hidden="true" />
-              <h2 id="flash-sale-title" className="text-3xl font-black tracking-tight text-foreground">Flash Sale</h2>
+              <h2 id="flash-sale-title" className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Flash Sale</h2>
             </div>
             <p className="text-base text-muted-foreground">Limited time deals. Grab yours before the clock runs out.</p>
           </div>

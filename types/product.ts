@@ -14,6 +14,11 @@ export type Product = {
   currency?: string | null;
   description?: string | null;
   shortDesc?: string | null;
+  attributes?: Array<{
+    id?: number | string;
+    value: string;
+    attribute: { id?: number | string; name: string };
+  }>;
   dimensions?: any;
   weight?: number | null;
   categoryId?: number | null;
