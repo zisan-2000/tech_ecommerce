@@ -56,8 +56,8 @@ import {
   X,
   Menu,
   BadgePercent,
-  Wrench,
-  MonitorCog,
+  GitCompareArrows,
+  Monitor,
 } from "lucide-react";
 
 const CATEGORIES_API = "/api/categories?view=storefront";
@@ -66,6 +66,30 @@ const THEME_OPTIONS = [
   { value: "light", label: "Light" },
 
   { value: "dark", label: "Dark" },
+] as const;
+
+const HEADER_SHOP_ACTIONS = [
+  {
+    id: "flash-sale",
+    label: "Flash Sale",
+    href: "/ecommerce/flash-sale",
+    description: "View active limited-time deals",
+    icon: BadgePercent,
+  },
+  {
+    id: "compare",
+    label: "Compare",
+    href: "/ecommerce/compare",
+    description: "Compare selected products",
+    icon: GitCompareArrows,
+  },
+  {
+    id: "desktop-pcs",
+    label: "Desktop PCs",
+    href: "/ecommerce/products?category=desktop-pc",
+    description: "Browse ready desktop computers",
+    icon: Monitor,
+  },
 ] as const;
 
 interface ProductSummary {
@@ -1005,26 +1029,24 @@ export default function Header({
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-5">
-            <Link
-              href="/ecommerce/products?featured=1"
-              className={desktopActionClass}
-            >
-              <BadgePercent className="h-5 w-5" />
-              <span>Offers</span>
-            </Link>
+            {HEADER_SHOP_ACTIONS.map((action) => {
+              const ActionIcon = action.icon;
 
-            <Link href="/ecommerce/compare" className={desktopActionClass}>
-              <Wrench className="h-5 w-5" />
-              <span>Tools</span>
-            </Link>
-
-            <Link
-              href="/ecommerce/products?category=desktop-pc"
-              className={`${desktopActionClass} hidden xl:flex`}
-            >
-              <MonitorCog className="h-5 w-5" />
-              <span>PC Builder</span>
-            </Link>
+              return (
+                <Link
+                  key={action.id}
+                  href={action.href}
+                  className={`${desktopActionClass} ${
+                    action.id === "desktop-pcs" ? "lg:hidden xl:flex" : ""
+                  }`}
+                  aria-label={`${action.label}: ${action.description}`}
+                  title={action.description}
+                >
+                  <ActionIcon className="h-5 w-5" aria-hidden="true" />
+                  <span>{action.label}</span>
+                </Link>
+              );
+            })}
 
             {hasMounted && (
               <DropdownMenu>
@@ -1555,29 +1577,42 @@ export default function Header({
                 </Link>
               </div>
 
+              <section aria-labelledby="mobile-shop-shortcuts-heading">
+                <h2
+                  id="mobile-shop-shortcuts-heading"
+                  className="mb-2 px-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground"
+                >
+                  Shop shortcuts
+                </h2>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {HEADER_SHOP_ACTIONS.map((action) => {
+                    const ActionIcon = action.icon;
+
+                    return (
+                      <Link
+                        key={action.id}
+                        href={action.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card px-2 py-3 text-center text-foreground shadow-sm transition hover:border-primary/40 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`${action.label}: ${action.description}`}
+                      >
+                        <ActionIcon
+                          className="h-5 w-5 text-primary"
+                          aria-hidden="true"
+                        />
+                        <span className="text-[11px] font-bold leading-tight">
+                          {action.label}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+
               {/* Categories */}
 
               <div>
-                {/* Flash Sale Header */}
-                <Link href="/ecommerce/products">
-                  <div className="flex items-center justify-between rounded-md bg-[#f5f5f5] px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-yellow-500 text-lg">⚡</span>
-
-                      <div className="flex items-center gap-1 text-sm font-extrabold uppercase italic">
-                        <span className="text-black">Fl</span>
-                        <span className="text-red-500">ash</span>
-
-                        <span className="text-black">Sa</span>
-                        <span className="text-red-500">le</span>
-                      </div>
-                    </div>
-
-                    <button className="text-gray-500 transition hover:text-black">
-                      <ChevronRight className="h-5 w-5" />
-                    </button>
-                  </div>
-                </Link>
                 <MobileCategoryTree
                   categories={categoryTree}
                   loading={categoryLoading}
