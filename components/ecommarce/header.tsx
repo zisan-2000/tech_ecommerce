@@ -84,10 +84,10 @@ const HEADER_SHOP_ACTIONS = [
     icon: GitCompareArrows,
   },
   {
-    id: "desktop-pcs",
-    label: "Desktop PCs",
-    href: "/ecommerce/products?category=desktop-pc",
-    description: "Browse ready desktop computers",
+    id: "pc-builder",
+    label: "PC Builder",
+    href: "/ecommerce/pc-builder",
+    description: "Build a compatible custom desktop PC",
     icon: Monitor,
   },
 ] as const;
@@ -1037,7 +1037,7 @@ export default function Header({
                   key={action.id}
                   href={action.href}
                   className={`${desktopActionClass} ${
-                    action.id === "desktop-pcs" ? "lg:hidden xl:flex" : ""
+                    action.id === "pc-builder" ? "lg:hidden xl:flex" : ""
                   }`}
                   aria-label={`${action.label}: ${action.description}`}
                   title={action.description}

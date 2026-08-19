@@ -11,16 +11,13 @@ test("header shortcuts describe their real destinations", async () => {
   for (const contract of [
     ['label: "Flash Sale"', 'href: "/ecommerce/flash-sale"'],
     ['label: "Compare"', 'href: "/ecommerce/compare"'],
-    [
-      'label: "Desktop PCs"',
-      'href: "/ecommerce/products?category=desktop-pc"',
-    ],
+    ['label: "PC Builder"', 'href: "/ecommerce/pc-builder"'],
   ]) {
     assert.match(header, new RegExp(contract[0].replace(/[?]/g, "\\?")));
     assert.match(header, new RegExp(contract[1].replace(/[?]/g, "\\?")));
   }
 
-  assert.doesNotMatch(header, /<span>Offers<\/span>|<span>Tools<\/span>|PC Builder/);
+  assert.doesNotMatch(header, /<span>Offers<\/span>|<span>Tools<\/span>/);
   assert.doesNotMatch(header, /href="\/ecommerce\/products\?featured=1"/);
 });
 
@@ -41,6 +38,6 @@ test("shortcut destination pages exist", async () => {
   await Promise.all([
     access(new URL("app/ecommerce/flash-sale/page.tsx", root)),
     access(new URL("app/ecommerce/compare/page.tsx", root)),
-    access(new URL("app/ecommerce/products/page.tsx", root)),
+    access(new URL("app/ecommerce/pc-builder/page.tsx", root)),
   ]);
 });

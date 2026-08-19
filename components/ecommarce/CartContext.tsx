@@ -99,6 +99,11 @@ const norm = (v: string | number) => String(v);
 const normVariant = (v: string | number | null | undefined) =>
   v === null || v === undefined || v === "" ? "" : String(v);
 const clamp = (n: number) => Math.max(0, Math.min(99, n));
+let cartRowSequence = 0;
+const createCartRowId = () =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${++cartRowSequence}`;
 
 export function CartProvider({ children }: { children: ReactNode }) {
   // 🛒 cartItems -> localStorage synced
@@ -222,7 +227,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           return [
             ...prev,
             {
-              id: Date.now(),
+              id: createCartRowId(),
               productId: product.id,
               variantId: variant?.id ?? null,
               name: product.name,
@@ -331,7 +336,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return [
           ...prevItems,
           {
-            id: Date.now(), // unique row id
+            id: createCartRowId(),
             productId: product.id,
             variantId: variant?.id ?? null,
             name: product.name,

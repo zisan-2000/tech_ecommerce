@@ -11,6 +11,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/ecommerce/categories", changeFrequency: "weekly", priority: 0.8 },
     { path: "/ecommerce/brands", changeFrequency: "weekly", priority: 0.8 },
     { path: "/ecommerce/flash-sale", changeFrequency: "daily", priority: 0.85 },
+    { path: "/ecommerce/pc-builder", changeFrequency: "daily", priority: 0.85 },
     { path: "/ecommerce/bestsellers", changeFrequency: "daily", priority: 0.8 },
     { path: "/ecommerce/blogs", changeFrequency: "weekly", priority: 0.7 },
     { path: "/ecommerce/about", changeFrequency: "monthly", priority: 0.5 },
