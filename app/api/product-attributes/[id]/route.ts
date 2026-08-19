@@ -1,23 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getAccessContext } from "@/lib/rbac";
+import { requireProductManager } from "@/lib/product-management-access";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
-import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
-
-async function authorizeProductManager() {
-  const session = await getServerSession(authOptions);
-  const access = await getAccessContext(
-    session?.user as { id?: string; role?: string } | undefined,
-  );
-  if (!access.userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!access.has("products.manage")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  return null;
-}
 
 /* =========================
    UPDATE PRODUCT ATTRIBUTE
@@ -27,7 +11,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const denied = await authorizeProductManager();
+    const denied = await requireProductManager();
     if (denied) return denied;
 
     const { id: idParam } = await params;
@@ -79,7 +63,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const denied = await authorizeProductManager();
+    const denied = await requireProductManager();
     if (denied) return denied;
 
     const { id: idParam } = await params;

@@ -114,6 +114,13 @@ function normalized(value: string | null | undefined) {
     .replace(/\s+/g, " ");
 }
 
+function canonicalCompatibilityToken(value: string | null | undefined) {
+  const token = normalized(value).replace(/[\s_-]+/g, "");
+  if (token === "microatx") return "matx";
+  if (token === "miniitx") return "mitx";
+  return token;
+}
+
 function readAttribute(
   product: PcBuilderProduct | undefined,
   names: string[],
@@ -135,11 +142,11 @@ function numericAttribute(
 }
 
 function supported(supportedValues: string, selectedValue: string) {
-  const selected = normalized(selectedValue);
+  const selected = canonicalCompatibilityToken(selectedValue);
   if (!selected || !supportedValues) return true;
   return supportedValues
     .split(/[,;/|\n]+|\s+and\s+/i)
-    .map(normalized)
+    .map(canonicalCompatibilityToken)
     .some((value) => value === selected);
 }
 
@@ -209,7 +216,12 @@ export function evaluatePcBuild(
       "Socket",
       "CPU Socket",
     ]);
-    if (cpuSocket && motherboardSocket && normalized(cpuSocket) !== normalized(motherboardSocket)) {
+    if (
+      cpuSocket &&
+      motherboardSocket &&
+      canonicalCompatibilityToken(cpuSocket) !==
+        canonicalCompatibilityToken(motherboardSocket)
+    ) {
       issues.push(
         issue(
           "cpu-motherboard-socket",
@@ -222,8 +234,8 @@ export function evaluatePcBuild(
       issues.push(
         issue(
           "cpu-motherboard-data",
-          "warning",
-          "Socket data is incomplete; confirm processor and motherboard compatibility before ordering.",
+          "error",
+          "Socket data is incomplete, so processor and motherboard compatibility cannot be verified.",
           ["processor", "motherboard"],
         ),
       );
@@ -249,8 +261,8 @@ export function evaluatePcBuild(
       issues.push(
         issue(
           "motherboard-memory-data",
-          "warning",
-          "Memory generation data is incomplete; verify motherboard RAM support.",
+          "error",
+          "Memory generation data is incomplete, so motherboard and RAM compatibility cannot be verified.",
           ["motherboard", "memory"],
         ),
       );
@@ -272,6 +284,15 @@ export function evaluatePcBuild(
           ["motherboard", "case"],
         ),
       );
+    } else if (!boardFormFactor || !caseSupport) {
+      issues.push(
+        issue(
+          "motherboard-case-data",
+          "error",
+          "Motherboard or case form-factor data is incomplete, so physical fit cannot be verified.",
+          ["motherboard", "case"],
+        ),
+      );
     }
   }
 
@@ -287,6 +308,15 @@ export function evaluatePcBuild(
           "gpu-case-clearance",
           "error",
           `The ${gpuLength}mm graphics card exceeds the case clearance of ${maxGpuLength}mm.`,
+          ["graphics", "case"],
+        ),
+      );
+    } else if (!gpuLength || !maxGpuLength) {
+      issues.push(
+        issue(
+          "gpu-case-data",
+          "error",
+          "Graphics-card length or case clearance data is incomplete, so physical fit cannot be verified.",
           ["graphics", "case"],
         ),
       );
@@ -308,6 +338,15 @@ export function evaluatePcBuild(
           ["cooler", "case"],
         ),
       );
+    } else if (!coolerHeight || !maxCoolerHeight) {
+      issues.push(
+        issue(
+          "cooler-case-data",
+          "error",
+          "CPU-cooler height or case clearance data is incomplete, so physical fit cannot be verified.",
+          ["cooler", "case"],
+        ),
+      );
     }
   }
 
@@ -326,6 +365,15 @@ export function evaluatePcBuild(
           ["processor", "cooler"],
         ),
       );
+    } else if (!cpuSocket || !coolerSockets) {
+      issues.push(
+        issue(
+          "cpu-cooler-data",
+          "error",
+          "CPU or cooler socket data is incomplete, so cooler compatibility cannot be verified.",
+          ["processor", "cooler"],
+        ),
+      );
     }
   }
 
@@ -337,8 +385,17 @@ export function evaluatePcBuild(
       issues.push(
         issue(
           "graphics-required",
-          "warning",
+          "error",
           "This processor has no integrated graphics; add a graphics card for display output.",
+          ["processor", "graphics"],
+        ),
+      );
+    } else if (!integratedGraphics) {
+      issues.push(
+        issue(
+          "graphics-capability-data",
+          "error",
+          "Integrated-graphics data is missing; add a graphics card or complete the processor specification.",
           ["processor", "graphics"],
         ),
       );
@@ -353,17 +410,49 @@ export function evaluatePcBuild(
       issues.push(
         issue(
           "cooler-required",
-          "warning",
+          "error",
           "The processor has no included cooler; select a compatible CPU cooler.",
+          ["processor", "cooler"],
+        ),
+      );
+    } else if (!coolerIncluded) {
+      issues.push(
+        issue(
+          "cooler-included-data",
+          "error",
+          "Processor cooler information is missing; select a cooler or complete the processor specification.",
           ["processor", "cooler"],
         ),
       );
     }
   }
 
-  const cpuWatts = numericAttribute(cpu, ["TDP", "Power Draw"]) ?? 65;
+  const cpuPower = numericAttribute(cpu, ["TDP", "Power Draw"]);
+  const gpuPower = numericAttribute(graphics, ["Power Draw", "Board Power", "TDP"]);
+  if (cpu && !cpuPower) {
+    issues.push(
+      issue(
+        "processor-power-data",
+        "error",
+        "Processor power data is missing, so a safe PSU recommendation cannot be calculated.",
+        ["processor", "powerSupply"],
+      ),
+    );
+  }
+  if (graphics && !gpuPower) {
+    issues.push(
+      issue(
+        "graphics-power-data",
+        "error",
+        "Graphics-card power data is missing, so a safe PSU recommendation cannot be calculated.",
+        ["graphics", "powerSupply"],
+      ),
+    );
+  }
+
+  const cpuWatts = cpuPower ?? 65;
   const gpuWatts = graphics
-    ? numericAttribute(graphics, ["Power Draw", "Board Power", "TDP"]) ?? 200
+    ? gpuPower ?? 200
     : 0;
   const estimatedWattage = selected.length
     ? Math.round(75 + cpuWatts + gpuWatts + (memory ? 10 : 0) + (selection.storage ? 10 : 0) + (cooler ? 10 : 0))
@@ -376,6 +465,17 @@ export function evaluatePcBuild(
     "Power",
     "Capacity",
   ]);
+
+  if (powerSupply && !psuWattage) {
+    issues.push(
+      issue(
+        "power-supply-data",
+        "error",
+        "Power-supply wattage is missing, so capacity cannot be verified.",
+        ["powerSupply"],
+      ),
+    );
+  }
 
   if (powerSupply && psuWattage && psuWattage < recommendedPsuWattage) {
     issues.push(
@@ -423,6 +523,18 @@ export function selectionFromIds(
     if (product) selection[slot.key] = product;
   }
   return selection;
+}
+
+export function parsePcBuilderSelectionId(value: unknown) {
+  const normalizedValue = String(value ?? "").trim();
+  if (
+    !/^\d+-\d+$/.test(normalizedValue) ||
+    !validSelectionId(normalizedValue)
+  ) {
+    return null;
+  }
+  const [productId, variantId] = normalizedValue.split("-").map(Number);
+  return { selectionId: normalizedValue, productId, variantId };
 }
 
 export function parseSharedBuild(value: string | null | undefined) {

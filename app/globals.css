@@ -2,6 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+@media print {
+  body:has(#pc-builder-print-root) * {
+    visibility: hidden;
+  }
+
+  body:has(#pc-builder-print-root) #pc-builder-print-root,
+  body:has(#pc-builder-print-root) #pc-builder-print-root * {
+    visibility: visible;
+  }
+
+  body:has(#pc-builder-print-root) #pc-builder-print-root {
+    --background: 0 0% 100%;
+    --foreground: 226 71% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 226 71% 14%;
+    --muted: 214 100% 97%;
+    --muted-foreground: 217 33% 35%;
+    --border: 213 40% 80%;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    color-scheme: light;
+    background: white;
+  }
+
+  body:has(#pc-builder-print-root) #pc-builder-print-root aside {
+    position: static;
+  }
+
+  body:has(#pc-builder-print-root) .pc-builder-print-hidden {
+    display: none !important;
+  }
+}
+
 body {
   font-family: var(--font-geist-sans), "Noto Sans Bengali", Arial, Helvetica, sans-serif;
   font-size: 15px;

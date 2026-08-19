@@ -22,6 +22,7 @@ import {
   isExpectedProductVersion,
   parseProductAvailabilityPatch,
 } from "@/lib/product-availability";
+import { parseProductAttributeInput } from "@/lib/product-attribute-input";
 
 const productInclude = {
   category: true,
@@ -339,17 +340,28 @@ export async function PUT(
       );
     }
 
-    const nextAttributes = Array.isArray(body.productAttributes)
-      ? body.productAttributes
-          .map((item: any) => ({
-            attributeId: Number(item?.attributeId),
-            value: String(item?.value || "").trim(),
-          }))
-          .filter(
-            (item: { attributeId: number; value: string }) =>
-              item.attributeId && !Number.isNaN(item.attributeId) && item.value,
-          )
-      : null;
+    const parsedNextAttributes =
+      body.productAttributes === undefined
+        ? null
+        : parseProductAttributeInput(body.productAttributes);
+    if (parsedNextAttributes && !parsedNextAttributes.ok) {
+      return NextResponse.json(
+        { error: parsedNextAttributes.error },
+        { status: 400 },
+      );
+    }
+    const nextAttributes = parsedNextAttributes?.value ?? null;
+    if (nextAttributes && nextAttributes.length > 0) {
+      const attributeCount = await prisma.attribute.count({
+        where: { id: { in: nextAttributes.map((item) => item.attributeId) } },
+      });
+      if (attributeCount !== nextAttributes.length) {
+        return NextResponse.json(
+          { error: "One or more product attributes do not exist" },
+          { status: 400 },
+        );
+      }
+    }
 
     const hasVariantOptionsPayload = body.variantOptions !== undefined;
     const nextVariantOptions = hasVariantOptionsPayload

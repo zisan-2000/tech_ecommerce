@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { requireProductManager } from "@/lib/product-management-access";
+import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -9,6 +11,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const denied = await requireProductManager();
+    if (denied) return denied;
+
     const { id: idParam } = await params;
     const id = Number(idParam);
     if (!id || Number.isNaN(id)) {
@@ -17,14 +22,29 @@ export async function PUT(
 
     const body = await req.json();
     const name = String(body.name || "").trim();
-    if (!name) {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    if (!name || name.length > 100) {
+      return NextResponse.json(
+        { error: "Name must be between 1 and 100 characters" },
+        { status: 400 },
+      );
+    }
+    const duplicate = await prisma.attribute.findFirst({
+      where: { name, id: { not: id } },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: "An attribute with this name already exists" },
+        { status: 409 },
+      );
     }
 
     const updated = await prisma.attribute.update({
       where: { id },
       data: { name },
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json(updated);
   } catch (error) {
@@ -44,6 +64,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const denied = await requireProductManager();
+    if (denied) return denied;
+
     const { id: idParam } = await params;
     const id = Number(idParam);
     if (!id || Number.isNaN(id)) {
@@ -55,6 +78,8 @@ export async function DELETE(
       await tx.attributeValue.deleteMany({ where: { attributeId: id } });
       await tx.attribute.delete({ where: { id } });
     });
+
+    revalidateStorefrontCatalog();
 
     return NextResponse.json({ message: "Deleted successfully" });
   } catch (error) {

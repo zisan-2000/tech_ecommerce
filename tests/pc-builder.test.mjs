@@ -8,6 +8,7 @@ import {
   selectionFromIds,
   serializeSharedBuild,
 } from "../lib/pc-builder.ts";
+import { parseProductAttributeInput } from "../lib/product-attribute-input.ts";
 
 function component(id, overrides = {}) {
   const variantId = id * 10;
@@ -112,6 +113,48 @@ test("out-of-stock and mixed-currency selections are rejected", () => {
   assert.equal(codes.has("mixed-currencies"), true);
 });
 
+test("conditionally required graphics and cooling block unsafe builds", () => {
+  const build = compatibleBuild();
+  delete build.graphics;
+  delete build.cooler;
+  build.processor.attributes["Integrated Graphics"] = "No";
+  build.processor.attributes["Cooler Included"] = "No";
+
+  const result = evaluatePcBuild(build);
+  const codes = new Set(result.issues.map((issue) => issue.code));
+
+  assert.equal(result.requiredComplete, true);
+  assert.equal(result.canAddToCart, false);
+  assert.equal(codes.has("graphics-required"), true);
+  assert.equal(codes.has("cooler-required"), true);
+});
+
+test("critical compatibility metadata must be complete before checkout", () => {
+  const build = compatibleBuild();
+  delete build.motherboard.attributes.Socket;
+  delete build.powerSupply.attributes.Wattage;
+
+  const result = evaluatePcBuild(build);
+  const codes = new Set(result.issues.map((issue) => issue.code));
+
+  assert.equal(result.canAddToCart, false);
+  assert.equal(codes.has("cpu-motherboard-data"), true);
+  assert.equal(codes.has("power-supply-data"), true);
+});
+
+test("common technical formatting aliases do not create false conflicts", () => {
+  const build = compatibleBuild();
+  build.processor.attributes.Socket = "AM-5";
+  build.motherboard.attributes.Socket = "AM5";
+  build.motherboard.attributes["Form Factor"] = "Micro ATX";
+  build.case.attributes["Motherboard Support"] = "Micro-ATX, Mini-ITX";
+
+  const result = evaluatePcBuild(build);
+
+  assert.equal(result.hasErrors, false);
+  assert.equal(result.canAddToCart, true);
+});
+
 test("share links preserve the selected product variant and ignore hostile input", () => {
   const build = compatibleBuild();
   const serialized = serializeSharedBuild(build);
@@ -161,12 +204,37 @@ test("PC Builder data mutations require product-management permission", async ()
     new URL("../app/api/product-attributes/[id]/route.ts", import.meta.url),
     "utf8",
   );
+  const accessHelper = await readFile(
+    new URL("../lib/product-management-access.ts", import.meta.url),
+    "utf8",
+  );
 
   for (const source of [route, itemRoute]) {
-    assert.match(source, /getServerSession\(authOptions\)/);
-    assert.match(source, /access\.has\("products\.manage"\)/);
+    assert.match(source, /requireProductManager\(\)/);
     assert.match(source, /revalidateStorefrontCatalog\(\)/);
   }
+  assert.match(accessHelper, /getServerSession\(authOptions\)/);
+  assert.match(accessHelper, /"products\.manage"/);
+});
+
+test("cart submission performs an uncached live validation first", async () => {
+  const client = await readFile(
+    new URL(
+      "../components/ecommarce/pc-builder/PcBuilderClient.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const validationRoute = await readFile(
+    new URL("../app/api/pc-builder/validate/route.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(client, /fetch\("\/api\/pc-builder\/validate"/);
+  assert.match(client, /cache: "no-store"/);
+  assert.match(validationRoute, /rateLimitRequest/);
+  assert.match(validationRoute, /validatePcBuilderSelectionLive/);
+  assert.match(validationRoute, /private, no-store/);
 });
 
 test("demo catalog includes every required PC component category", async () => {
@@ -196,4 +264,25 @@ test("demo catalog includes every required PC component category", async () => {
   ]) {
     assert.match(seed, new RegExp(attribute));
   }
+});
+
+test("admin product attributes are bounded and deduplicated safely", () => {
+  const parsed = parseProductAttributeInput([
+    { attributeId: 7, value: "AM4" },
+    { attributeId: 7, value: "AM5" },
+    { attributeId: 8, value: "DDR5" },
+  ]);
+
+  assert.equal(parsed.ok, true);
+  if (parsed.ok) {
+    assert.deepEqual(parsed.value, [
+      { attributeId: 7, value: "AM5" },
+      { attributeId: 8, value: "DDR5" },
+    ]);
+  }
+  assert.equal(
+    parseProductAttributeInput([{ attributeId: 1, value: "x".repeat(501) }])
+      .ok,
+    false,
+  );
 });

@@ -22,6 +22,7 @@ import {
 import { storefrontProductSelect } from "@/lib/storefront-product";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { applyFlashSalePricingToProduct } from "@/lib/flash-sale";
+import { parseProductAttributeInput } from "@/lib/product-attribute-input";
 
 const createVariantSku = (slug: string, index: number) =>
   `${slug.substring(0, 20)}-V${index + 1}-${Math.random()
@@ -329,18 +330,29 @@ export async function POST(req: Request) {
     const type = body.type || "PHYSICAL";
     const lowStockThreshold = normalizeLowStockThreshold(body.lowStockThreshold);
     const variantOptions = normalizeVariantOptions(body.variantOptions);
-    const productAttributesInput = Array.isArray(body.productAttributes)
-      ? body.productAttributes
-      : [];
-    const productAttributes = productAttributesInput
-      .map((item: any) => ({
-        attributeId: Number(item?.attributeId),
-        value: String(item?.value || "").trim(),
-      }))
-      .filter(
-        (item: { attributeId: number; value: string }) =>
-          item.attributeId && !Number.isNaN(item.attributeId) && item.value
+    const parsedProductAttributes = parseProductAttributeInput(
+      body.productAttributes ?? [],
+    );
+    if (!parsedProductAttributes.ok) {
+      return NextResponse.json(
+        { error: parsedProductAttributes.error },
+        { status: 400 },
       );
+    }
+    const productAttributes = parsedProductAttributes.value;
+    if (productAttributes.length > 0) {
+      const attributeCount = await prisma.attribute.count({
+        where: {
+          id: { in: productAttributes.map((item) => item.attributeId) },
+        },
+      });
+      if (attributeCount !== productAttributes.length) {
+        return NextResponse.json(
+          { error: "One or more product attributes do not exist" },
+          { status: 400 },
+        );
+      }
+    }
 
     const variantsInput = Array.isArray(body.variants) ? body.variants : [];
     const orderedOptionNames = variantOptions.map((option) => option.name);

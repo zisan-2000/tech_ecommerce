@@ -23,6 +23,7 @@
     "verify:products": "npm run test:products && npm run lint && npm run typecheck",
     "verify:phases": "npm run test:phases && npm run lint && npm run typecheck",
     "seed:storefront": "tsx prisma/seed-storefront.ts",
+    "seed:pc-builder": "node --no-warnings --experimental-strip-types scripts/seed-pc-builder.mjs",
     "seed:storefront-menu": "tsx prisma/seed-storefront-menu.ts",
     "seed:flash-sales": "node scripts/seed-flash-sales.mjs",
     "email": "email dev",

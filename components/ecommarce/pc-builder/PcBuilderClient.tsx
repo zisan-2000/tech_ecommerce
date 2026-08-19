@@ -43,11 +43,18 @@ import {
   parseSharedBuild,
   selectionFromIds,
   serializeSharedBuild,
+  type PcBuildEvaluation,
   type PcBuilderCatalog,
   type PcBuilderProduct,
   type PcBuilderSelection,
   type PcBuilderSlotKey,
 } from "@/lib/pc-builder";
+
+type LiveValidationResponse = {
+  selection: PcBuilderSelection;
+  evaluation: PcBuildEvaluation;
+  missingSlots: PcBuilderSlotKey[];
+};
 
 const SLOT_ICONS = {
   processor: Cpu,
@@ -156,6 +163,10 @@ export default function PcBuilderClient({
   );
   const total = selectedProducts.reduce((sum, product) => sum + product.price, 0);
   const totalCurrency = selectedProducts[0]?.currency ?? "BDT";
+  const unavailableRequiredSlots = PC_BUILDER_SLOTS.filter(
+    (slot) =>
+      slot.required && !catalog[slot.key].some((product) => product.stock > 0),
+  );
   const activeProducts = activeSlot ? catalog[activeSlot] : [];
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -205,21 +216,68 @@ export default function PcBuilderClient({
     }
     const url = new URL(window.location.href);
     url.searchParams.set("build", serializeSharedBuild(selection));
+    window.history.replaceState(
+      null,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
     try {
       await navigator.clipboard.writeText(url.toString());
-      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
       toast.success("Shareable build link copied");
     } catch {
-      toast.error("Could not copy the link. Please copy it from the address bar.");
+      toast.info("Share link is ready in the address bar for manual copying.");
     }
   };
 
   const addBuildToCart = async () => {
     if (!evaluation.canAddToCart || adding) return;
     setAdding(true);
-    let addedCount = 0;
     try {
-      for (const product of selectedProducts) {
+      const response = await fetch("/api/pc-builder/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ selections: selectedIds(selection) }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | LiveValidationResponse
+        | { error?: string }
+        | null;
+      if (!response.ok) {
+        throw new Error(
+          (payload && "error" in payload && payload.error) ||
+            "Build validation failed",
+        );
+      }
+      if (
+        !payload ||
+        !("selection" in payload) ||
+        !("evaluation" in payload) ||
+        !("missingSlots" in payload)
+      ) {
+        throw new Error("Invalid validation response");
+      }
+
+      setSelection(payload.selection);
+      if (payload.missingSlots.length > 0) {
+        toast.error(
+          "Some selected components are no longer available. Your build has been refreshed.",
+        );
+        return;
+      }
+      if (!payload.evaluation.canAddToCart) {
+        toast.error(
+          "Live validation found an incomplete or incompatible component. Review the highlighted issues.",
+        );
+        return;
+      }
+
+      const validatedProducts = PC_BUILDER_SLOTS.flatMap((slot) => {
+        const product = payload.selection[slot.key];
+        return product ? [product] : [];
+      });
+      let addedCount = 0;
+      for (const product of validatedProducts) {
         const added = await addToCart(product.id, 1, product.variantId, {
           product: {
             id: product.id,
@@ -240,13 +298,19 @@ export default function PcBuilderClient({
         });
         if (added) addedCount += 1;
       }
-      if (addedCount === selectedProducts.length) {
+      if (addedCount === validatedProducts.length) {
         toast.success(`${addedCount} build components added to cart`);
       } else {
         toast.error(
-          `${addedCount} of ${selectedProducts.length} components were added. Review unavailable items.`,
+          `${addedCount} of ${validatedProducts.length} components were added. Review unavailable items.`,
         );
       }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The build could not be validated safely.",
+      );
     } finally {
       setAdding(false);
     }
@@ -265,14 +329,17 @@ export default function PcBuilderClient({
   }
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <div
+      id="pc-builder-print-root"
+      className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]"
+    >
       <section aria-labelledby="components-heading" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card px-5 py-4 shadow-sm">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Build workspace</p>
             <h2 id="components-heading" className="mt-1 text-xl font-black">Choose your components</h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="pc-builder-print-hidden flex items-center gap-2">
             <button type="button" onClick={share} className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-bold transition hover:border-primary hover:text-primary">
               <Copy className="h-4 w-4" aria-hidden="true" /> Share
             </button>
@@ -281,6 +348,22 @@ export default function PcBuilderClient({
             </button>
           </div>
         </div>
+
+        {unavailableRequiredSlots.length > 0 ? (
+          <div
+            role="alert"
+            className="rounded-2xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm"
+          >
+            <p className="font-bold text-destructive">
+              This builder cannot be completed right now
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              No in-stock options are available for: {unavailableRequiredSlots
+                .map((slot) => slot.label)
+                .join(", ")}.
+            </p>
+          </div>
+        ) : null}
 
         {PC_BUILDER_SLOTS.map((slot, index) => {
           const product = selection[slot.key];
@@ -334,7 +417,7 @@ export default function PcBuilderClient({
                   ) : null}
                 </div>
 
-                <div className="flex items-center gap-2 sm:flex-col sm:items-stretch">
+                <div className="pc-builder-print-hidden flex items-center gap-2 sm:flex-col sm:items-stretch">
                   <button type="button" onClick={() => { setActiveSlot(slot.key); setQuery(""); }} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary/90 sm:min-w-28">
                     {product ? "Change" : <><Plus className="h-4 w-4" aria-hidden="true" /> Choose</>}
                   </button>
@@ -398,11 +481,11 @@ export default function PcBuilderClient({
             {!evaluation.requiredComplete ? (
               <p className="text-center text-xs text-muted-foreground">Select every required component to add the build to your cart.</p>
             ) : null}
-            <button type="button" onClick={addBuildToCart} disabled={!evaluation.canAddToCart || adding} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-black text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-45">
+            <button type="button" onClick={addBuildToCart} disabled={!evaluation.canAddToCart || adding} className="pc-builder-print-hidden inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-black text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-45">
               <ShoppingCart className="h-5 w-5" aria-hidden="true" />
               {adding ? "Adding build..." : evaluation.hasErrors ? "Resolve compatibility issues" : "Add complete build to cart"}
             </button>
-            <button type="button" onClick={() => window.print()} disabled={!selectedProducts.length} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border text-sm font-bold transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40">
+            <button type="button" onClick={() => window.print()} disabled={!selectedProducts.length} className="pc-builder-print-hidden inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border text-sm font-bold transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40">
               <Printer className="h-4 w-4" aria-hidden="true" /> Print build
             </button>
             <p className="text-[10px] leading-relaxed text-muted-foreground">Compatibility results depend on product specification data. Verify BIOS version, connectors and physical clearances before purchase.</p>
