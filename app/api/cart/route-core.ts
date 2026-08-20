@@ -5,6 +5,23 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { applyFlashSalePricingToProduct } from '@/lib/flash-sale';
 
+async function findStandardCartItem(
+  userId: string,
+  productId: number,
+  variantId: number | null,
+) {
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
+    'SELECT "id" FROM "CartItem" WHERE "userId" = $1 AND "productId" = $2 AND "variantId" IS NOT DISTINCT FROM $3 AND "lineKey" = \'standard\' LIMIT 1',
+    userId,
+    productId,
+    variantId,
+  );
+  const id = rows[0]?.id;
+  return id
+    ? prisma.cartItem.findUnique({ where: { id } })
+    : null;
+}
+
 // GET cart items - Logged in user only
 export async function GET() {
   try {
@@ -182,13 +199,7 @@ export async function POST(request: NextRequest) {
       }
 
       // For bundles, we don't need variant validation - use null variantId
-      const existing = await prisma.cartItem.findFirst({
-        where: {
-          userId,
-          productId,
-          variantId: null, // Bundles don't use variants
-        },
-      });
+      const existing = await findStandardCartItem(userId, productId, null);
 
       let cartItem;
 
@@ -286,13 +297,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existing = await prisma.cartItem.findFirst({
-      where: {
-        userId,
-        productId,
-        variantId: targetVariant.id,
-      },
-    });
+    const existing = await findStandardCartItem(
+      userId,
+      productId,
+      targetVariant.id,
+    );
 
     let cartItem;
 
