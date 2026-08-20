@@ -40,6 +40,7 @@ import {
   PC_BUILDER_SLOTS,
   PC_BUILDER_STORAGE_KEY,
   evaluatePcBuild,
+  evaluatePcBuilderCandidate,
   parseSharedBuild,
   selectionFromIds,
   serializeSharedBuild,
@@ -117,6 +118,7 @@ export default function PcBuilderClient({
   const [selection, setSelection] = useState<PcBuilderSelection>({});
   const [activeSlot, setActiveSlot] = useState<PcBuilderSlotKey | null>(null);
   const [query, setQuery] = useState("");
+  const [compatibleOnly, setCompatibleOnly] = useState(true);
   const [restored, setRestored] = useState(false);
   const [adding, setAdding] = useState(false);
 
@@ -176,9 +178,18 @@ export default function PcBuilderClient({
   const activeProducts = activeSlot ? catalog[activeSlot] : [];
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return activeProducts;
-    return activeProducts.filter((product) =>
-      [
+    return activeProducts.filter((product) => {
+      if (activeSlot && compatibleOnly) {
+        const candidate = evaluatePcBuilderCandidate(
+          selection,
+          activeSlot,
+          product,
+        );
+        if (!candidate.builderReady || !candidate.compatible) return false;
+      }
+
+      if (!normalizedQuery) return true;
+      return [
         product.name,
         product.brand,
         product.sku,
@@ -189,14 +200,27 @@ export default function PcBuilderClient({
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
-        .includes(normalizedQuery),
-    );
-  }, [activeProducts, query]);
+        .includes(normalizedQuery);
+    });
+  }, [activeProducts, activeSlot, compatibleOnly, query, selection]);
 
   const choose = (slot: PcBuilderSlotKey, product: PcBuilderProduct) => {
     setSelection((current) => ({ ...current, [slot]: product }));
     setActiveSlot(null);
     setQuery("");
+    setCompatibleOnly(true);
+  };
+
+  const openSlot = (slot: PcBuilderSlotKey) => {
+    setActiveSlot(slot);
+    setQuery("");
+    setCompatibleOnly(true);
+  };
+
+  const closePicker = () => {
+    setActiveSlot(null);
+    setQuery("");
+    setCompatibleOnly(true);
   };
 
   const remove = (slot: PcBuilderSlotKey) => {
@@ -356,17 +380,10 @@ export default function PcBuilderClient({
         </div>
 
         {unavailableRequiredSlots.length > 0 ? (
-          <div
-            role="alert"
-            className="rounded-2xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm"
-          >
-            <p className="font-bold text-destructive">
-              This builder cannot be completed right now
-            </p>
+          <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm">
+            <p className="font-bold text-destructive">This builder cannot be completed right now</p>
             <p className="mt-1 text-muted-foreground">
-              No in-stock, PC-Builder-ready options are available for: {unavailableRequiredSlots
-                .map((slot) => slot.label)
-                .join(", ")}.
+              No in-stock, PC-Builder-ready options are available for: {unavailableRequiredSlots.map((slot) => slot.label).join(", ")}.
             </p>
           </div>
         ) : null}
@@ -424,7 +441,7 @@ export default function PcBuilderClient({
                 </div>
 
                 <div className="pc-builder-print-hidden flex items-center gap-2 sm:flex-col sm:items-stretch">
-                  <button type="button" onClick={() => { setActiveSlot(slot.key); setQuery(""); }} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary/90 sm:min-w-28">
+                  <button type="button" onClick={() => openSlot(slot.key)} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary/90 sm:min-w-28">
                     {product ? "Change" : <><Plus className="h-4 w-4" aria-hidden="true" /> Choose</>}
                   </button>
                   {product ? (
@@ -499,13 +516,13 @@ export default function PcBuilderClient({
         </div>
       </aside>
 
-      <Dialog open={activeSlot !== null} onOpenChange={(open) => { if (!open) { setActiveSlot(null); setQuery(""); } }}>
+      <Dialog open={activeSlot !== null} onOpenChange={(open) => { if (!open) closePicker(); }}>
         <DialogContent className="flex max-h-[90vh] w-[calc(100vw-24px)] max-w-5xl flex-col gap-0 overflow-hidden p-0">
           {activeSlot ? (
             <>
               <DialogHeader className="border-b px-5 py-4 pr-12">
                 <DialogTitle>Select {PC_BUILDER_SLOTS.find((slot) => slot.key === activeSlot)?.label}</DialogTitle>
-                <DialogDescription>Compatibility is recalculated immediately after selection.</DialogDescription>
+                <DialogDescription>Compatible, builder-ready options are shown by default. Turn off the filter to inspect blocked items.</DialogDescription>
               </DialogHeader>
               <div className="border-b p-4">
                 <label className="relative block">
@@ -513,23 +530,40 @@ export default function PcBuilderClient({
                   <span className="sr-only">Search components</span>
                   <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by product, brand or specification" className="h-11 w-full rounded-xl border bg-background pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15" />
                 </label>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={compatibleOnly}
+                      onChange={(event) => setCompatibleOnly(event.target.checked)}
+                      className="h-4 w-4 rounded border-border accent-primary"
+                    />
+                    Compatible only
+                  </label>
+                  <span className="text-xs text-muted-foreground">
+                    Showing {filteredProducts.length} of {activeProducts.length}
+                  </span>
+                </div>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4">
                 {filteredProducts.length ? (
                   <div className="grid gap-3 md:grid-cols-2">
                     {filteredProducts.map((product) => {
-                      const candidate = evaluatePcBuild({ ...selection, [activeSlot]: product });
-                      const readinessIssues = validatePcBuilderProductReadiness(
+                      const candidateStatus = evaluatePcBuilderCandidate(
+                        selection,
                         activeSlot,
                         product,
                       );
-                      const notBuilderReady = readinessIssues.some(
-                        (item) => item.severity === "error",
-                      );
-                      const relevant = candidate.issues.filter((item) => item.slots.includes(activeSlot));
-                      const incompatible = relevant.some((item) => item.severity === "error");
+                      const readinessIssues = candidateStatus.readinessIssues;
+                      const notBuilderReady = !candidateStatus.builderReady;
+                      const incompatible = !candidateStatus.compatible;
+                      const statusIssue =
+                        readinessIssues.find((item) => item.severity === "error") ??
+                        candidateStatus.blockingIssues[0] ??
+                        candidateStatus.warningIssues[0] ??
+                        candidateStatus.deferredIssues[0];
                       return (
-                        <article key={product.selectionId} className={`rounded-xl border p-3 transition ${incompatible ? "border-destructive/40" : "hover:border-primary/50"}`}>
+                        <article key={product.selectionId} className={`rounded-xl border p-3 transition ${incompatible || notBuilderReady ? "border-destructive/40" : "hover:border-primary/50"}`}>
                           <div className="flex gap-3">
                             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border bg-white">
                               <Image src={product.image || "/placeholder.svg"} alt="" fill sizes="96px" className="object-contain p-2" />
@@ -545,10 +579,14 @@ export default function PcBuilderClient({
                           <div className="mt-3 flex flex-wrap gap-1.5">
                             {productSpecs(product, activeSlot).map((spec) => <span key={spec} className="rounded-md bg-muted px-2 py-1 text-[10px] font-semibold text-muted-foreground">{spec}</span>)}
                           </div>
-                          {relevant.length ? <p className={`mt-3 text-xs ${incompatible ? "text-destructive" : "text-amber-700 dark:text-amber-400"}`}>{relevant[0].message}</p> : <p className="mt-3 flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400"><Check className="h-3.5 w-3.5" aria-hidden="true" /> Compatible with current selection</p>}
+                          {statusIssue ? (
+                            <p className={`mt-3 text-xs ${notBuilderReady || incompatible ? "text-destructive" : "text-amber-700 dark:text-amber-400"}`}>{statusIssue.message}</p>
+                          ) : (
+                            <p className="mt-3 flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400"><Check className="h-3.5 w-3.5" aria-hidden="true" /> Compatible with current selection</p>
+                          )}
                           <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-                            <button type="button" onClick={() => choose(activeSlot, product)} disabled={product.stock < 1 || notBuilderReady} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40">
-                              {notBuilderReady ? "Missing required specs" : "Select component"} <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                            <button type="button" onClick={() => choose(activeSlot, product)} disabled={product.stock < 1 || notBuilderReady || incompatible} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40">
+                              {product.stock < 1 ? "Out of stock" : notBuilderReady ? "Missing required specs" : incompatible ? "Incompatible" : "Select component"} <ChevronRight className="h-4 w-4" aria-hidden="true" />
                             </button>
                             <Link href={`/ecommerce/products/${product.id}`} className="inline-flex h-10 items-center justify-center rounded-lg border px-3 text-xs font-bold hover:border-primary hover:text-primary">Details</Link>
                           </div>
@@ -560,7 +598,12 @@ export default function PcBuilderClient({
                   <div className="py-16 text-center">
                     <Search className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
                     <h3 className="mt-3 font-bold">No matching components</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">Try another search or add products to this category from the admin panel.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{compatibleOnly ? "No compatible, builder-ready options match the current selection and search." : "Try another search or add products to this category from the admin panel."}</p>
+                    {compatibleOnly ? (
+                      <button type="button" onClick={() => setCompatibleOnly(false)} className="mt-4 inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs font-bold transition hover:border-primary hover:text-primary">
+                        Show all components
+                      </button>
+                    ) : null}
                   </div>
                 )}
               </div>
