@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { computeWarehouseAvailableStock } from '@/lib/warehouse-stock';
 
 // UPDATE quantity - Logged in user only
 // Body: { quantity: number }
@@ -35,7 +36,13 @@ export async function PATCH(
     const cartItem = await prisma.cartItem.findUnique({
       where: { id: cartItemId },
       include: {
-        variant: true,
+        variant: {
+          include: {
+            stockLevels: {
+              select: { quantity: true, reserved: true },
+            },
+          },
+        },
         product: true,
       },
     });
@@ -54,14 +61,22 @@ export async function PATCH(
       return NextResponse.json({ message: 'Cart item removed' });
     }
 
-    if (
-      cartItem.product.type === 'PHYSICAL' &&
-      Number(cartItem.variant?.stock ?? 0) < quantity
-    ) {
-      return NextResponse.json(
-        { error: 'Requested quantity exceeds available stock' },
-        { status: 400 }
-      );
+    if (cartItem.product.type === 'PHYSICAL') {
+      const available = cartItem.variant
+        ? computeWarehouseAvailableStock(cartItem.variant)
+        : null;
+      if (available === null) {
+        return NextResponse.json(
+          { error: 'Warehouse inventory is not configured for the selected variant' },
+          { status: 400 }
+        );
+      }
+      if (available < quantity) {
+        return NextResponse.json(
+          { error: 'Requested quantity exceeds available stock' },
+          { status: 400 }
+        );
+      }
     }
 
     const updated = await prisma.cartItem.update({
