@@ -14,12 +14,19 @@ export function computeAvailableStock(levels: WarehouseStockLevelInput[]) {
   );
 }
 
+export function computeWarehouseAvailableStock(variant: {
+  stockLevels?: WarehouseStockLevelInput[] | null;
+}) {
+  const levels = Array.isArray(variant.stockLevels) ? variant.stockLevels : [];
+  return levels.length > 0 ? computeAvailableStock(levels) : null;
+}
+
 export function computeVariantAvailableStock(variant: {
   stock: unknown;
   stockLevels?: WarehouseStockLevelInput[] | null;
 }) {
-  const levels = Array.isArray(variant.stockLevels) ? variant.stockLevels : [];
-  if (levels.length > 0) return computeAvailableStock(levels);
+  const warehouseStock = computeWarehouseAvailableStock(variant);
+  if (warehouseStock !== null) return warehouseStock;
 
   const legacyStock = Number(variant.stock);
   return Number.isFinite(legacyStock) ? Math.max(0, legacyStock) : 0;
