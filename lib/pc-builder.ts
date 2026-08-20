@@ -115,7 +115,9 @@ function normalized(value: string | null | undefined) {
 }
 
 function canonicalCompatibilityToken(value: string | null | undefined) {
-  const token = normalized(value).replace(/[\s_-]+/g, "");
+  const token = normalized(value)
+    .replace(/\([^)]*\)/g, "")
+    .replace(/[\s_-]+/g, "");
   if (token === "microatx") return "matx";
   if (token === "miniitx") return "mitx";
   return token;
@@ -133,12 +135,84 @@ function readAttribute(
   return match?.[1]?.trim() ?? "";
 }
 
+type MeasurementKind = "number" | "watt" | "length-mm";
+
+function parseMeasurement(value: string, kind: MeasurementKind) {
+  const input = normalized(value);
+  const match = input.match(/^\s*(\d+(?:\.\d+)?)\s*([a-z]+)?\s*$/i);
+  if (!match) return null;
+
+  const amount = Number(match[1]);
+  const unit = normalized(match[2] ?? "");
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  if (kind === "number") {
+    return unit ? null : amount;
+  }
+
+  if (kind === "watt") {
+    if (!unit || ["w", "watt", "watts"].includes(unit)) return amount;
+    if (["kw", "kilowatt", "kilowatts"].includes(unit)) return amount * 1000;
+    return null;
+  }
+
+  if (!unit || ["mm", "millimeter", "millimeters", "millimetre", "millimetres"].includes(unit)) {
+    return amount;
+  }
+  if (["cm", "centimeter", "centimeters", "centimetre", "centimetres"].includes(unit)) {
+    return amount * 10;
+  }
+  if (["m", "meter", "meters", "metre", "metres"].includes(unit)) {
+    return amount * 1000;
+  }
+  if (["in", "inch", "inches"].includes(unit)) {
+    return amount * 25.4;
+  }
+  return null;
+}
+
 function numericAttribute(
   product: PcBuilderProduct | undefined,
   names: string[],
+  kind: MeasurementKind = "number",
 ) {
-  const match = readAttribute(product, names).match(/\d+(?:\.\d+)?/);
-  return match ? Number(match[0]) : null;
+  const value = readAttribute(product, names);
+  return value ? parseMeasurement(value, kind) : null;
+}
+
+function booleanAttribute(
+  product: PcBuilderProduct | undefined,
+  names: string[],
+) {
+  const value = normalized(readAttribute(product, names));
+  if (!value) return null;
+
+  const compact = value.replace(/[\s_-]+/g, " ");
+  const falseValues = new Set([
+    "no",
+    "false",
+    "none",
+    "not available",
+    "not included",
+    "no igpu",
+    "no integrated graphics",
+    "without igpu",
+    "without integrated graphics",
+  ]);
+  const trueValues = new Set([
+    "yes",
+    "true",
+    "available",
+    "included",
+    "igpu",
+    "integrated graphics",
+    "with igpu",
+    "with integrated graphics",
+  ]);
+
+  if (falseValues.has(compact)) return false;
+  if (trueValues.has(compact)) return true;
+  return null;
 }
 
 function supported(supportedValues: string, selectedValue: string) {
@@ -147,6 +221,7 @@ function supported(supportedValues: string, selectedValue: string) {
   return supportedValues
     .split(/[,;/|\n]+|\s+and\s+/i)
     .map(canonicalCompatibilityToken)
+    .filter(Boolean)
     .some((value) => value === selected);
 }
 
@@ -297,17 +372,22 @@ export function evaluatePcBuild(
   }
 
   if (graphics && pcCase) {
-    const gpuLength = numericAttribute(graphics, ["GPU Length", "Card Length"]);
-    const maxGpuLength = numericAttribute(pcCase, [
-      "Max GPU Length",
-      "Maximum GPU Length",
-    ]);
+    const gpuLength = numericAttribute(
+      graphics,
+      ["GPU Length", "Card Length"],
+      "length-mm",
+    );
+    const maxGpuLength = numericAttribute(
+      pcCase,
+      ["Max GPU Length", "Maximum GPU Length"],
+      "length-mm",
+    );
     if (gpuLength && maxGpuLength && gpuLength > maxGpuLength) {
       issues.push(
         issue(
           "gpu-case-clearance",
           "error",
-          `The ${gpuLength}mm graphics card exceeds the case clearance of ${maxGpuLength}mm.`,
+          `The ${Math.round(gpuLength)}mm graphics card exceeds the case clearance of ${Math.round(maxGpuLength)}mm.`,
           ["graphics", "case"],
         ),
       );
@@ -316,7 +396,7 @@ export function evaluatePcBuild(
         issue(
           "gpu-case-data",
           "error",
-          "Graphics-card length or case clearance data is incomplete, so physical fit cannot be verified.",
+          "Graphics-card length or case clearance data is incomplete or uses an unsupported unit, so physical fit cannot be verified.",
           ["graphics", "case"],
         ),
       );
@@ -324,17 +404,22 @@ export function evaluatePcBuild(
   }
 
   if (cooler && pcCase) {
-    const coolerHeight = numericAttribute(cooler, ["Cooler Height", "Height"]);
-    const maxCoolerHeight = numericAttribute(pcCase, [
-      "Max Cooler Height",
-      "Maximum Cooler Height",
-    ]);
+    const coolerHeight = numericAttribute(
+      cooler,
+      ["Cooler Height", "Height"],
+      "length-mm",
+    );
+    const maxCoolerHeight = numericAttribute(
+      pcCase,
+      ["Max Cooler Height", "Maximum Cooler Height"],
+      "length-mm",
+    );
     if (coolerHeight && maxCoolerHeight && coolerHeight > maxCoolerHeight) {
       issues.push(
         issue(
           "cooler-case-clearance",
           "error",
-          `The ${coolerHeight}mm CPU cooler exceeds the case clearance of ${maxCoolerHeight}mm.`,
+          `The ${Math.round(coolerHeight)}mm CPU cooler exceeds the case clearance of ${Math.round(maxCoolerHeight)}mm.`,
           ["cooler", "case"],
         ),
       );
@@ -343,7 +428,7 @@ export function evaluatePcBuild(
         issue(
           "cooler-case-data",
           "error",
-          "CPU-cooler height or case clearance data is incomplete, so physical fit cannot be verified.",
+          "CPU-cooler height or case clearance data is incomplete or uses an unsupported unit, so physical fit cannot be verified.",
           ["cooler", "case"],
         ),
       );
@@ -378,10 +463,11 @@ export function evaluatePcBuild(
   }
 
   if (cpu && !graphics) {
-    const integratedGraphics = normalized(
-      readAttribute(cpu, ["Integrated Graphics", "iGPU"]),
-    );
-    if (["no", "none", "not available", "false"].includes(integratedGraphics)) {
+    const integratedGraphics = booleanAttribute(cpu, [
+      "Integrated Graphics",
+      "iGPU",
+    ]);
+    if (integratedGraphics === false) {
       issues.push(
         issue(
           "graphics-required",
@@ -390,12 +476,12 @@ export function evaluatePcBuild(
           ["processor", "graphics"],
         ),
       );
-    } else if (!integratedGraphics) {
+    } else if (integratedGraphics === null) {
       issues.push(
         issue(
           "graphics-capability-data",
           "error",
-          "Integrated-graphics data is missing; add a graphics card or complete the processor specification.",
+          "Integrated-graphics data is missing or ambiguous; add a graphics card or use a clear Yes/No specification.",
           ["processor", "graphics"],
         ),
       );
@@ -403,10 +489,11 @@ export function evaluatePcBuild(
   }
 
   if (cpu && !cooler) {
-    const coolerIncluded = normalized(
-      readAttribute(cpu, ["Cooler Included", "Stock Cooler"]),
-    );
-    if (["no", "none", "not included", "false"].includes(coolerIncluded)) {
+    const coolerIncluded = booleanAttribute(cpu, [
+      "Cooler Included",
+      "Stock Cooler",
+    ]);
+    if (coolerIncluded === false) {
       issues.push(
         issue(
           "cooler-required",
@@ -415,26 +502,30 @@ export function evaluatePcBuild(
           ["processor", "cooler"],
         ),
       );
-    } else if (!coolerIncluded) {
+    } else if (coolerIncluded === null) {
       issues.push(
         issue(
           "cooler-included-data",
           "error",
-          "Processor cooler information is missing; select a cooler or complete the processor specification.",
+          "Processor cooler information is missing or ambiguous; select a cooler or use a clear Yes/No specification.",
           ["processor", "cooler"],
         ),
       );
     }
   }
 
-  const cpuPower = numericAttribute(cpu, ["TDP", "Power Draw"]);
-  const gpuPower = numericAttribute(graphics, ["Power Draw", "Board Power", "TDP"]);
+  const cpuPower = numericAttribute(cpu, ["TDP", "Power Draw"], "watt");
+  const gpuPower = numericAttribute(
+    graphics,
+    ["Power Draw", "Board Power", "TDP"],
+    "watt",
+  );
   if (cpu && !cpuPower) {
     issues.push(
       issue(
         "processor-power-data",
         "error",
-        "Processor power data is missing, so a safe PSU recommendation cannot be calculated.",
+        "Processor power data is missing or uses an unsupported unit, so a safe PSU recommendation cannot be calculated.",
         ["processor", "powerSupply"],
       ),
     );
@@ -444,34 +535,39 @@ export function evaluatePcBuild(
       issue(
         "graphics-power-data",
         "error",
-        "Graphics-card power data is missing, so a safe PSU recommendation cannot be calculated.",
+        "Graphics-card power data is missing or uses an unsupported unit, so a safe PSU recommendation cannot be calculated.",
         ["graphics", "powerSupply"],
       ),
     );
   }
 
   const cpuWatts = cpuPower ?? 65;
-  const gpuWatts = graphics
-    ? gpuPower ?? 200
-    : 0;
+  const gpuWatts = graphics ? gpuPower ?? 200 : 0;
   const estimatedWattage = selected.length
-    ? Math.round(75 + cpuWatts + gpuWatts + (memory ? 10 : 0) + (selection.storage ? 10 : 0) + (cooler ? 10 : 0))
+    ? Math.round(
+        75 +
+          cpuWatts +
+          gpuWatts +
+          (memory ? 10 : 0) +
+          (selection.storage ? 10 : 0) +
+          (cooler ? 10 : 0),
+      )
     : 0;
   const recommendedPsuWattage = estimatedWattage
     ? Math.max(450, Math.ceil((estimatedWattage * 1.35) / 50) * 50)
     : 0;
-  const psuWattage = numericAttribute(powerSupply, [
-    "Wattage",
-    "Power",
-    "Capacity",
-  ]);
+  const psuWattage = numericAttribute(
+    powerSupply,
+    ["Wattage", "Power", "Capacity"],
+    "watt",
+  );
 
   if (powerSupply && !psuWattage) {
     issues.push(
       issue(
         "power-supply-data",
         "error",
-        "Power-supply wattage is missing, so capacity cannot be verified.",
+        "Power-supply wattage is missing or uses an unsupported unit, so capacity cannot be verified.",
         ["powerSupply"],
       ),
     );
@@ -482,7 +578,7 @@ export function evaluatePcBuild(
       issue(
         "insufficient-power-supply",
         "error",
-        `${psuWattage}W PSU is below the recommended ${recommendedPsuWattage}W capacity.`,
+        `${Math.round(psuWattage)}W PSU is below the recommended ${recommendedPsuWattage}W capacity.`,
         ["powerSupply", "processor", ...(graphics ? (["graphics"] as const) : [])],
       ),
     );
