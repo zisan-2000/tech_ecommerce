@@ -1,128 +1,110 @@
-// app/api/cart/[id]/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { DELETE as coreDELETE, PATCH as corePATCH } from "./route-core";
 
-// UPDATE quantity - Logged in user only
-// Body: { quantity: number }
-// quantity <= 0 hole item delete kore dei
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    const user = session?.user as { id?: string } | undefined;
-    const userId = user?.id;
+type CartBuildMapRow = {
+  cartItemId: number;
+  buildId: string;
+  slot: string;
+};
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await params;
-    const cartItemId = Number(id);
-    if (Number.isNaN(cartItemId)) {
-      return NextResponse.json(
-        { error: 'Invalid cart item id' },
-        { status: 400 }
-      );
-    }
-
-    const body = await request.json();
-    const quantity = Number(body.quantity);
-
-    const cartItem = await prisma.cartItem.findUnique({
-      where: { id: cartItemId },
-      include: {
-        variant: true,
-        product: true,
-      },
-    });
-
-    if (!cartItem || cartItem.userId !== userId) {
-      return NextResponse.json(
-        { error: 'Cart item not found' },
-        { status: 404 }
-      );
-    }
-
-    if (!quantity || quantity <= 0) {
-      await prisma.cartItem.delete({
-        where: { id: cartItemId },
-      });
-      return NextResponse.json({ message: 'Cart item removed' });
-    }
-
-    if (
-      cartItem.product.type === 'PHYSICAL' &&
-      Number(cartItem.variant?.stock ?? 0) < quantity
-    ) {
-      return NextResponse.json(
-        { error: 'Requested quantity exceeds available stock' },
-        { status: 400 }
-      );
-    }
-
-    const updated = await prisma.cartItem.update({
-      where: { id: cartItemId },
-      data: { quantity },
-    });
-
-    return NextResponse.json(updated);
-  } catch (error) {
-    console.error('Error updating cart item:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+async function getMapping(cartItemId: number) {
+  const rows = await prisma.$queryRawUnsafe<CartBuildMapRow[]>(
+    'SELECT "cartItemId", "buildId", "slot" FROM "PcBuildCartItem" WHERE "cartItemId" = $1 LIMIT 1',
+    cartItemId,
+  );
+  return rows[0] ?? null;
 }
 
-// DELETE single item - Logged in user only
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+async function removeBuild(userId: string, buildId: string) {
+  const rows = await prisma.$queryRawUnsafe<Array<{ cartItemId: number }>>(
+    'SELECT m."cartItemId" FROM "PcBuildCartItem" m INNER JOIN "CartItem" c ON c."id" = m."cartItemId" WHERE c."userId" = $1 AND m."buildId" = $2',
+    userId,
+    buildId,
+  );
+  const ids = rows.map((row) => row.cartItemId);
+  if (ids.length) {
+    await prisma.cartItem.deleteMany({
+      where: { userId, id: { in: ids } },
+    });
+  }
+  return ids.length;
+}
+
+export async function PATCH(
+  request: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
 ) {
+  const requestForCore = request.clone();
+  const session = await getServerSession(authOptions);
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  if (!userId) return corePATCH(requestForCore, ctx);
+
+  const { id } = await ctx.params;
+  const cartItemId = Number(id);
+  if (!Number.isInteger(cartItemId) || cartItemId < 1) {
+    return corePATCH(requestForCore, { params: Promise.resolve({ id }) });
+  }
+
+  const mapping = await getMapping(cartItemId);
+  if (!mapping) {
+    return corePATCH(requestForCore, { params: Promise.resolve({ id }) });
+  }
+
+  let quantity = Number.NaN;
   try {
-    const session = await getServerSession(authOptions);
-    const user = session?.user as { id?: string } | undefined;
-    const userId = user?.id;
+    const body = await request.json();
+    quantity = Number(body?.quantity);
+  } catch {
+    return corePATCH(requestForCore, { params: Promise.resolve({ id }) });
+  }
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await params;
-    const cartItemId = Number(id);
-    if (Number.isNaN(cartItemId)) {
-      return NextResponse.json(
-        { error: 'Invalid cart item id' },
-        { status: 400 }
-      );
-    }
-
-    const cartItem = await prisma.cartItem.findUnique({
-      where: { id: cartItemId },
+  if (quantity <= 0) {
+    const removedCount = await removeBuild(userId, mapping.buildId);
+    return NextResponse.json({
+      message: "PC build removed",
+      pcBuildId: mapping.buildId,
+      removedCount,
     });
+  }
 
-    if (!cartItem || cartItem.userId !== userId) {
-      return NextResponse.json(
-        { error: 'Cart item not found' },
-        { status: 404 }
-      );
-    }
-
-    await prisma.cartItem.delete({
-      where: { id: cartItemId },
-    });
-
-    return NextResponse.json({ message: 'Cart item removed' });
-  } catch (error) {
-    console.error('Error deleting cart item:', error);
+  if (quantity !== 1) {
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      {
+        error: "PC build component quantity is locked at 1. Add another validated build instead.",
+        code: "PC_BUILD_COMPONENT_QUANTITY_LOCKED",
+        pcBuildId: mapping.buildId,
+      },
+      { status: 409 },
     );
   }
+
+  return corePATCH(requestForCore, { params: Promise.resolve({ id }) });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const session = await getServerSession(authOptions);
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  const { id } = await ctx.params;
+  const cartItemId = Number(id);
+  if (!userId || !Number.isInteger(cartItemId) || cartItemId < 1) {
+    return coreDELETE(request, { params: Promise.resolve({ id }) });
+  }
+
+  const mapping = await getMapping(cartItemId);
+  if (!mapping) {
+    return coreDELETE(request, { params: Promise.resolve({ id }) });
+  }
+
+  const removedCount = await removeBuild(userId, mapping.buildId);
+  return NextResponse.json({
+    message: "PC build removed",
+    pcBuildId: mapping.buildId,
+    removedCount,
+  });
 }

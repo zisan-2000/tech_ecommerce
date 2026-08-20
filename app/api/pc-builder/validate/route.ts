@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   PC_BUILDER_SLOTS,
   parsePcBuilderSelectionId,
@@ -7,15 +7,19 @@ import {
 import {
   PC_BUILDER_CHECKOUT_COOKIE,
   PC_BUILDER_CHECKOUT_COOKIE_MAX_AGE,
-  createPcBuilderCheckoutManifest,
-  serializePcBuilderCheckoutManifest,
+  PC_BUILDER_CHECKOUT_MAX_BUILDS,
+  appendPcBuilderCheckoutBuild,
+  createPcBuilderCheckoutBuild,
+  parsePcBuilderCheckoutCookie,
+  serializePcBuilderCheckoutState,
 } from "@/lib/pc-builder-checkout";
+import { createPcBuildId } from "@/lib/pc-builder-grouping";
 import { rateLimitRequest } from "@/lib/request-security";
 import { validatePcBuilderSelectionLive } from "@/lib/storefront-pc-builder";
 
 const NO_STORE_HEADERS = { "Cache-Control": "private, no-store" } as const;
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const contentLength = Number(request.headers.get("content-length") ?? 0);
     if (Number.isFinite(contentLength) && contentLength > 4096) {
@@ -70,23 +74,41 @@ export async function POST(request: Request) {
     }
 
     const result = await validatePcBuilderSelectionLive(selections);
-    const response = NextResponse.json(result, { headers: NO_STORE_HEADERS });
+    if (result.missingSlots.length > 0 || !result.evaluation.canAddToCart) {
+      return NextResponse.json(result, { headers: NO_STORE_HEADERS });
+    }
 
-    if (result.missingSlots.length === 0 && result.evaluation.canAddToCart) {
-      const manifest = createPcBuilderCheckoutManifest(selections);
-      response.cookies.set(
-        PC_BUILDER_CHECKOUT_COOKIE,
-        serializePcBuilderCheckoutManifest(manifest),
+    const buildId = createPcBuildId();
+    const build = createPcBuilderCheckoutBuild(buildId, selections);
+    const currentState = parsePcBuilderCheckoutCookie(
+      request.cookies.get(PC_BUILDER_CHECKOUT_COOKIE)?.value,
+    );
+    const nextState = appendPcBuilderCheckoutBuild(currentState, build);
+    if (!nextState) {
+      return NextResponse.json(
         {
-          httpOnly: true,
-          sameSite: "lax",
-          secure: process.env.NODE_ENV === "production",
-          path: "/",
-          maxAge: PC_BUILDER_CHECKOUT_COOKIE_MAX_AGE,
+          error: `PC Builder can track up to ${PC_BUILDER_CHECKOUT_MAX_BUILDS} active builds. Checkout or remove an existing build first.`,
+          code: "PC_BUILDER_ACTIVE_BUILD_LIMIT",
         },
+        { status: 409, headers: NO_STORE_HEADERS },
       );
     }
 
+    const response = NextResponse.json(
+      { ...result, buildId },
+      { headers: NO_STORE_HEADERS },
+    );
+    response.cookies.set(
+      PC_BUILDER_CHECKOUT_COOKIE,
+      serializePcBuilderCheckoutState(nextState),
+      {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: PC_BUILDER_CHECKOUT_COOKIE_MAX_AGE,
+      },
+    );
     return response;
   } catch (error) {
     console.error("PC Builder live validation failed", error);
