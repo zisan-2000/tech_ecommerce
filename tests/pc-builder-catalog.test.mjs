@@ -32,11 +32,23 @@ test("storefront catalog no longer uses a global forty-item cap", async () => {
 });
 
 test("picker uses paginated server-side catalog search", async () => {
-  const source = await readFile(
-    new URL("../components/ecommarce/pc-builder/PcBuilderClient.tsx", import.meta.url),
-    "utf8",
-  );
-  assert.match(source, /\/api\/pc-builder\/catalog/);
-  assert.match(source, /pickerNextPage/);
-  assert.match(source, /Load more/);
+  const [client, hook] = await Promise.all([
+    readFile(
+      new URL("../components/ecommarce/pc-builder/PcBuilderClient.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../components/ecommarce/pc-builder/usePcBuilderCatalogSearch.ts",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ]);
+  assert.match(client, /usePcBuilderCatalogSearch/);
+  assert.match(client, /pickerNextPage/);
+  assert.match(client, /Load more/);
+  assert.match(hook, /\/api\/pc-builder\/catalog/);
+  assert.match(hook, /cache: "no-store"/);
+  assert.match(hook, /AbortController/);
 });
