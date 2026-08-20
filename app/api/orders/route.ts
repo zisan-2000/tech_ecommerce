@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   PC_BUILDER_CHECKOUT_COOKIE,
   parsePcBuilderCheckoutCookie,
-  type PcBuilderCheckoutBuild,
 } from "@/lib/pc-builder-checkout";
-import { pcBuildSelectionId } from "@/lib/pc-builder-grouping";
+import { matchPcBuilderBuildsToOrderItems } from "@/lib/pc-builder-order-match";
 import { validatePcBuilderSelectionLive } from "@/lib/storefront-pc-builder";
 import { GET, POST as corePOST } from "./route-core";
 
@@ -27,18 +26,6 @@ function coreRequest(request: NextRequest, rawBody: string) {
     headers: request.headers,
     body: rawBody,
   });
-}
-
-function selectedItemMap(items: Array<Record<string, unknown>>) {
-  const result = new Map<string, Record<string, unknown>>();
-  for (const item of items) {
-    const selectionId = pcBuildSelectionId({
-      productId: item.productId as string | number,
-      variantId: item.variantId as string | number | null | undefined,
-    });
-    if (selectionId) result.set(selectionId, item);
-  }
-  return result;
 }
 
 export async function POST(request: NextRequest) {
@@ -76,54 +63,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const bySelection = selectedItemMap(items);
-  const matchedBuilds: PcBuilderCheckoutBuild[] = [];
-  const claimedSelectionIds = new Set<string>();
+  const matched = matchPcBuilderBuildsToOrderItems(state.builds, items);
+  if (matched.error) {
+    const errorMessage =
+      matched.error.code === "PC_BUILD_COMPONENT_QUANTITY_LOCKED"
+        ? "PC build component quantity must remain 1 at checkout."
+        : matched.error.code === "PC_BUILDER_CART_GROUPING_AMBIGUOUS"
+          ? "PC Builder cart grouping is ambiguous. Restore the validated build rows before checkout."
+          : "Your PC Builder cart changed after validation. Restore the missing build components or return to PC Builder.";
 
-  for (const build of state.builds) {
-    const expected = Object.values(build.selections).filter(
-      (value): value is string => Boolean(value),
+    return NextResponse.json(
+      {
+        error: errorMessage,
+        code: matched.error.code,
+        ...(matched.error.buildId ? { buildId: matched.error.buildId } : {}),
+      },
+      { status: 409 },
     );
-    const touched = expected.filter((selectionId) => bySelection.has(selectionId));
-    if (!touched.length) continue;
+  }
 
-    if (touched.length !== expected.length) {
-      return NextResponse.json(
-        {
-          error:
-            "Your PC Builder cart changed after validation. Restore the missing build components or return to PC Builder.",
-          code: "PC_BUILDER_CART_CHANGED",
-          buildId: build.buildId,
-        },
-        { status: 409 },
-      );
-    }
-
-    for (const selectionId of expected) {
-      const item = bySelection.get(selectionId);
-      if (Number(item?.quantity ?? 0) !== 1) {
-        return NextResponse.json(
-          {
-            error: "PC build component quantity must remain 1 at checkout.",
-            code: "PC_BUILD_COMPONENT_QUANTITY_LOCKED",
-            buildId: build.buildId,
-          },
-          { status: 409 },
-        );
-      }
-      if (claimedSelectionIds.has(selectionId)) {
-        return NextResponse.json(
-          {
-            error:
-              "Two active PC builds share the same cart component, so grouping is ambiguous. Checkout or remove one build first.",
-            code: "PC_BUILDER_CART_GROUPING_AMBIGUOUS",
-          },
-          { status: 409 },
-        );
-      }
-      claimedSelectionIds.add(selectionId);
-    }
-
+  for (const build of matched.builds) {
     const liveBuild = await validatePcBuilderSelectionLive(build.selections);
     if (liveBuild.missingSlots.length > 0 || !liveBuild.evaluation.canAddToCart) {
       return NextResponse.json(
@@ -138,12 +97,10 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
-
-    matchedBuilds.push(build);
   }
 
   const response = await corePOST(coreRequest(request, rawBody), {
-    pcBuilderBuilds: matchedBuilds,
+    pcBuilderBuilds: matched.builds,
   });
   if (!response.ok) return response;
 
