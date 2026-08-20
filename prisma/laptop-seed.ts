@@ -950,6 +950,28 @@ async function main() {
       SSD: getSpec(item, "Solid-State Drive (SSD)") ?? null,
       Color: getSpec(item, "Color") ?? null,
     };
+    // The storefront renders its variant selector from ProductVariantOption
+    // rows, not from ProductVariant.options, so seeded products need both.
+    const optionEntries = Object.entries(variantOptions).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1] !== "",
+    );
+
+    for (let optionIndex = 0; optionIndex < optionEntries.length; optionIndex += 1) {
+      const [optionName, optionValue] = optionEntries[optionIndex];
+      const option = await prisma.productVariantOption.upsert({
+        where: { productId_name: { productId: product.id, name: optionName } },
+        update: { position: optionIndex },
+        create: { productId: product.id, name: optionName, position: optionIndex },
+        select: { id: true },
+      });
+
+      await prisma.productVariantOptionValue.upsert({
+        where: { optionId_value: { optionId: option.id, value: optionValue } },
+        update: { position: 0 },
+        create: { optionId: option.id, value: optionValue, position: 0 },
+      });
+    }
+
     const existingVariant = await prisma.productVariant.findFirst({
       where: { productId: product.id, sku: variantSku },
       select: { id: true },

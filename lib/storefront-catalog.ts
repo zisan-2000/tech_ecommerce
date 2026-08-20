@@ -8,6 +8,12 @@ export const CATALOG_MAX_PRICE = 99_999_999.99;
 export const CATALOG_MAX_PAGE = 500;
 const CATALOG_MAX_BRANDS = 12;
 const CATALOG_MAX_SEARCH_TERMS = 8;
+// Attribute facets are dynamic, so they need their own hard caps to keep a
+// crafted query string from turning into an unbounded pile of joins.
+const CATALOG_MAX_ATTRIBUTE_GROUPS = 12;
+const CATALOG_MAX_ATTRIBUTE_VALUES = 24;
+const CATALOG_MAX_FACET_VALUES_PER_GROUP = 40;
+const CATALOG_ATTRIBUTE_PREFIX = "attr_";
 const PRODUCT_TYPES = ["PHYSICAL", "DIGITAL", "SERVICE", "BUNDLE"] as const;
 const SORT_OPTIONS = [
   "newest",
@@ -36,6 +42,9 @@ export type CatalogFilters = {
   sort: CatalogSort;
   page: number;
   perPage: (typeof CATALOG_PAGE_SIZES)[number];
+  // Dynamic spec filters keyed by attribute id: { "68": ["Core i5-1334U"] }.
+  // Values within one attribute are OR-ed, separate attributes are AND-ed.
+  attributes: Record<string, string[]>;
 };
 
 const catalogProductSelect = {
@@ -149,6 +158,47 @@ export function catalogSearchTerms(query: string) {
     .map(escapePostgresLike);
 }
 
+function normalizeAttributeValue(value: unknown) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+/**
+ * Reads `attr_<attributeId>=<value>` pairs out of the query string. Attribute
+ * ids come from the DB rather than a hardcoded list, which is what lets a
+ * laptop show RAM/SSD while another category shows its own specs.
+ */
+function parseAttributeFilters(searchParams: CatalogSearchParams) {
+  const parsed: Record<string, string[]> = {};
+
+  for (const key of Object.keys(searchParams)) {
+    if (!key.startsWith(CATALOG_ATTRIBUTE_PREFIX)) continue;
+    const rawId = key.slice(CATALOG_ATTRIBUTE_PREFIX.length);
+    if (!/^\d{1,9}$/.test(rawId)) continue;
+    const attributeId = String(Number(rawId));
+
+    const raw = searchParams[key];
+    const values = Array.from(
+      new Set(
+        (Array.isArray(raw) ? raw : raw ? [raw] : [])
+          .map((value) => normalizeAttributeValue(value))
+          .filter(Boolean),
+      ),
+    ).slice(0, CATALOG_MAX_ATTRIBUTE_VALUES);
+
+    if (values.length) parsed[attributeId] = values;
+  }
+
+  return Object.fromEntries(
+    Object.entries(parsed)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .slice(0, CATALOG_MAX_ATTRIBUTE_GROUPS),
+  );
+}
+
 export function parseCatalogFilters(
   searchParams: CatalogSearchParams,
 ): CatalogFilters {
@@ -196,6 +246,7 @@ export function parseCatalogFilters(
     sort,
     page: boundedInteger(firstValue(searchParams.page), 1, CATALOG_MAX_PAGE),
     perPage,
+    attributes: parseAttributeFilters(searchParams),
   };
 }
 
@@ -440,6 +491,70 @@ const readCatalogFacets = unstable_cache(
   },
 );
 
+/**
+ * Attribute facets are scoped to the categories in view, so a Laptops page
+ * offers RAM/SSD/Processor while another category offers its own specs. Values
+ * are counted over products that are actually visible in the catalog.
+ */
+const readCatalogAttributeFacets = unstable_cache(
+  async (serializedCategoryIds: string) => {
+    const categoryIds = JSON.parse(serializedCategoryIds) as number[];
+    const rows = await prisma.productAttribute.findMany({
+      where: {
+        product: {
+          deleted: false,
+          available: true,
+          ...(categoryIds.length ? { categoryId: { in: categoryIds } } : {}),
+        },
+      },
+      select: {
+        value: true,
+        attributeId: true,
+        attribute: { select: { name: true } },
+      },
+    });
+
+    const groups = new Map<
+      number,
+      { id: number; name: string; values: Map<string, number> }
+    >();
+
+    for (const row of rows) {
+      const value = row.value.trim();
+      if (!value) continue;
+      const group = groups.get(row.attributeId) ?? {
+        id: row.attributeId,
+        name: row.attribute.name,
+        values: new Map<string, number>(),
+      };
+      group.values.set(value, (group.values.get(value) ?? 0) + 1);
+      groups.set(row.attributeId, group);
+    }
+
+    return Array.from(groups.values())
+      .map((group) => ({
+        id: group.id,
+        name: group.name,
+        values: Array.from(group.values.entries())
+          .map(([value, productCount]) => ({ value, productCount }))
+          .sort(
+            (a, b) =>
+              b.productCount - a.productCount ||
+              a.value.localeCompare(b.value, undefined, { numeric: true }),
+          )
+          .slice(0, CATALOG_MAX_FACET_VALUES_PER_GROUP),
+      }))
+      // A single-value attribute cannot narrow anything, so it is only noise.
+      .filter((group) => group.values.length > 1)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  },
+  ["storefront-catalog-attribute-facets-v1"],
+  {
+    revalidate: 300,
+    tags: ["storefront-catalog", "products", "categories"],
+  },
+);
+
 function descendantCategoryIds(
   categories: Awaited<ReturnType<typeof readCatalogFacets>>["categories"],
   slug: string,
@@ -482,10 +597,24 @@ const readCatalog = unstable_cache(
   async (serializedFilters: string) => {
     const requestedFilters = JSON.parse(serializedFilters) as CatalogFilters;
     const facets = await readCatalogFacets();
-    const filters = resolveCatalogFilters(requestedFilters, facets);
-    const categoryIds = filters.category
-      ? descendantCategoryIds(facets.categories, filters.category)
+    const scopedCategory = requestedFilters.category
+      ? facets.categories.find(
+          (category) =>
+            category.slug === requestedFilters.category ||
+            String(category.id) === requestedFilters.category,
+        )
+      : null;
+    const categoryIds = scopedCategory
+      ? descendantCategoryIds(facets.categories, scopedCategory.slug)
       : [];
+    const attributeFacets = await readCatalogAttributeFacets(
+      JSON.stringify(categoryIds),
+    );
+    const filters = resolveCatalogFilters(
+      requestedFilters,
+      facets,
+      attributeFacets,
+    );
     const andFilters: Prisma.ProductWhereInput[] = [];
     for (const term of catalogSearchTerms(filters.q)) {
       andFilters.push({
@@ -496,6 +625,18 @@ const readCatalog = unstable_cache(
           { shortDesc: { contains: term, mode: "insensitive" } },
           { brand: { name: { contains: term, mode: "insensitive" } } },
         ],
+      });
+    }
+    // Each selected attribute narrows the result set (AND), while the values
+    // picked inside one attribute widen it (OR) - the usual spec-filter shape.
+    for (const [attributeId, values] of Object.entries(filters.attributes)) {
+      andFilters.push({
+        attributes: {
+          some: {
+            attributeId: Number(attributeId),
+            value: { in: values },
+          },
+        },
       });
     }
     if (filters.inStock) {
@@ -561,7 +702,7 @@ const readCatalog = unstable_cache(
 
     return {
       filters,
-      facets,
+      facets: { ...facets, attributes: attributeFacets },
       products: products.map(serializeCatalogProduct),
       pagination: {
         page: filters.page,
@@ -575,6 +716,9 @@ const readCatalog = unstable_cache(
   { revalidate: 120, tags: ["storefront-catalog", "products", "categories"] },
 );
 
+export type CatalogAttributeFacet = Awaited<
+  ReturnType<typeof readCatalogAttributeFacets>
+>[number];
 export type StorefrontCatalogData = Awaited<ReturnType<typeof readCatalog>>;
 export type StorefrontCatalogProduct = StorefrontCatalogData["products"][number];
 export type StorefrontCatalogFacets = Awaited<
@@ -592,6 +736,7 @@ export async function getStorefrontCatalogFacets() {
 export function resolveCatalogFilters(
   filters: CatalogFilters,
   facets: StorefrontCatalogFacets,
+  attributeFacets: CatalogAttributeFacet[] = [],
 ): CatalogFilters {
   const selectedCategory = filters.category
     ? facets.categories.find(
@@ -601,10 +746,27 @@ export function resolveCatalogFilters(
       )
     : null;
   const knownBrands = new Set(facets.brands.map((brand) => brand.slug));
+  // Attribute selections that no longer exist in the current category scope are
+  // dropped, so switching category cannot leave a filter that matches nothing.
+  const valuesByAttribute = new Map(
+    attributeFacets.map((group) => [
+      String(group.id),
+      new Set(group.values.map((entry) => entry.value)),
+    ]),
+  );
+  const attributes: Record<string, string[]> = {};
+  for (const [attributeId, values] of Object.entries(filters.attributes)) {
+    const known = valuesByAttribute.get(attributeId);
+    if (!known) continue;
+    const kept = values.filter((value) => known.has(value));
+    if (kept.length) attributes[attributeId] = kept;
+  }
+
   return {
     ...filters,
     category: selectedCategory?.slug ?? "",
     brands: filters.brands.filter((brand) => knownBrands.has(brand)),
+    attributes,
   };
 }
 
@@ -613,6 +775,7 @@ export function catalogCanonicalUrl(filters: CatalogFilters) {
   return catalogUrl(filters, {
     q: "",
     brands: keepBrand ? filters.brands : [],
+    attributes: {},
     type: "",
     minPrice: null,
     maxPrice: null,
@@ -627,6 +790,7 @@ export function catalogCanonicalUrl(filters: CatalogFilters) {
 export function isIndexableCatalogView(filters: CatalogFilters) {
   return (
     !filters.q &&
+    Object.keys(filters.attributes).length === 0 &&
     filters.brands.length <= 1 &&
     !(filters.category && filters.brands.length > 0) &&
     !filters.type &&
@@ -652,6 +816,11 @@ export function catalogUrl(
   if (next.type) params.set("type", String(next.type));
   if (next.minPrice !== null) params.set("minPrice", String(next.minPrice));
   if (next.maxPrice !== null) params.set("maxPrice", String(next.maxPrice));
+  for (const [attributeId, values] of Object.entries(next.attributes ?? {})) {
+    for (const value of values) {
+      params.append(`${CATALOG_ATTRIBUTE_PREFIX}${attributeId}`, value);
+    }
+  }
   if (next.inStock) params.set("inStock", "1");
   if (next.featured) params.set("featured", "1");
   if (next.sort !== "newest") params.set("sort", String(next.sort));
