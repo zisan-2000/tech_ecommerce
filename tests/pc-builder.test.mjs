@@ -4,3 +4,4 @@ import "./pc-builder-publish-validation.test.mjs";
 import "./pc-builder-checkout.test.mjs";
 import "./pc-builder-candidate.test.mjs";
 import "./pc-builder-grouping.test.mjs";
+import "./pc-builder-saved-build.test.mjs";
