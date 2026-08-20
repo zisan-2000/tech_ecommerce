@@ -48,6 +48,16 @@ function requiredCounts(builds: PcBuilderCheckoutBuild[]) {
   return counts;
 }
 
+function hasOccurrenceShortage(
+  rows: Map<string, CheckoutItem[]>,
+  builds: PcBuilderCheckoutBuild[],
+) {
+  for (const [selectionId, count] of requiredCounts(builds)) {
+    if ((rows.get(selectionId)?.length ?? 0) < count) return true;
+  }
+  return false;
+}
+
 export function matchPcBuilderBuildsToOrderItems(
   builds: PcBuilderCheckoutBuild[],
   items: CheckoutItem[],
@@ -123,6 +133,22 @@ export function matchPcBuilderBuildsToOrderItems(
       candidate.builds.length === best.builds.length,
   );
   if (tied.length > 1) {
+    const union = Array.from(
+      new Map(
+        tied
+          .flatMap((candidate) => candidate.builds)
+          .map((build) => [build.buildId, build] as const),
+      ).values(),
+    );
+    if (hasOccurrenceShortage(rows, union)) {
+      return {
+        builds: [],
+        error: {
+          code: "PC_BUILDER_CART_CHANGED",
+          buildId: union[0]?.buildId,
+        },
+      };
+    }
     return {
       builds: [],
       error: { code: "PC_BUILDER_CART_GROUPING_AMBIGUOUS" },
