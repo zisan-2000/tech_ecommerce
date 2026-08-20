@@ -34,6 +34,8 @@ export interface CartItem {
   quantity: number;
   image: string;
   variantLabel?: string | null;
+  pcBuildId?: string | null;
+  pcBuildSlot?: string | null;
 }
 
 type CartAnimationRect = {
@@ -134,6 +136,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             variantId: x.variantId ?? null,
             quantity: clamp(Number(x.quantity ?? 1)),
             image: x.image || "/placeholder.svg",
+            pcBuildId: x.pcBuildId ?? null,
+            pcBuildSlot: x.pcBuildSlot ?? null,
           }))
       : [];
     setCartItems(safe);
@@ -176,7 +180,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [cartItems]
   );
 
-  // ✅ productId দিয়ে qty read
+  // ✅ productId দিয়ে qty read (standard cart rows only)
   const getQuantityByProductId = useCallback(
     (productId: string | number, variantId?: string | number | null) => {
       const pid = norm(productId);
@@ -184,14 +188,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return (
         cartItems.find(
           (x) =>
-            norm(x.productId) === pid && normVariant(x.variantId) === vid
+            !x.pcBuildId &&
+            norm(x.productId) === pid &&
+            normVariant(x.variantId) === vid
         )?.quantity ?? 0
       );
     },
     [cartItems]
   );
 
-  // ✅ productId দিয়ে qty set (0 => remove)
+  // ✅ productId দিয়ে qty set (0 => remove), standard rows only
   const setProductQty = useCallback(
     (productId: string | number, quantity: number, variantId?: string | number | null) => {
       const pid = norm(productId);
@@ -200,7 +206,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       setCartItems((prev) => {
         const idx = prev.findIndex(
-          (x) => norm(x.productId) === pid && normVariant(x.variantId) === vid
+          (x) =>
+            !x.pcBuildId &&
+            norm(x.productId) === pid &&
+            normVariant(x.variantId) === vid
         );
 
         // remove if 0
@@ -262,7 +271,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [getQuantityByProductId, setProductQty]
   );
 
-  // ✅ FIXED: addToCart always INCREMENT, normalize ids
+  // ✅ addToCart increments standard rows, but PC Builder keeps one row per build.
   const addToCart = useCallback(
     async (
       productId: string | number,
@@ -322,10 +331,70 @@ export function CartProvider({ children }: { children: ReactNode }) {
               .join(", ")
           : variant?.sku ?? null;
 
+      const fromPcBuilder =
+        typeof window !== "undefined" &&
+        window.location.pathname.includes("/pc-builder");
+      let pcBuildId: string | null = null;
+      let pcBuildSlot: string | null = null;
+
+      if (fromPcBuilder) {
+        try {
+          const response = await fetch("/api/cart", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              productId: product.id,
+              variantId: variant?.id ?? null,
+              quantity: 1,
+              pcBuilder: true,
+            }),
+          });
+          const data = await response.json().catch(() => null);
+          if (response.ok) {
+            pcBuildId = typeof data?.pcBuildId === "string" ? data.pcBuildId : null;
+            pcBuildSlot = typeof data?.pcBuildSlot === "string" ? data.pcBuildSlot : null;
+          } else if (response.status !== 401) {
+            console.error("Failed to persist PC Builder cart row:", data?.error || response.status);
+            return false;
+          }
+        } catch (error) {
+          console.error("Failed to sync PC Builder cart row:", error);
+        }
+      }
+
       setCartItems((prevItems) => {
+        if (fromPcBuilder) {
+          if (pcBuildId) {
+            const existingBuildRow = prevItems.find(
+              (item) =>
+                item.pcBuildId === pcBuildId &&
+                norm(item.productId) === pid &&
+                normVariant(item.variantId) === vid,
+            );
+            if (existingBuildRow) return prevItems;
+          }
+          return [
+            ...prevItems,
+            {
+              id: createCartRowId(),
+              productId: product.id,
+              variantId: variant?.id ?? null,
+              name: product.name,
+              price: Number(variant?.price ?? product.price),
+              quantity: 1,
+              image: product.image || "/placeholder.svg",
+              variantLabel,
+              pcBuildId,
+              pcBuildSlot,
+            },
+          ];
+        }
+
         const idx = prevItems.findIndex(
           (item) =>
-            norm(item.productId) === pid && normVariant(item.variantId) === vid
+            !item.pcBuildId &&
+            norm(item.productId) === pid &&
+            normVariant(item.variantId) === vid
         );
 
         if (idx !== -1) {
