@@ -566,6 +566,9 @@ model ProductAttribute {
   value       String
   attribute   Attribute @relation(fields: [attributeId], references: [id])
   product     Product   @relation(fields: [productId], references: [id])
+
+  @@index([attributeId, value], map: "Catalog_ProductAttribute_attribute_value_idx")
+  @@index([productId, attributeId], map: "Catalog_ProductAttribute_product_attribute_idx")
 }
 
 model VatClass {
