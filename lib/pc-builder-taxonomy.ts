@@ -172,3 +172,61 @@ export function pcBuilderTokenListSupports(
   if (!selected) return false;
   return splitPcBuilderTokens(supportedValues, kind).includes(selected);
 }
+
+type AttributeTaxonomy = {
+  canonicalName: string;
+  kind: PcBuilderTaxonomyKind;
+  list?: boolean;
+};
+
+const ATTRIBUTE_TAXONOMY = new Map<string, AttributeTaxonomy>([
+  ["socket", { canonicalName: "Socket", kind: "socket" }],
+  ["cpusocket", { canonicalName: "CPU Socket", kind: "socket" }],
+  ["socketsupport", { canonicalName: "Socket Support", kind: "socket", list: true }],
+  ["supportedsockets", { canonicalName: "Supported Sockets", kind: "socket", list: true }],
+  ["memorytype", { canonicalName: "Memory Type", kind: "memory-type", list: true }],
+  ["ramtype", { canonicalName: "RAM Type", kind: "memory-type", list: true }],
+  ["formfactor", { canonicalName: "Form Factor", kind: "form-factor" }],
+  ["motherboardsupport", { canonicalName: "Motherboard Support", kind: "form-factor", list: true }],
+  ["supportedmotherboards", { canonicalName: "Supported Motherboards", kind: "form-factor", list: true }],
+  ["psuformfactor", { canonicalName: "PSU Form Factor", kind: "psu-form-factor" }],
+  ["psusupport", { canonicalName: "PSU Support", kind: "psu-form-factor", list: true }],
+  ["powersupplysupport", { canonicalName: "Power Supply Support", kind: "psu-form-factor", list: true }],
+  ["supportedpsuformfactors", { canonicalName: "Supported PSU Form Factors", kind: "psu-form-factor", list: true }],
+  ["chipset", { canonicalName: "Chipset", kind: "chipset" }],
+  ["supportedchipsets", { canonicalName: "Supported Chipsets", kind: "chipset", list: true }],
+  ["chipsetsupport", { canonicalName: "Chipset Support", kind: "chipset", list: true }],
+  ["chipsets", { canonicalName: "Chipsets", kind: "chipset", list: true }],
+  ["cpugeneration", { canonicalName: "CPU Generation", kind: "cpu-generation" }],
+  ["processorgeneration", { canonicalName: "Processor Generation", kind: "cpu-generation" }],
+  ["generation", { canonicalName: "Generation", kind: "cpu-generation" }],
+  ["supportedcpugenerations", { canonicalName: "Supported CPU Generations", kind: "cpu-generation", list: true }],
+  ["cpugenerationsupport", { canonicalName: "CPU Generation Support", kind: "cpu-generation", list: true }],
+  ["processorgenerationsupport", { canonicalName: "Processor Generation Support", kind: "cpu-generation", list: true }],
+  ["m2support", { canonicalName: "M.2 Support", kind: "generic" }],
+  ["m2interface", { canonicalName: "M.2 Interface", kind: "generic" }],
+  ["pcieconnectors", { canonicalName: "PCIe Connectors", kind: "generic" }],
+  ["gpuconnectors", { canonicalName: "GPU Connectors", kind: "generic" }],
+  ["graphicspowerconnectors", { canonicalName: "Graphics Power Connectors", kind: "generic" }],
+]);
+
+export function normalizePcBuilderCompatibilityAttributes(
+  attributes: Record<string, string> | null | undefined,
+) {
+  const output: Record<string, string> = { ...(attributes ?? {}) };
+
+  for (const [rawName, rawValue] of Object.entries(attributes ?? {})) {
+    const taxonomy = ATTRIBUTE_TAXONOMY.get(canonicalPcBuilderAttributeName(rawName));
+    if (!taxonomy) continue;
+
+    const value = taxonomy.list
+      ? splitPcBuilderTokens(rawValue, taxonomy.kind).join(" / ")
+      : taxonomy.kind === "generic"
+        ? String(rawValue ?? "").trim()
+        : canonicalPcBuilderToken(rawValue, taxonomy.kind);
+
+    output[taxonomy.canonicalName] = value || String(rawValue ?? "").trim();
+  }
+
+  return output;
+}
