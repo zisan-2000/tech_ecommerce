@@ -51,17 +51,28 @@ async function persistPcBuilderOrderGrouping(
 ) {
   if (!builds.length) return;
 
-  const bySelection = new Map(
-    order.orderItems.flatMap((item) => {
-      const selectionId = pcBuildSelectionId(item);
-      return selectionId ? [[selectionId, item] as const] : [];
-    }),
-  );
+  const selectionQueues = new Map<
+    string,
+    Array<{
+      id: number;
+      productId: number;
+      variantId: number | null;
+      quantity: number;
+    }>
+  >();
+  for (const item of order.orderItems) {
+    const selectionId = pcBuildSelectionId(item);
+    if (!selectionId) continue;
+    const queue = selectionQueues.get(selectionId) ?? [];
+    queue.push(item);
+    selectionQueues.set(selectionId, queue);
+  }
 
   for (const build of builds) {
     for (const [slot, selectionId] of Object.entries(build.selections)) {
       if (!selectionId) continue;
-      const item = bySelection.get(selectionId);
+      const queue = selectionQueues.get(selectionId);
+      const item = queue?.shift();
       if (!item || item.quantity !== 1) {
         throw new Error(
           `PC_BUILDER_GROUPING_ATOMIC_MAPPING_FAILED:${build.buildId}:${selectionId}`,
@@ -156,7 +167,7 @@ export async function POST(request: NextRequest, options: OrderPostOptions = {})
     if (isManualPayment && (typeof image !== "string" || !image.startsWith("/api/upload/paymentScreenshot/") || typeof transactionId !== "string" || !transactionId.trim() || transactionId.trim().length > 128)) return NextResponse.json({ error: "A valid payment screenshot and transaction ID are required" }, { status: 400 });
     for (const item of items) if (!item.productId || !item.quantity || item.quantity <= 0) return NextResponse.json({ error: "Invalid order item(s)" }, { status: 400 });
     const normalizedItems = items.map((item: any) => ({ productId: Number(item.productId), variantId: item.variantId !== undefined && item.variantId !== null ? Number(item.variantId) : null, quantity: Number(item.quantity) }));
-    const productIds = normalizedItems.map((i) => i.productId);
+    const productIds = Array.from(new Set(normalizedItems.map((i) => i.productId)));
     const products = await prisma.product.findMany({ where: { id: { in: productIds }, deleted: false }, include: { VatClass: true, variants: { include: { stockLevels: { include: { warehouse: { select: { id: true, code: true, isDefault: true } } } } }, orderBy: [{ isDefault: "desc" }, { id: "asc" }] } } });
     if (products.length !== productIds.length) return NextResponse.json({ error: "Some products not found" }, { status: 400 });
     let subtotal = 0;
