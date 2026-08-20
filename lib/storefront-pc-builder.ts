@@ -42,6 +42,8 @@ const pcBuilderProductSelect = {
   basePrice: true,
   originalPrice: true,
   currency: true,
+  featured: true,
+  soldCount: true,
   flashSaleEnabled: true,
   flashSalePrice: true,
   flashSaleStartsAt: true,
