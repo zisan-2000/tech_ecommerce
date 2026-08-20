@@ -24,12 +24,13 @@ test("PC Builder raw-SQL tables are represented in the Prisma schema", async () 
   assert.match(schema, /@@index\(\[userId, updatedAt\(sort: Desc\)\]\)/);
 });
 
-test("PC Builder tables are externally managed so migrations cannot recreate them", async () => {
+test("PC Builder tables and CartItem discriminator are externally managed", async () => {
   const config = await read("../prisma.config.ts");
 
   assert.match(config, /schema:\s*"prisma"/);
   assert.match(config, /externalTables:\s*true/);
   for (const table of [
+    "public.CartItem",
     "public.PcBuildCartItem",
     "public.PcBuildOrderItem",
     "public.PcBuilderSavedBuild",
@@ -38,14 +39,22 @@ test("PC Builder tables are externally managed so migrations cannot recreate the
   }
 });
 
-test("Prisma models mirror the already-deployed PC Builder migration tables", async () => {
-  const [grouping, saved] = await Promise.all([
+test("Prisma contracts mirror deployed PC Builder migrations", async () => {
+  const [grouping, saved, sharedVariants] = await Promise.all([
     read("../prisma/migrations/20260820_add_pc_build_grouping/migration.sql"),
     read("../prisma/migrations/20260820_add_pc_builder_saved_builds/migration.sql"),
+    read(
+      "../prisma/migrations/20260820_support_shared_pc_builder_cart_variants/migration.sql",
+    ),
   ]);
 
   assert.match(grouping, /CREATE TABLE "PcBuildCartItem"/);
   assert.match(grouping, /CREATE TABLE "PcBuildOrderItem"/);
   assert.match(saved, /CREATE TABLE "PcBuilderSavedBuild"/);
   assert.match(saved, /CHECK \(jsonb_typeof\("selections"\) = 'object'\)/);
+  assert.match(sharedVariants, /ADD COLUMN "lineKey" VARCHAR\(80\)/);
+  assert.match(
+    sharedVariants,
+    /CartItem_userId_productId_variantId_lineKey_key/,
+  );
 });
