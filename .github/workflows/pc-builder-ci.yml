@@ -1,0 +1,72 @@
+name: PC Builder CI
+
+on:
+  pull_request:
+    paths:
+      - "app/api/pc-builder/**"
+      - "app/api/cart/**"
+      - "app/api/orders/**"
+      - "app/api/products/**"
+      - "components/ecommarce/pc-builder/**"
+      - "lib/pc-builder*.ts"
+      - "lib/storefront-pc-builder.ts"
+      - "lib/warehouse-stock.ts"
+      - "prisma/migrations/**"
+      - "tests/pc-builder*.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".github/workflows/pc-builder-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "app/api/pc-builder/**"
+      - "app/api/cart/**"
+      - "app/api/orders/**"
+      - "app/api/products/**"
+      - "components/ecommarce/pc-builder/**"
+      - "lib/pc-builder*.ts"
+      - "lib/storefront-pc-builder.ts"
+      - "lib/warehouse-stock.ts"
+      - "prisma/migrations/**"
+      - "tests/pc-builder*.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".github/workflows/pc-builder-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pc-builder-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: PC Builder verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run PC Builder tests
+        run: npm run test:pc-builder
+
+      - name: Typecheck
+        run: npm run typecheck
