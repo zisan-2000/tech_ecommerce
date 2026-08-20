@@ -15,6 +15,8 @@ import {
 import {
   PC_BUILDER_CATALOG_PAGE_SIZE,
   normalizePcBuilderCatalogQuery,
+  serializePcBuilderCatalogCursor,
+  type PcBuilderCatalogCursor,
   type PcBuilderCatalogPageResponse,
 } from "@/lib/pc-builder-catalog";
 import { prisma } from "@/lib/prisma";
@@ -174,26 +176,41 @@ function searchWhere(slot: PcBuilderSlotKey, query: string): Prisma.ProductWhere
   };
 }
 
+function cursorWhere(cursor: PcBuilderCatalogCursor): Prisma.ProductWhereInput {
+  const withinFeatured = {
+    featured: cursor.featured,
+    OR: [
+      { soldCount: { lt: cursor.soldCount } },
+      { soldCount: cursor.soldCount, id: { lt: cursor.id } },
+    ],
+  } satisfies Prisma.ProductWhereInput;
+
+  if (!cursor.featured) return withinFeatured;
+  return {
+    OR: [withinFeatured, { featured: false }],
+  };
+}
+
 export async function searchPcBuilderCatalogPage({
   slot,
   query = "",
-  page = 1,
+  cursor = null,
   pageSize = PC_BUILDER_CATALOG_PAGE_SIZE,
 }: {
   slot: PcBuilderSlotKey;
   query?: string;
-  page?: number;
+  cursor?: PcBuilderCatalogCursor | null;
   pageSize?: number;
 }): Promise<PcBuilderCatalogPageResponse> {
   const normalizedQuery = normalizePcBuilderCatalogQuery(query);
+  const baseWhere = searchWhere(slot, normalizedQuery);
   const rows = await prisma.product.findMany({
-    where: searchWhere(slot, normalizedQuery),
+    where: cursor ? { AND: [baseWhere, cursorWhere(cursor)] } : baseWhere,
     orderBy: [
       { featured: "desc" },
       { soldCount: "desc" },
       { id: "desc" },
     ],
-    skip: (page - 1) * pageSize,
     take: pageSize + 1,
     select: pcBuilderProductSelect,
   });
@@ -206,11 +223,17 @@ export async function searchPcBuilderCatalogPage({
       return product ? [product] : [];
     }),
   );
+  const lastRow = hasMore ? pageRows.at(-1) : null;
 
   return {
     items,
-    page,
-    nextPage: hasMore ? page + 1 : null,
+    nextCursor: lastRow
+      ? serializePcBuilderCatalogCursor({
+          featured: lastRow.featured,
+          soldCount: lastRow.soldCount,
+          id: lastRow.id,
+        })
+      : null,
     query: normalizedQuery,
     slot,
   };
@@ -221,7 +244,6 @@ async function readPcBuilderCatalog(): Promise<PcBuilderCatalog> {
     PC_BUILDER_SLOTS.map((slot) =>
       searchPcBuilderCatalogPage({
         slot: slot.key,
-        page: 1,
         pageSize: PC_BUILDER_CATALOG_PAGE_SIZE,
       }),
     ),
