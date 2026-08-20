@@ -55,14 +55,15 @@ test("validation route issues a server build ID only for checkout-ready live bui
 
 test("order route verifies grouped membership and live compatibility before delegating", async () => {
   const { readFile } = await import("node:fs/promises");
-  const source = await readFile(
-    new URL("../app/api/orders/route.ts", import.meta.url),
-    "utf8",
-  );
-  assert.match(source, /PC_BUILDER_CART_CHANGED/);
-  assert.match(source, /PC_BUILD_COMPONENT_QUANTITY_LOCKED/);
-  assert.match(source, /validatePcBuilderSelectionLive/);
-  assert.match(source, /PC_BUILDER_CHECKOUT_REVALIDATION_FAILED/);
-  assert.match(source, /PcBuildOrderItem/);
-  assert.match(source, /corePOST\(coreRequest/);
+  const [wrapper, core] = await Promise.all([
+    readFile(new URL("../app/api/orders/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/orders/route-core.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(wrapper, /PC_BUILDER_CART_CHANGED/);
+  assert.match(wrapper, /PC_BUILD_COMPONENT_QUANTITY_LOCKED/);
+  assert.match(wrapper, /validatePcBuilderSelectionLive/);
+  assert.match(wrapper, /PC_BUILDER_CHECKOUT_REVALIDATION_FAILED/);
+  assert.match(wrapper, /pcBuilderBuilds: matchedBuilds/);
+  assert.match(core, /PcBuildOrderItem/);
+  assert.match(core, /persistPcBuilderOrderGrouping/);
 });
