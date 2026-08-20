@@ -4,6 +4,12 @@ import {
   parsePcBuilderSelectionId,
   type PcBuilderSlotKey,
 } from "@/lib/pc-builder";
+import {
+  PC_BUILDER_CHECKOUT_COOKIE,
+  PC_BUILDER_CHECKOUT_COOKIE_MAX_AGE,
+  createPcBuilderCheckoutManifest,
+  serializePcBuilderCheckoutManifest,
+} from "@/lib/pc-builder-checkout";
 import { rateLimitRequest } from "@/lib/request-security";
 import { validatePcBuilderSelectionLive } from "@/lib/storefront-pc-builder";
 
@@ -64,7 +70,24 @@ export async function POST(request: Request) {
     }
 
     const result = await validatePcBuilderSelectionLive(selections);
-    return NextResponse.json(result, { headers: NO_STORE_HEADERS });
+    const response = NextResponse.json(result, { headers: NO_STORE_HEADERS });
+
+    if (result.missingSlots.length === 0 && result.evaluation.canAddToCart) {
+      const manifest = createPcBuilderCheckoutManifest(selections);
+      response.cookies.set(
+        PC_BUILDER_CHECKOUT_COOKIE,
+        serializePcBuilderCheckoutManifest(manifest),
+        {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: PC_BUILDER_CHECKOUT_COOKIE_MAX_AGE,
+        },
+      );
+    }
+
+    return response;
   } catch (error) {
     console.error("PC Builder live validation failed", error);
     return NextResponse.json(
