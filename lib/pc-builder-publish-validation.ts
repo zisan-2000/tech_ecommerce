@@ -4,7 +4,7 @@ import {
   type PcBuildIssue,
   type PcBuilderProduct,
   type PcBuilderSlotKey,
-} from "./pc-builder-core";
+} from "./pc-builder";
 
 type ProductAttributeRow = {
   value: string;

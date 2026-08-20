@@ -1,9 +1,10 @@
 export * from "./pc-builder-core";
 
 import { evaluateAdvancedPcCompatibility } from "./pc-builder-advanced";
+import { validatePcBuilderPlaceholderReadiness } from "./pc-builder-placeholder-validation";
 import {
   evaluatePcBuild as evaluateBasePcBuild,
-  validatePcBuilderProductReadiness,
+  validatePcBuilderProductReadiness as validateBasePcBuilderProductReadiness,
   type PcBuildIssue,
   type PcBuildEvaluation,
   type PcBuilderProduct,
@@ -11,11 +12,47 @@ import {
   type PcBuilderSlotKey,
 } from "./pc-builder-core";
 
+function issueFingerprint(issue: PcBuildIssue) {
+  return `${issue.code}\n${issue.message}\n${issue.slots.join(",")}`;
+}
+
+function uniqueIssues(issues: PcBuildIssue[]) {
+  const seen = new Set<string>();
+  return issues.filter((issue) => {
+    const fingerprint = issueFingerprint(issue);
+    if (seen.has(fingerprint)) return false;
+    seen.add(fingerprint);
+    return true;
+  });
+}
+
+export function validatePcBuilderProductReadiness(
+  slot: PcBuilderSlotKey,
+  product: PcBuilderProduct,
+): PcBuildIssue[] {
+  return uniqueIssues([
+    ...validateBasePcBuilderProductReadiness(slot, product),
+    ...validatePcBuilderPlaceholderReadiness(slot, product),
+  ]);
+}
+
 export function evaluatePcBuild(
   selection: PcBuilderSelection,
 ): PcBuildEvaluation {
   const base = evaluateBasePcBuild(selection);
-  const issues = [...base.issues, ...evaluateAdvancedPcCompatibility(selection)];
+  const placeholderIssues = Object.entries(selection).flatMap(([slot, product]) =>
+    product
+      ? validatePcBuilderPlaceholderReadiness(
+          slot as PcBuilderSlotKey,
+          product as PcBuilderProduct,
+        )
+      : [],
+  );
+  const issues = uniqueIssues([
+    ...base.issues,
+    ...placeholderIssues,
+    ...evaluateAdvancedPcCompatibility(selection),
+  ]);
   const hasErrors = issues.some((item) => item.severity === "error");
 
   return {
