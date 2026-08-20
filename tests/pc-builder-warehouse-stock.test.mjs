@@ -77,14 +77,18 @@ test("PC Builder storefront reads live warehouse stock without stock caching", a
 
 test("generic cart and order cores use strict warehouse stock for checkout", async () => {
   const { readFile } = await import("node:fs/promises");
-  const [cartCore, orderCore] = await Promise.all([
+  const [cartCore, cartItemCore, orderCore] = await Promise.all([
     readFile(new URL("../app/api/cart/route-core.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/cart/[id]/route-core.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/orders/route-core.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(cartCore, /computeWarehouseAvailableStock/);
   assert.match(cartCore, /stockLevels/);
   assert.doesNotMatch(cartCore, /Number\(targetVariant\.stock\)/);
+  assert.match(cartItemCore, /computeWarehouseAvailableStock/);
+  assert.match(cartItemCore, /stockLevels/);
+  assert.doesNotMatch(cartItemCore, /variant\?\.stock/);
   assert.match(orderCore, /computeWarehouseAvailableStock/);
   assert.match(orderCore, /assertWarehouseDemandAvailable/);
   assert.doesNotMatch(orderCore, /Number\(targetVariant\.stock\)/);
