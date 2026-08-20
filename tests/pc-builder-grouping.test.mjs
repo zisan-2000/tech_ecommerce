@@ -40,7 +40,7 @@ test("checkout state can retain multiple distinct validated builds", () => {
   assert.equal(findPcBuilderBuildMatches(two, "7-8")[0]?.slot, "motherboard");
 });
 
-test("Step 7 routes preserve old cart/order cores and add durable grouping", async () => {
+test("Step 7 routes preserve old cores and add durable occurrence-aware grouping", async () => {
   const [cartRoute, cartItemRoute, orderRoute, orderCore, migration, validationRoute] =
     await Promise.all([
       readFile(new URL("../app/api/cart/route.ts", import.meta.url), "utf8"),
@@ -62,12 +62,15 @@ test("Step 7 routes preserve old cart/order cores and add durable grouping", asy
 
   assert.match(cartRoute, /from "\.\/route-core"/);
   assert.match(cartRoute, /PcBuildCartItem/);
+  assert.match(cartRoute, /pcBuilderCartLineKey/);
   assert.match(cartItemRoute, /PC_BUILD_COMPONENT_QUANTITY_LOCKED/);
   assert.match(cartItemRoute, /removeBuild/);
   assert.match(orderRoute, /validatePcBuilderSelectionLive/);
-  assert.match(orderRoute, /pcBuilderBuilds: matchedBuilds/);
+  assert.match(orderRoute, /matchPcBuilderBuildsToOrderItems/);
+  assert.match(orderRoute, /pcBuilderBuilds: matched\.builds/);
   assert.match(orderCore, /PcBuildOrderItem/);
   assert.match(orderCore, /persistPcBuilderOrderGrouping/);
+  assert.match(orderCore, /selectionQueues/);
   assert.match(validationRoute, /createPcBuildId/);
   assert.match(validationRoute, /buildId/);
   assert.match(migration, /CREATE TABLE "PcBuildCartItem"/);
