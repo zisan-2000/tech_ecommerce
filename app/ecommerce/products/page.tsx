@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Filter, PackageSearch, Search } from "lucide-react";
+import { ChevronDown, Filter, PackageSearch, Search } from "lucide-react";
 import CatalogFilterForm from "@/components/ecommarce/catalog/CatalogFilterForm";
 import CatalogProductGrid from "@/components/ecommarce/catalog/CatalogProductGrid";
 import {
@@ -27,6 +27,43 @@ const SORT_LABELS: Array<{ value: CatalogSort; label: string }> = [
   { value: "price-desc", label: "Price: High to Low" },
   { value: "name-asc", label: "Name: A–Z" },
 ];
+
+/**
+ * Native <details> keeps each filter group collapsible without client state,
+ * which matters because CatalogFilterForm remounts on every filter change -
+ * a useState-based accordion would snap shut on each navigation.
+ */
+function FilterSection({
+  title,
+  badge,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  badge?: number;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details open={defaultOpen} className="group border-b pb-3 last:border-b-0">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-2 text-sm font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
+        <span className="flex items-center gap-2">
+          {title}
+          {badge ? (
+            <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+              {badge}
+            </span>
+          ) : null}
+        </span>
+        <ChevronDown
+          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+          aria-hidden="true"
+        />
+      </summary>
+      <div className="pt-1">{children}</div>
+    </details>
+  );
+}
 
 export async function generateMetadata({
   searchParams,
@@ -208,7 +245,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         </section>
 
         <div className="mt-6 grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="rounded-2xl border bg-card shadow-sm lg:sticky lg:top-24">
+          <aside className="rounded-2xl border bg-card shadow-sm lg:sticky lg:top-[136px] lg:flex lg:max-h-[calc(100vh-152px)] lg:flex-col lg:overflow-hidden">
             <input
               id="catalog-filter-toggle"
               type="checkbox"
@@ -230,7 +267,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               <span className="text-xs font-semibold text-primary">Show / hide</span>
             </label>
 
-            <div className="hidden items-center justify-between border-b px-4 py-4 lg:flex">
+            <div className="hidden shrink-0 items-center justify-between border-b px-4 py-4 lg:flex">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
                 <h2 className="font-bold">Filters</h2>
@@ -252,7 +289,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
             <CatalogFilterForm
               key={catalogUrl(filters)}
-              className="hidden space-y-5 border-t p-4 peer-checked:block lg:block lg:border-t-0"
+              className="hidden border-t p-4 peer-checked:block lg:block lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:border-t-0"
             >
               {activeFilterCount ? (
                 <div className="flex justify-end lg:hidden">
@@ -264,7 +301,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                   </Link>
                 </div>
               ) : null}
-              <label className="block space-y-2 text-sm font-semibold">
+              <label className="mb-4 block space-y-2 text-sm font-semibold">
                 Search
                 <span className="relative block">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -278,12 +315,16 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                 </span>
               </label>
 
-              <label className="block space-y-2 text-sm font-semibold">
-                Category
+              <FilterSection
+                title="Category"
+                defaultOpen
+                badge={filters.category ? 1 : 0}
+              >
                 <select
                   name="category"
                   defaultValue={filters.category}
-                  className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-normal"
+                  aria-label="Category"
+                  className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
                 >
                   <option value="">All categories</option>
                   {facets.categories.map((category) => (
@@ -293,10 +334,13 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     </option>
                   ))}
                 </select>
-              </label>
+              </FilterSection>
 
-              <fieldset className="space-y-2">
-                <legend className="text-sm font-semibold">Brands</legend>
+              <FilterSection
+                title="Brands"
+                defaultOpen
+                badge={filters.brands.length}
+              >
                 <div className="max-h-44 space-y-1 overflow-y-auto pr-1">
                   {facets.brands
                     .filter((brand) => brand.productCount > 0)
@@ -321,14 +365,14 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                       </label>
                     ))}
                 </div>
-              </fieldset>
+              </FilterSection>
 
-              <label className="block space-y-2 text-sm font-semibold">
-                Product type
+              <FilterSection title="Product type" badge={filters.type ? 1 : 0}>
                 <select
                   name="type"
                   defaultValue={filters.type}
-                  className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-normal"
+                  aria-label="Product type"
+                  className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
                 >
                   <option value="">All types</option>
                   {facets.productTypes.map((type) => (
@@ -337,10 +381,15 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     </option>
                   ))}
                 </select>
-              </label>
+              </FilterSection>
 
-              <fieldset className="space-y-2">
-                <legend className="text-sm font-semibold">Price range</legend>
+              <FilterSection
+                title="Price range"
+                defaultOpen
+                badge={
+                  filters.minPrice !== null || filters.maxPrice !== null ? 1 : 0
+                }
+              >
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="number"
@@ -365,38 +414,50 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     className="h-10 rounded-lg border bg-background px-3 text-sm"
                   />
                 </div>
-              </fieldset>
+              </FilterSection>
 
-              <div className="space-y-2 text-sm">
-                <label className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="inStock"
-                    value="1"
-                    defaultChecked={filters.inStock}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  In stock only
-                </label>
-                <label className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="featured"
-                    value="1"
-                    defaultChecked={filters.featured}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  Featured products
-                </label>
-              </div>
+              <FilterSection
+                title="Availability"
+                defaultOpen
+                badge={
+                  [filters.inStock, filters.featured].filter(Boolean).length
+                }
+              >
+                <div className="space-y-2 text-sm">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name="inStock"
+                      value="1"
+                      defaultChecked={filters.inStock}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    In stock only
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name="featured"
+                      value="1"
+                      defaultChecked={filters.featured}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    Featured products
+                  </label>
+                </div>
+              </FilterSection>
 
               {facets.attributes.map((group) => {
                 const selected = filters.attributes[String(group.id)] ?? [];
                 return (
-                  <fieldset key={group.id} className="space-y-2">
-                    <legend className="text-sm font-semibold">
-                      {group.name}
-                    </legend>
+                  // Groups with an active value stay expanded so a selection is
+                  // never hidden behind a collapsed header.
+                  <FilterSection
+                    key={group.id}
+                    title={group.name}
+                    badge={selected.length}
+                    defaultOpen={selected.length > 0}
+                  >
                     <div className="max-h-44 space-y-1 overflow-y-auto pr-1">
                       {group.values.map((entry) => (
                         <label
@@ -419,37 +480,39 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                         </label>
                       ))}
                     </div>
-                  </fieldset>
+                  </FilterSection>
                 );
               })}
 
-              <label className="block space-y-2 text-sm font-semibold">
-                Sort by
-                <select
-                  name="sort"
-                  defaultValue={filters.sort}
-                  className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-normal"
-                >
-                  {SORT_LABELS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="space-y-3 pt-3">
+                <label className="block space-y-2 text-sm font-semibold">
+                  Sort by
+                  <select
+                    name="sort"
+                    defaultValue={filters.sort}
+                    className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-normal"
+                  >
+                    {SORT_LABELS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-              <label className="block space-y-2 text-sm font-semibold">
-                Products per page
-                <select
-                  name="perPage"
-                  defaultValue={String(filters.perPage)}
-                  className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-normal"
-                >
-                  <option value="12">12</option>
-                  <option value="24">24</option>
-                  <option value="36">36</option>
-                </select>
-              </label>
+                <label className="block space-y-2 text-sm font-semibold">
+                  Products per page
+                  <select
+                    name="perPage"
+                    defaultValue={String(filters.perPage)}
+                    className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-normal"
+                  >
+                    <option value="12">12</option>
+                    <option value="24">24</option>
+                    <option value="36">36</option>
+                  </select>
+                </label>
+              </div>
 
             </CatalogFilterForm>
           </aside>
