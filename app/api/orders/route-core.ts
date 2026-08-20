@@ -29,6 +29,54 @@ import {
   orderVariantSelect,
   redactCustomerOrder,
 } from "@/lib/order-public";
+import type { PcBuilderCheckoutBuild } from "@/lib/pc-builder-checkout";
+import { pcBuildSelectionId } from "@/lib/pc-builder-grouping";
+
+type OrderPostOptions = {
+  pcBuilderBuilds?: PcBuilderCheckoutBuild[];
+};
+
+async function persistPcBuilderOrderGrouping(
+  tx: any,
+  order: {
+    id: number;
+    orderItems: Array<{
+      id: number;
+      productId: number;
+      variantId: number | null;
+      quantity: number;
+    }>;
+  },
+  builds: PcBuilderCheckoutBuild[],
+) {
+  if (!builds.length) return;
+
+  const bySelection = new Map(
+    order.orderItems.flatMap((item) => {
+      const selectionId = pcBuildSelectionId(item);
+      return selectionId ? [[selectionId, item] as const] : [];
+    }),
+  );
+
+  for (const build of builds) {
+    for (const [slot, selectionId] of Object.entries(build.selections)) {
+      if (!selectionId) continue;
+      const item = bySelection.get(selectionId);
+      if (!item || item.quantity !== 1) {
+        throw new Error(
+          `PC_BUILDER_GROUPING_ATOMIC_MAPPING_FAILED:${build.buildId}:${selectionId}`,
+        );
+      }
+      await tx.$executeRawUnsafe(
+        'INSERT INTO "PcBuildOrderItem" ("orderItemId", "orderId", "buildId", "slot") VALUES ($1, $2, $3, $4) ON CONFLICT ("orderItemId") DO UPDATE SET "orderId" = EXCLUDED."orderId", "buildId" = EXCLUDED."buildId", "slot" = EXCLUDED."slot"',
+        item.id,
+        order.id,
+        build.buildId,
+        slot,
+      );
+    }
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -78,7 +126,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest, options: OrderPostOptions = {}) {
   try {
     const rateLimit = await rateLimitRequest(request, { scope: "order-create", limit: 12, windowMs: 10 * 60 * 1000 });
     if (!rateLimit.allowed) return NextResponse.json({ error: "Too many checkout attempts. Please try again later." }, { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } });
@@ -139,6 +187,9 @@ export async function POST(request: NextRequest) {
         if (isSSLCOMMERZ) await reserveVariantInventory({ tx, productId: item.product.id, productVariantId: item.variant.id, orderId: o.id, userId: userId ?? null, quantity: item.quantity, reason: `Order #${o.id} SSLCommerz reservation`, expiresAt: new Date(Date.now() + 45 * 60 * 1000) });
         else await deductVariantInventory({ tx, productId: item.product.id, productVariantId: item.variant.id, quantity: item.quantity, reason: `Order #${o.id} checkout deduction` });
       }
+      if (options.pcBuilderBuilds?.length) {
+        await persistPcBuilderOrderGrouping(tx, o, options.pcBuilderBuilds);
+      }
       if (couponResult && discount_total > 0) await claimCouponUsage(tx, couponResult.coupon);
       return o;
     });
@@ -149,6 +200,15 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Error creating order:", error);
     if (error instanceof CouponValidationError) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (typeof error?.message === "string" && error.message.startsWith("PC_BUILDER_GROUPING_ATOMIC_MAPPING_FAILED:")) {
+      return NextResponse.json(
+        {
+          error: "PC Builder order grouping changed during checkout. Validate the build again before placing the order.",
+          code: "PC_BUILDER_ORDER_GROUPING_FAILED",
+        },
+        { status: 409 },
+      );
+    }
     if (typeof error?.message === "string" && (error.message.startsWith("Product") || error.message.startsWith("Insufficient stock") || error.message.startsWith("Inventory") || error.message.startsWith("Variant") || error.message.startsWith("Variant inactive") || error.message.startsWith("Stock changed") || error.message.startsWith("Unable to allocate") || error.message.startsWith("Unable to reserve") || error.message.startsWith("Reservation"))) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
