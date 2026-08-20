@@ -123,7 +123,7 @@ export default function PcBuilderClient({
   const [adding, setAdding] = useState(false);
   const {
     products: activeProducts,
-    nextPage: pickerNextPage,
+    nextCursor: pickerNextCursor,
     loading: pickerLoading,
     loadingMore: pickerLoadingMore,
     error: pickerError,
@@ -501,7 +501,7 @@ export default function PcBuilderClient({
             <>
               <DialogHeader className="border-b px-5 py-4 pr-12">
                 <DialogTitle>Select {PC_BUILDER_SLOTS.find((slot) => slot.key === activeSlot)?.label}</DialogTitle>
-                <DialogDescription>Live catalog results are searched and paginated from the server. Compatible, builder-ready options are shown by default.</DialogDescription>
+                <DialogDescription>Live catalog results are searched and cursor-paginated from the server. Compatible, builder-ready options are shown by default.</DialogDescription>
               </DialogHeader>
               <div className="border-b p-4">
                 <label className="relative block">
@@ -510,13 +510,8 @@ export default function PcBuilderClient({
                   <input value={query} onChange={(event) => setQuery(event.target.value.slice(0, 80))} placeholder="Search by product, brand or specification" className="h-11 w-full rounded-xl border bg-background pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15" />
                 </label>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={compatibleOnly}
-                      onChange={(event) => setCompatibleOnly(event.target.checked)}
-                      className="h-4 w-4 rounded border-border accent-primary"
-                    />
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-muted-foreground">
+                    <input type="checkbox" checked={compatibleOnly} onChange={(event) => setCompatibleOnly(event.target.checked)} className="h-4 w-4 rounded border" />
                     Compatible only
                   </label>
                   <span className="text-xs text-muted-foreground">
@@ -592,7 +587,7 @@ export default function PcBuilderClient({
                     ) : null}
                   </div>
                 )}
-                {pickerNextPage ? (
+                {pickerNextCursor ? (
                   <div className="mt-4 flex justify-center">
                     <button type="button" onClick={loadMorePicker} disabled={pickerLoading || pickerLoadingMore} className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-bold transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50">
                       {pickerLoadingMore ? "Loading more..." : "Load more"}
