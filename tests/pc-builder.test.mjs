@@ -7,6 +7,7 @@ import "./pc-builder-checkout.test.mjs";
 import "./pc-builder-checkout-lifecycle.test.mjs";
 import "./pc-builder-order-grouping-atomic.test.mjs";
 import "./pc-builder-prisma-schema.test.mjs";
+import "./pc-builder-shared-variant-builds.test.mjs";
 import "./pc-builder-candidate.test.mjs";
 import "./pc-builder-grouping.test.mjs";
 import "./pc-builder-saved-build.test.mjs";
