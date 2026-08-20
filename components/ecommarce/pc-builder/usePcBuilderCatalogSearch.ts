@@ -20,14 +20,14 @@ export function usePcBuilderCatalogSearch({
   seed: PcBuilderProduct[];
 }) {
   const [products, setProducts] = useState<PcBuilderProduct[]>([]);
-  const [nextPage, setNextPage] = useState<number | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestSequence = useRef(0);
 
   const fetchPage = useCallback(
-    async (page: number, append: boolean, signal?: AbortSignal) => {
+    async (cursor: string | null, append: boolean, signal?: AbortSignal) => {
       if (!slot) return;
       const requestId = ++requestSequence.current;
       append ? setLoadingMore(true) : setLoading(true);
@@ -36,9 +36,9 @@ export function usePcBuilderCatalogSearch({
       try {
         const params = new URLSearchParams({
           slot,
-          page: String(page),
           limit: "12",
         });
+        if (cursor) params.set("cursor", cursor);
         const normalizedQuery = query.trim();
         if (normalizedQuery) params.set("q", normalizedQuery);
 
@@ -61,7 +61,7 @@ export function usePcBuilderCatalogSearch({
         setProducts((current) =>
           append ? mergeProducts(current, payload.items) : payload.items,
         );
-        setNextPage(payload.nextPage);
+        setNextCursor(payload.nextCursor);
       } catch (caught) {
         if (signal?.aborted || requestId !== requestSequence.current) return;
         setError(caught instanceof Error ? caught.message : "Components could not be loaded.");
@@ -78,7 +78,7 @@ export function usePcBuilderCatalogSearch({
     requestSequence.current += 1;
     if (!slot) {
       setProducts([]);
-      setNextPage(null);
+      setNextCursor(null);
       setError(null);
       setLoading(false);
       setLoadingMore(false);
@@ -86,10 +86,10 @@ export function usePcBuilderCatalogSearch({
     }
 
     setProducts(query.trim() ? [] : seed);
-    setNextPage(null);
+    setNextCursor(null);
     const controller = new AbortController();
     const timer = window.setTimeout(
-      () => void fetchPage(1, false, controller.signal),
+      () => void fetchPage(null, false, controller.signal),
       query.trim() ? 250 : 0,
     );
 
@@ -100,13 +100,13 @@ export function usePcBuilderCatalogSearch({
   }, [fetchPage, query, seed, slot]);
 
   const loadMore = useCallback(() => {
-    if (!slot || !nextPage || loading || loadingMore) return;
-    void fetchPage(nextPage, true);
-  }, [fetchPage, loading, loadingMore, nextPage, slot]);
+    if (!slot || !nextCursor || loading || loadingMore) return;
+    void fetchPage(nextCursor, true);
+  }, [fetchPage, loading, loadingMore, nextCursor, slot]);
 
   return {
     products,
-    nextPage,
+    nextCursor,
     loading,
     loadingMore,
     error,
