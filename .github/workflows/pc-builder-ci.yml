@@ -11,6 +11,8 @@ on:
       - "lib/pc-builder*.ts"
       - "lib/storefront-pc-builder.ts"
       - "lib/warehouse-stock.ts"
+      - "prisma.config.ts"
+      - "prisma/**/*.prisma"
       - "prisma/migrations/**"
       - "tests/pc-builder*.mjs"
       - "package.json"
@@ -29,6 +31,8 @@ on:
       - "lib/pc-builder*.ts"
       - "lib/storefront-pc-builder.ts"
       - "lib/warehouse-stock.ts"
+      - "prisma.config.ts"
+      - "prisma/**/*.prisma"
       - "prisma/migrations/**"
       - "tests/pc-builder*.mjs"
       - "package.json"
@@ -61,6 +65,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
 
       - name: Generate Prisma client
         run: npx prisma generate
