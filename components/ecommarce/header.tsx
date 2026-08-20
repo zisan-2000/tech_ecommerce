@@ -30,6 +30,8 @@ import { useCart } from "@/components/ecommarce/CartContext";
 
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 
+import { useProductCompare } from "@/hooks/use-product-compare";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -551,6 +553,8 @@ export default function Header({
 
   const { wishlistCount } = useWishlist();
 
+  const { count: compareCount, href: compareHref } = useProductCompare();
+
   const [hasMounted, setHasMounted] = useState(false);
 
   const [isPending, setIsPending] = useState(false);
@@ -1031,12 +1035,14 @@ export default function Header({
           <div className="flex shrink-0 items-center gap-2 sm:gap-5">
             {HEADER_SHOP_ACTIONS.map((action) => {
               const ActionIcon = action.icon;
+              const actionHref =
+                action.id === "compare" ? compareHref : action.href;
 
               return (
                 <Link
                   key={action.id}
-                  href={action.href}
-                  className={`${desktopActionClass} ${
+                  href={actionHref}
+                  className={`${desktopActionClass} relative ${
                     action.id === "pc-builder" ? "lg:hidden xl:flex" : ""
                   }`}
                   aria-label={`${action.label}: ${action.description}`}
@@ -1044,6 +1050,13 @@ export default function Header({
                 >
                   <ActionIcon className="h-5 w-5" aria-hidden="true" />
                   <span>{action.label}</span>
+                  {action.id === "compare" &&
+                  hasMounted &&
+                  compareCount > 0 ? (
+                    <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground shadow-sm">
+                      {compareCount}
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}
@@ -1588,13 +1601,15 @@ export default function Header({
                 <div className="grid grid-cols-3 gap-2">
                   {HEADER_SHOP_ACTIONS.map((action) => {
                     const ActionIcon = action.icon;
+                    const actionHref =
+                      action.id === "compare" ? compareHref : action.href;
 
                     return (
                       <Link
                         key={action.id}
-                        href={action.href}
+                        href={actionHref}
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card px-2 py-3 text-center text-foreground shadow-sm transition hover:border-primary/40 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="relative flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card px-2 py-3 text-center text-foreground shadow-sm transition hover:border-primary/40 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         aria-label={`${action.label}: ${action.description}`}
                       >
                         <ActionIcon
@@ -1604,6 +1619,13 @@ export default function Header({
                         <span className="text-[11px] font-bold leading-tight">
                           {action.label}
                         </span>
+                        {action.id === "compare" &&
+                        hasMounted &&
+                        compareCount > 0 ? (
+                          <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground shadow-sm">
+                            {compareCount}
+                          </span>
+                        ) : null}
                       </Link>
                     );
                   })}

@@ -34,6 +34,19 @@ test("desktop and mobile render the same shortcut contract", async () => {
   );
 });
 
+test("compare shortcut uses live compare state and renders badges", async () => {
+  const header = await read("components/ecommarce/header.tsx");
+  const dynamicHrefCount =
+    header.match(/action\.id === "compare" \? compareHref : action\.href/g)
+      ?.length ?? 0;
+  const badgeCount = header.match(/compareCount > 0/g)?.length ?? 0;
+
+  assert.match(header, /useProductCompare/);
+  assert.match(header, /count: compareCount, href: compareHref/);
+  assert.equal(dynamicHrefCount, 2);
+  assert.equal(badgeCount, 2);
+});
+
 test("shortcut destination pages exist", async () => {
   await Promise.all([
     access(new URL("app/ecommerce/flash-sale/page.tsx", root)),
