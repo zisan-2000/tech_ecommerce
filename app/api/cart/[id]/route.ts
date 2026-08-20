@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import {
+  PC_BUILDER_CHECKOUT_COOKIE,
+  PC_BUILDER_CHECKOUT_COOKIE_MAX_AGE,
+  parsePcBuilderCheckoutCookie,
+  removePcBuilderCheckoutBuild,
+  serializePcBuilderCheckoutState,
+} from "@/lib/pc-builder-checkout";
 import { prisma } from "@/lib/prisma";
 import { DELETE as coreDELETE, PATCH as corePATCH } from "./route-core";
 
@@ -10,10 +17,11 @@ type CartBuildMapRow = {
   slot: string;
 };
 
-async function getMapping(cartItemId: number) {
+async function getMapping(cartItemId: number, userId: string) {
   const rows = await prisma.$queryRawUnsafe<CartBuildMapRow[]>(
-    'SELECT "cartItemId", "buildId", "slot" FROM "PcBuildCartItem" WHERE "cartItemId" = $1 LIMIT 1',
+    'SELECT m."cartItemId", m."buildId", m."slot" FROM "PcBuildCartItem" m INNER JOIN "CartItem" c ON c."id" = m."cartItemId" WHERE m."cartItemId" = $1 AND c."userId" = $2 LIMIT 1',
     cartItemId,
+    userId,
   );
   return rows[0] ?? null;
 }
@@ -33,6 +41,42 @@ async function removeBuild(userId: string, buildId: string) {
   return ids.length;
 }
 
+function syncCheckoutCookieAfterBuildRemoval(
+  request: NextRequest,
+  response: NextResponse,
+  buildId: string,
+) {
+  const currentState = parsePcBuilderCheckoutCookie(
+    request.cookies.get(PC_BUILDER_CHECKOUT_COOKIE)?.value,
+  );
+  if (!currentState) return response;
+
+  const nextState = removePcBuilderCheckoutBuild(currentState, buildId);
+  if (nextState.builds.length === 0) {
+    response.cookies.set(PC_BUILDER_CHECKOUT_COOKIE, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    });
+    return response;
+  }
+
+  response.cookies.set(
+    PC_BUILDER_CHECKOUT_COOKIE,
+    serializePcBuilderCheckoutState(nextState),
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: PC_BUILDER_CHECKOUT_COOKIE_MAX_AGE,
+    },
+  );
+  return response;
+}
+
 export async function PATCH(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> },
@@ -48,7 +92,7 @@ export async function PATCH(
     return corePATCH(requestForCore, { params: Promise.resolve({ id }) });
   }
 
-  const mapping = await getMapping(cartItemId);
+  const mapping = await getMapping(cartItemId, userId);
   if (!mapping) {
     return corePATCH(requestForCore, { params: Promise.resolve({ id }) });
   }
@@ -63,11 +107,15 @@ export async function PATCH(
 
   if (quantity <= 0) {
     const removedCount = await removeBuild(userId, mapping.buildId);
-    return NextResponse.json({
-      message: "PC build removed",
-      pcBuildId: mapping.buildId,
-      removedCount,
-    });
+    return syncCheckoutCookieAfterBuildRemoval(
+      request,
+      NextResponse.json({
+        message: "PC build removed",
+        pcBuildId: mapping.buildId,
+        removedCount,
+      }),
+      mapping.buildId,
+    );
   }
 
   if (quantity !== 1) {
@@ -96,15 +144,19 @@ export async function DELETE(
     return coreDELETE(request, { params: Promise.resolve({ id }) });
   }
 
-  const mapping = await getMapping(cartItemId);
+  const mapping = await getMapping(cartItemId, userId);
   if (!mapping) {
     return coreDELETE(request, { params: Promise.resolve({ id }) });
   }
 
   const removedCount = await removeBuild(userId, mapping.buildId);
-  return NextResponse.json({
-    message: "PC build removed",
-    pcBuildId: mapping.buildId,
-    removedCount,
-  });
+  return syncCheckoutCookieAfterBuildRemoval(
+    request,
+    NextResponse.json({
+      message: "PC build removed",
+      pcBuildId: mapping.buildId,
+      removedCount,
+    }),
+    mapping.buildId,
+  );
 }
