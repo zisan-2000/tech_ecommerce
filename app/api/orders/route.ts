@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import {
   PC_BUILDER_CHECKOUT_COOKIE,
   parsePcBuilderCheckoutCookie,
@@ -40,41 +39,6 @@ function selectedItemMap(items: Array<Record<string, unknown>>) {
     if (selectionId) result.set(selectionId, item);
   }
   return result;
-}
-
-async function persistOrderBuildGrouping(
-  orderId: number,
-  builds: PcBuilderCheckoutBuild[],
-) {
-  const orderItems = await prisma.orderItem.findMany({
-    where: { orderId },
-    select: { id: true, productId: true, variantId: true, quantity: true },
-  });
-  const bySelection = new Map(
-    orderItems.flatMap((item) => {
-      const selectionId = pcBuildSelectionId(item);
-      return selectionId ? [[selectionId, item] as const] : [];
-    }),
-  );
-
-  for (const build of builds) {
-    for (const [slot, selectionId] of Object.entries(build.selections)) {
-      if (!selectionId) continue;
-      const item = bySelection.get(selectionId);
-      if (!item || item.quantity !== 1) {
-        throw new Error(
-          `PC build ${build.buildId} could not be mapped to order item ${selectionId}.`,
-        );
-      }
-      await prisma.$executeRawUnsafe(
-        'INSERT INTO "PcBuildOrderItem" ("orderItemId", "orderId", "buildId", "slot") VALUES ($1, $2, $3, $4) ON CONFLICT ("orderItemId") DO UPDATE SET "orderId" = EXCLUDED."orderId", "buildId" = EXCLUDED."buildId", "slot" = EXCLUDED."slot"',
-        item.id,
-        orderId,
-        build.buildId,
-        slot,
-      );
-    }
-  }
 }
 
 export async function POST(request: NextRequest) {
@@ -178,22 +142,10 @@ export async function POST(request: NextRequest) {
     matchedBuilds.push(build);
   }
 
-  const response = await corePOST(coreRequest(request, rawBody));
+  const response = await corePOST(coreRequest(request, rawBody), {
+    pcBuilderBuilds: matchedBuilds,
+  });
   if (!response.ok) return response;
-
-  if (matchedBuilds.length) {
-    const payload = (await response.clone().json().catch(() => null)) as
-      | { id?: number }
-      | null;
-    const orderId = Number(payload?.id);
-    if (Number.isInteger(orderId) && orderId > 0) {
-      try {
-        await persistOrderBuildGrouping(orderId, matchedBuilds);
-      } catch (error) {
-        console.error("PC Builder order grouping persistence failed", error);
-      }
-    }
-  }
 
   return clearPcBuilderCheckoutCookie(response);
 }
