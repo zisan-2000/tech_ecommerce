@@ -7,6 +7,7 @@ import {
   parseSharedBuild,
   selectionFromIds,
   serializeSharedBuild,
+  validatePcBuilderProductReadiness,
 } from "../lib/pc-builder.ts";
 import { parseProductAttributeInput } from "../lib/product-attribute-input.ts";
 
@@ -77,6 +78,65 @@ test("a complete compatible build is checkout-ready with PSU headroom", () => {
   assert.equal(result.canAddToCart, true);
   assert.equal(result.estimatedWattage, 425);
   assert.equal(result.recommendedPsuWattage, 600);
+});
+
+test("every selected PC component must have the compatibility specs its slot depends on", () => {
+  const build = compatibleBuild();
+
+  for (const [slot, product] of Object.entries(build)) {
+    assert.deepEqual(validatePcBuilderProductReadiness(slot, product), []);
+  }
+});
+
+test("slot readiness rejects missing, ambiguous and unsupported critical specs", () => {
+  const build = compatibleBuild();
+  delete build.processor.attributes.Socket;
+  build.processor.attributes.TDP = "120 BTU";
+  build.processor.attributes["Integrated Graphics"] = "Maybe";
+  build.case.attributes["Max GPU Length"] = "12 cubits";
+  build.motherboard.attributes["Form Factor"] = "Unknown";
+
+  const processorCodes = new Set(
+    validatePcBuilderProductReadiness("processor", build.processor).map(
+      (item) => item.code,
+    ),
+  );
+  const caseCodes = new Set(
+    validatePcBuilderProductReadiness("case", build.case).map(
+      (item) => item.code,
+    ),
+  );
+  const motherboardCodes = new Set(
+    validatePcBuilderProductReadiness("motherboard", build.motherboard).map(
+      (item) => item.code,
+    ),
+  );
+
+  assert.equal(processorCodes.has("pc-builder-spec-processor-socket"), true);
+  assert.equal(processorCodes.has("pc-builder-spec-processor-tdp"), true);
+  assert.equal(
+    processorCodes.has("pc-builder-spec-processor-integrated-graphics"),
+    true,
+  );
+  assert.equal(caseCodes.has("pc-builder-spec-case-max-gpu-length"), true);
+  assert.equal(
+    motherboardCodes.has("pc-builder-spec-motherboard-form-factor"),
+    true,
+  );
+});
+
+test("readiness fails closed even when an optional counterpart hides a missing CPU fact", () => {
+  const build = compatibleBuild();
+  build.processor.attributes["Cooler Included"] = "Unknown";
+
+  const result = evaluatePcBuild(build);
+  const codes = new Set(result.issues.map((item) => item.code));
+
+  assert.equal(result.canAddToCart, false);
+  assert.equal(
+    codes.has("pc-builder-spec-processor-cooler-included"),
+    true,
+  );
 });
 
 test("socket, memory, case clearance and PSU conflicts block checkout", () => {
@@ -298,6 +358,20 @@ test("cart submission performs an uncached live validation first", async () => {
   assert.match(validationRoute, /rateLimitRequest/);
   assert.match(validationRoute, /validatePcBuilderSelectionLive/);
   assert.match(validationRoute, /private, no-store/);
+});
+
+test("component picker disables products that are not PC-Builder-ready", async () => {
+  const client = await readFile(
+    new URL(
+      "../components/ecommarce/pc-builder/PcBuilderClient.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(client, /validatePcBuilderProductReadiness/);
+  assert.match(client, /product\.stock < 1 \|\| notBuilderReady/);
+  assert.match(client, /Missing required specs/);
 });
 
 test("demo catalog includes every required PC component category", async () => {

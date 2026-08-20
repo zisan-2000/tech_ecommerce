@@ -43,6 +43,7 @@ import {
   parseSharedBuild,
   selectionFromIds,
   serializeSharedBuild,
+  validatePcBuilderProductReadiness,
   type PcBuildEvaluation,
   type PcBuilderCatalog,
   type PcBuilderProduct,
@@ -165,7 +166,12 @@ export default function PcBuilderClient({
   const totalCurrency = selectedProducts[0]?.currency ?? "BDT";
   const unavailableRequiredSlots = PC_BUILDER_SLOTS.filter(
     (slot) =>
-      slot.required && !catalog[slot.key].some((product) => product.stock > 0),
+      slot.required &&
+      !catalog[slot.key].some(
+        (product) =>
+          product.stock > 0 &&
+          validatePcBuilderProductReadiness(slot.key, product).length === 0,
+      ),
   );
   const activeProducts = activeSlot ? catalog[activeSlot] : [];
   const filteredProducts = useMemo(() => {
@@ -358,7 +364,7 @@ export default function PcBuilderClient({
               This builder cannot be completed right now
             </p>
             <p className="mt-1 text-muted-foreground">
-              No in-stock options are available for: {unavailableRequiredSlots
+              No in-stock, PC-Builder-ready options are available for: {unavailableRequiredSlots
                 .map((slot) => slot.label)
                 .join(", ")}.
             </p>
@@ -513,6 +519,13 @@ export default function PcBuilderClient({
                   <div className="grid gap-3 md:grid-cols-2">
                     {filteredProducts.map((product) => {
                       const candidate = evaluatePcBuild({ ...selection, [activeSlot]: product });
+                      const readinessIssues = validatePcBuilderProductReadiness(
+                        activeSlot,
+                        product,
+                      );
+                      const notBuilderReady = readinessIssues.some(
+                        (item) => item.severity === "error",
+                      );
                       const relevant = candidate.issues.filter((item) => item.slots.includes(activeSlot));
                       const incompatible = relevant.some((item) => item.severity === "error");
                       return (
@@ -534,8 +547,8 @@ export default function PcBuilderClient({
                           </div>
                           {relevant.length ? <p className={`mt-3 text-xs ${incompatible ? "text-destructive" : "text-amber-700 dark:text-amber-400"}`}>{relevant[0].message}</p> : <p className="mt-3 flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400"><Check className="h-3.5 w-3.5" aria-hidden="true" /> Compatible with current selection</p>}
                           <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-                            <button type="button" onClick={() => choose(activeSlot, product)} disabled={product.stock < 1} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40">
-                              Select component <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                            <button type="button" onClick={() => choose(activeSlot, product)} disabled={product.stock < 1 || notBuilderReady} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40">
+                              {notBuilderReady ? "Missing required specs" : "Select component"} <ChevronRight className="h-4 w-4" aria-hidden="true" />
                             </button>
                             <Link href={`/ecommerce/products/${product.id}`} className="inline-flex h-10 items-center justify-center rounded-lg border px-3 text-xs font-bold hover:border-primary hover:text-primary">Details</Link>
                           </div>

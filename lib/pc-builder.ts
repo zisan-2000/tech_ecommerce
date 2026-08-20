@@ -106,6 +106,135 @@ export type PcBuildEvaluation = {
 
 const REQUIRED_SLOTS = PC_BUILDER_SLOTS.filter((slot) => slot.required);
 
+type PcBuilderRequiredSpecKind =
+  | "token"
+  | "token-list"
+  | "boolean"
+  | "watt"
+  | "length-mm";
+
+type PcBuilderRequiredSpec = {
+  code: string;
+  label: string;
+  names: string[];
+  kind: PcBuilderRequiredSpecKind;
+};
+
+export const PC_BUILDER_REQUIRED_SPECS: Partial<
+  Record<PcBuilderSlotKey, PcBuilderRequiredSpec[]>
+> = {
+  processor: [
+    {
+      code: "socket",
+      label: "CPU socket",
+      names: ["Socket", "CPU Socket"],
+      kind: "token",
+    },
+    {
+      code: "tdp",
+      label: "processor TDP",
+      names: ["TDP", "Power Draw"],
+      kind: "watt",
+    },
+    {
+      code: "integrated-graphics",
+      label: "integrated graphics",
+      names: ["Integrated Graphics", "iGPU"],
+      kind: "boolean",
+    },
+    {
+      code: "cooler-included",
+      label: "included cooler",
+      names: ["Cooler Included", "Stock Cooler"],
+      kind: "boolean",
+    },
+  ],
+  motherboard: [
+    {
+      code: "socket",
+      label: "CPU socket",
+      names: ["Socket", "CPU Socket"],
+      kind: "token",
+    },
+    {
+      code: "memory-type",
+      label: "memory type",
+      names: ["Memory Type", "RAM Type"],
+      kind: "token",
+    },
+    {
+      code: "form-factor",
+      label: "motherboard form factor",
+      names: ["Form Factor"],
+      kind: "token",
+    },
+  ],
+  memory: [
+    {
+      code: "memory-type",
+      label: "memory type",
+      names: ["Memory Type", "RAM Type"],
+      kind: "token",
+    },
+  ],
+  graphics: [
+    {
+      code: "power-draw",
+      label: "graphics-card power draw",
+      names: ["Power Draw", "Board Power", "TDP"],
+      kind: "watt",
+    },
+    {
+      code: "gpu-length",
+      label: "graphics-card length",
+      names: ["GPU Length", "Card Length"],
+      kind: "length-mm",
+    },
+  ],
+  powerSupply: [
+    {
+      code: "wattage",
+      label: "power-supply wattage",
+      names: ["Wattage", "Power", "Capacity"],
+      kind: "watt",
+    },
+  ],
+  case: [
+    {
+      code: "motherboard-support",
+      label: "supported motherboard form factors",
+      names: ["Motherboard Support", "Supported Motherboards"],
+      kind: "token-list",
+    },
+    {
+      code: "max-gpu-length",
+      label: "maximum GPU length",
+      names: ["Max GPU Length", "Maximum GPU Length"],
+      kind: "length-mm",
+    },
+    {
+      code: "max-cooler-height",
+      label: "maximum CPU-cooler height",
+      names: ["Max Cooler Height", "Maximum Cooler Height"],
+      kind: "length-mm",
+    },
+  ],
+  cooler: [
+    {
+      code: "socket-support",
+      label: "supported CPU sockets",
+      names: ["Socket Support", "Supported Sockets"],
+      kind: "token-list",
+    },
+    {
+      code: "cooler-height",
+      label: "CPU-cooler height",
+      names: ["Cooler Height", "Height"],
+      kind: "length-mm",
+    },
+  ],
+};
+
 function normalized(value: string | null | undefined) {
   return String(value ?? "")
     .trim()
@@ -156,10 +285,19 @@ function parseMeasurement(value: string, kind: MeasurementKind) {
     return null;
   }
 
-  if (!unit || ["mm", "millimeter", "millimeters", "millimetre", "millimetres"].includes(unit)) {
+  if (
+    !unit ||
+    ["mm", "millimeter", "millimeters", "millimetre", "millimetres"].includes(
+      unit,
+    )
+  ) {
     return amount;
   }
-  if (["cm", "centimeter", "centimeters", "centimetre", "centimetres"].includes(unit)) {
+  if (
+    ["cm", "centimeter", "centimeters", "centimetre", "centimetres"].includes(
+      unit,
+    )
+  ) {
     return amount * 10;
   }
   if (["m", "meter", "meters", "metre", "metres"].includes(unit)) {
@@ -225,6 +363,31 @@ function supported(supportedValues: string, selectedValue: string) {
     .some((value) => value === selected);
 }
 
+const INVALID_COMPATIBILITY_TOKENS = new Set([
+  "unknown",
+  "na",
+  "none",
+  "notavailable",
+  "notapplicable",
+  "tbd",
+  "unspecified",
+]);
+
+function validCompatibilityToken(value: string) {
+  const token = canonicalCompatibilityToken(value);
+  return Boolean(
+    token &&
+      /[a-z0-9]/i.test(token) &&
+      !INVALID_COMPATIBILITY_TOKENS.has(token),
+  );
+}
+
+function hasSupportedTokens(value: string) {
+  return value
+    .split(/[,;/|\n]+|\s+and\s+/i)
+    .some(validCompatibilityToken);
+}
+
 function validSelectionId(value: string) {
   return value
     .split("-")
@@ -238,6 +401,45 @@ function issue(
   slots: PcBuilderSlotKey[],
 ): PcBuildIssue {
   return { code, severity, message, slots };
+}
+
+export function validatePcBuilderProductReadiness(
+  slot: PcBuilderSlotKey,
+  product: PcBuilderProduct,
+): PcBuildIssue[] {
+  const requirements = PC_BUILDER_REQUIRED_SPECS[slot] ?? [];
+
+  return requirements.flatMap((requirement) => {
+    const rawValue = readAttribute(product, requirement.names);
+    let valid = false;
+
+    if (requirement.kind === "token") {
+      valid = validCompatibilityToken(rawValue);
+    } else if (requirement.kind === "token-list") {
+      valid = hasSupportedTokens(rawValue);
+    } else if (requirement.kind === "boolean") {
+      valid = booleanAttribute(product, requirement.names) !== null;
+    } else if (requirement.kind === "watt") {
+      valid = numericAttribute(product, requirement.names, "watt") !== null;
+    } else if (requirement.kind === "length-mm") {
+      valid = numericAttribute(product, requirement.names, "length-mm") !== null;
+    }
+
+    if (valid) return [];
+
+    const problem = rawValue
+      ? "has an invalid or unsupported"
+      : "is missing a";
+
+    return [
+      issue(
+        `pc-builder-spec-${slot}-${requirement.code}`,
+        "error",
+        `${product.name} ${problem} ${requirement.label} specification required by PC Builder.`,
+        [slot],
+      ),
+    ];
+  });
 }
 
 export function evaluatePcBuild(
@@ -274,6 +476,9 @@ export function evaluatePcBuild(
           [slot],
         ),
       );
+    }
+    if (product) {
+      issues.push(...validatePcBuilderProductReadiness(slot, product));
     }
   }
 
@@ -579,7 +784,11 @@ export function evaluatePcBuild(
         "insufficient-power-supply",
         "error",
         `${Math.round(psuWattage)}W PSU is below the recommended ${recommendedPsuWattage}W capacity.`,
-        ["powerSupply", "processor", ...(graphics ? (["graphics"] as const) : [])],
+        [
+          "powerSupply",
+          "processor",
+          ...(graphics ? (["graphics"] as const) : []),
+        ],
       ),
     );
   }
