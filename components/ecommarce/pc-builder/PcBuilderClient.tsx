@@ -36,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { usePcBuilderCatalogSearch } from "@/components/ecommarce/pc-builder/usePcBuilderCatalogSearch";
 import {
   PC_BUILDER_SLOTS,
   PC_BUILDER_STORAGE_KEY,
@@ -44,7 +45,6 @@ import {
   parseSharedBuild,
   selectionFromIds,
   serializeSharedBuild,
-  validatePcBuilderProductReadiness,
   type PcBuildEvaluation,
   type PcBuilderCatalog,
   type PcBuilderProduct,
@@ -121,6 +121,18 @@ export default function PcBuilderClient({
   const [compatibleOnly, setCompatibleOnly] = useState(true);
   const [restored, setRestored] = useState(false);
   const [adding, setAdding] = useState(false);
+  const {
+    products: activeProducts,
+    nextPage: pickerNextPage,
+    loading: pickerLoading,
+    loadingMore: pickerLoadingMore,
+    error: pickerError,
+    loadMore: loadMorePicker,
+  } = usePcBuilderCatalogSearch({
+    slot: activeSlot,
+    query,
+    seed: activeSlot ? catalog[activeSlot] : catalog.processor,
+  });
 
   useEffect(() => {
     let ids: Partial<Record<PcBuilderSlotKey, string | number>> = {};
@@ -166,18 +178,7 @@ export default function PcBuilderClient({
   );
   const total = selectedProducts.reduce((sum, product) => sum + product.price, 0);
   const totalCurrency = selectedProducts[0]?.currency ?? "BDT";
-  const unavailableRequiredSlots = PC_BUILDER_SLOTS.filter(
-    (slot) =>
-      slot.required &&
-      !catalog[slot.key].some(
-        (product) =>
-          product.stock > 0 &&
-          validatePcBuilderProductReadiness(slot.key, product).length === 0,
-      ),
-  );
-  const activeProducts = activeSlot ? catalog[activeSlot] : [];
   const filteredProducts = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
     return activeProducts.filter((product) => {
       if (activeSlot && compatibleOnly) {
         const candidate = evaluatePcBuilderCandidate(
@@ -187,22 +188,9 @@ export default function PcBuilderClient({
         );
         if (!candidate.builderReady || !candidate.compatible) return false;
       }
-
-      if (!normalizedQuery) return true;
-      return [
-        product.name,
-        product.brand,
-        product.sku,
-        product.variantSku,
-        product.variantLabel,
-        ...Object.values(product.attributes),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery);
+      return true;
     });
-  }, [activeProducts, activeSlot, compatibleOnly, query, selection]);
+  }, [activeProducts, activeSlot, compatibleOnly, selection]);
 
   const choose = (slot: PcBuilderSlotKey, product: PcBuilderProduct) => {
     setSelection((current) => ({ ...current, [slot]: product }));
@@ -379,15 +367,6 @@ export default function PcBuilderClient({
           </div>
         </div>
 
-        {unavailableRequiredSlots.length > 0 ? (
-          <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm">
-            <p className="font-bold text-destructive">This builder cannot be completed right now</p>
-            <p className="mt-1 text-muted-foreground">
-              No in-stock, PC-Builder-ready options are available for: {unavailableRequiredSlots.map((slot) => slot.label).join(", ")}.
-            </p>
-          </div>
-        ) : null}
-
         {PC_BUILDER_SLOTS.map((slot, index) => {
           const product = selection[slot.key];
           const SlotIcon = SLOT_ICONS[slot.key];
@@ -522,13 +501,13 @@ export default function PcBuilderClient({
             <>
               <DialogHeader className="border-b px-5 py-4 pr-12">
                 <DialogTitle>Select {PC_BUILDER_SLOTS.find((slot) => slot.key === activeSlot)?.label}</DialogTitle>
-                <DialogDescription>Compatible, builder-ready options are shown by default. Turn off the filter to inspect blocked items.</DialogDescription>
+                <DialogDescription>Live catalog results are searched and paginated from the server. Compatible, builder-ready options are shown by default.</DialogDescription>
               </DialogHeader>
               <div className="border-b p-4">
                 <label className="relative block">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                   <span className="sr-only">Search components</span>
-                  <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by product, brand or specification" className="h-11 w-full rounded-xl border bg-background pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15" />
+                  <input value={query} onChange={(event) => setQuery(event.target.value.slice(0, 80))} placeholder="Search by product, brand or specification" className="h-11 w-full rounded-xl border bg-background pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15" />
                 </label>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-foreground">
@@ -541,12 +520,19 @@ export default function PcBuilderClient({
                     Compatible only
                   </label>
                   <span className="text-xs text-muted-foreground">
-                    Showing {filteredProducts.length} of {activeProducts.length}
+                    {pickerLoading ? "Searching live catalog..." : `Showing ${filteredProducts.length} compatible of ${activeProducts.length} loaded`}
                   </span>
                 </div>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                {filteredProducts.length ? (
+                {pickerError ? (
+                  <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                    {pickerError} Try changing the search or reopen this component picker.
+                  </div>
+                ) : null}
+                {pickerLoading && activeProducts.length === 0 ? (
+                  <div className="py-16 text-center text-sm text-muted-foreground">Loading components...</div>
+                ) : filteredProducts.length ? (
                   <div className="grid gap-3 md:grid-cols-2">
                     {filteredProducts.map((product) => {
                       const candidateStatus = evaluatePcBuilderCandidate(
@@ -598,7 +584,7 @@ export default function PcBuilderClient({
                   <div className="py-16 text-center">
                     <Search className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
                     <h3 className="mt-3 font-bold">No matching components</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{compatibleOnly ? "No compatible, builder-ready options match the current selection and search." : "Try another search or add products to this category from the admin panel."}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{compatibleOnly ? "No compatible, builder-ready options are in the loaded pages yet." : "No live catalog products match this search."}</p>
                     {compatibleOnly ? (
                       <button type="button" onClick={() => setCompatibleOnly(false)} className="mt-4 inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs font-bold transition hover:border-primary hover:text-primary">
                         Show all components
@@ -606,6 +592,13 @@ export default function PcBuilderClient({
                     ) : null}
                   </div>
                 )}
+                {pickerNextPage ? (
+                  <div className="mt-4 flex justify-center">
+                    <button type="button" onClick={loadMorePicker} disabled={pickerLoading || pickerLoadingMore} className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-bold transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50">
+                      {pickerLoadingMore ? "Loading more..." : "Load more"}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </>
           ) : null}

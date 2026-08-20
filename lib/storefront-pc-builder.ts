@@ -13,6 +13,11 @@ import {
   type PcBuilderSelection,
   type PcBuilderSlotKey,
 } from "@/lib/pc-builder";
+import {
+  PC_BUILDER_CATALOG_PAGE_SIZE,
+  normalizePcBuilderCatalogQuery,
+  type PcBuilderCatalogPageResponse,
+} from "@/lib/pc-builder-catalog";
 import { prisma } from "@/lib/prisma";
 
 export type PcBuilderCatalogResult = {
@@ -117,43 +122,114 @@ function projectProduct(
   };
 }
 
+function searchWhere(slot: PcBuilderSlotKey, query: string): Prisma.ProductWhereInput {
+  const slotDefinition = PC_BUILDER_SLOTS.find((item) => item.key === slot);
+  if (!slotDefinition) return { id: -1 };
+
+  const normalizedQuery = normalizePcBuilderCatalogQuery(query);
+  return {
+    deleted: false,
+    available: true,
+    type: "PHYSICAL",
+    category: { slug: slotDefinition.categorySlug, deleted: false },
+    variants: { some: { active: true } },
+    ...(normalizedQuery
+      ? {
+          OR: [
+            { name: { contains: normalizedQuery, mode: "insensitive" } },
+            { sku: { contains: normalizedQuery, mode: "insensitive" } },
+            {
+              brand: {
+                is: { name: { contains: normalizedQuery, mode: "insensitive" } },
+              },
+            },
+            {
+              variants: {
+                some: {
+                  active: true,
+                  sku: { contains: normalizedQuery, mode: "insensitive" },
+                },
+              },
+            },
+            {
+              attributes: {
+                some: {
+                  OR: [
+                    { value: { contains: normalizedQuery, mode: "insensitive" } },
+                    {
+                      attribute: {
+                        name: { contains: normalizedQuery, mode: "insensitive" },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+}
+
+export async function searchPcBuilderCatalogPage({
+  slot,
+  query = "",
+  page = 1,
+  pageSize = PC_BUILDER_CATALOG_PAGE_SIZE,
+}: {
+  slot: PcBuilderSlotKey;
+  query?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<PcBuilderCatalogPageResponse> {
+  const normalizedQuery = normalizePcBuilderCatalogQuery(query);
+  const rows = await prisma.product.findMany({
+    where: searchWhere(slot, normalizedQuery),
+    orderBy: [
+      { featured: "desc" },
+      { soldCount: "desc" },
+      { id: "desc" },
+    ],
+    skip: (page - 1) * pageSize,
+    take: pageSize + 1,
+    select: pcBuilderProductSelect,
+  });
+
+  const hasMore = rows.length > pageSize;
+  const pageRows = hasMore ? rows.slice(0, pageSize) : rows;
+  const items = pageRows.flatMap((row) =>
+    row.variants.flatMap((variant) => {
+      const product = projectProduct(row, variant);
+      return product ? [product] : [];
+    }),
+  );
+
+  return {
+    items,
+    page,
+    nextPage: hasMore ? page + 1 : null,
+    query: normalizedQuery,
+    slot,
+  };
+}
+
 const readPcBuilderCatalog = unstable_cache(
   async (): Promise<PcBuilderCatalog> => {
-    const slotRows = await Promise.all(
+    const firstPages = await Promise.all(
       PC_BUILDER_SLOTS.map((slot) =>
-        prisma.product.findMany({
-          where: {
-            deleted: false,
-            available: true,
-            type: "PHYSICAL",
-            category: { slug: slot.categorySlug, deleted: false },
-          },
-          orderBy: [
-            { featured: "desc" },
-            { soldCount: "desc" },
-            { id: "desc" },
-          ],
-          take: 40,
-          select: pcBuilderProductSelect,
+        searchPcBuilderCatalogPage({
+          slot: slot.key,
+          page: 1,
+          pageSize: PC_BUILDER_CATALOG_PAGE_SIZE,
         }),
       ),
     );
 
     const catalog = emptyCatalog();
-    for (const [slotIndex, rows] of slotRows.entries()) {
-      const slot = PC_BUILDER_SLOTS[slotIndex].key;
-      for (const row of rows) {
-        for (const variant of row.variants) {
-          if (catalog[slot].length >= 40) break;
-          const product = projectProduct(row, variant);
-          if (product) catalog[slot].push(product);
-        }
-        if (catalog[slot].length >= 40) break;
-      }
-    }
+    for (const page of firstPages) catalog[page.slot] = page.items;
     return catalog;
   },
-  ["storefront-pc-builder-v3"],
+  ["storefront-pc-builder-v4"],
   { revalidate: 60, tags: ["products", "pc-builder"] },
 );
 

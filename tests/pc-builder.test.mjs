@@ -5,3 +5,4 @@ import "./pc-builder-checkout.test.mjs";
 import "./pc-builder-candidate.test.mjs";
 import "./pc-builder-grouping.test.mjs";
 import "./pc-builder-saved-build.test.mjs";
+import "./pc-builder-catalog.test.mjs";
