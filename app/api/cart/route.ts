@@ -6,7 +6,9 @@ import {
   PC_BUILDER_CHECKOUT_COOKIE,
   findPcBuilderBuildMatches,
   parsePcBuilderCheckoutCookie,
+  type PcBuilderCheckoutBuild,
 } from "@/lib/pc-builder-checkout";
+import { pcBuilderCartLineKey } from "@/lib/pc-builder-cart-line";
 import { pcBuildSelectionId } from "@/lib/pc-builder-grouping";
 import { validatePcBuilderSelectionLive } from "@/lib/storefront-pc-builder";
 import {
@@ -23,10 +25,71 @@ type CartBuildMapRow = {
   slot: string;
 };
 
+type BuildMatch = {
+  build: PcBuilderCheckoutBuild;
+  slot: string;
+};
+
+type CartItemRow = {
+  id: number;
+  quantity: number;
+  productId: number;
+  variantId: number | null;
+};
+
 async function getCartBuildMapping(cartItemId: number) {
   const rows = await prisma.$queryRawUnsafe<CartBuildMapRow[]>(
     'SELECT "cartItemId", "buildId", "slot" FROM "PcBuildCartItem" WHERE "cartItemId" = $1 LIMIT 1',
     cartItemId,
+  );
+  return rows[0] ?? null;
+}
+
+async function buildSlotAlreadyMapped(
+  userId: string,
+  buildId: string,
+  slot: string,
+) {
+  const rows = await prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(
+    'SELECT EXISTS (SELECT 1 FROM "PcBuildCartItem" m INNER JOIN "CartItem" c ON c."id" = m."cartItemId" WHERE c."userId" = $1 AND m."buildId" = $2 AND m."slot" = $3) AS "exists"',
+    userId,
+    buildId,
+    slot,
+  );
+  return Boolean(rows[0]?.exists);
+}
+
+async function chooseBuildMatch(
+  userId: string,
+  matches: BuildMatch[],
+  requestedBuildId: string | null,
+) {
+  if (requestedBuildId) {
+    const exact = matches.find((match) => match.build.buildId === requestedBuildId);
+    if (exact) return exact;
+  }
+
+  for (const match of matches) {
+    if (!(await buildSlotAlreadyMapped(userId, match.build.buildId, match.slot))) {
+      return match;
+    }
+  }
+
+  return matches.at(-1) ?? null;
+}
+
+async function findBuildCartRow(
+  userId: string,
+  productId: number,
+  variantId: number,
+  lineKey: string,
+) {
+  const rows = await prisma.$queryRawUnsafe<CartItemRow[]>(
+    'SELECT "id", "quantity", "productId", "variantId" FROM "CartItem" WHERE "userId" = $1 AND "productId" = $2 AND "variantId" = $3 AND "lineKey" = $4 LIMIT 1',
+    userId,
+    productId,
+    variantId,
+    lineKey,
   );
   return rows[0] ?? null;
 }
@@ -90,18 +153,24 @@ export async function POST(request: NextRequest) {
 
   const matches = findPcBuilderBuildMatches(state, selectionId);
   if (matches.length === 0) return corePOST(requestForCore);
-  if (matches.length > 1) {
+
+  const requestedBuildId =
+    typeof body.pcBuildId === "string" ? body.pcBuildId.trim() : null;
+  const match = await chooseBuildMatch(
+    userId,
+    matches as BuildMatch[],
+    requestedBuildId,
+  );
+  if (!match) {
     return NextResponse.json(
       {
-        error:
-          "This component belongs to more than one active validated PC build. Checkout or remove one build first.",
-        code: "PC_BUILDER_CART_GROUPING_AMBIGUOUS",
+        error: "No available PC Builder cart line could be resolved safely.",
+        code: "PC_BUILDER_CART_LINE_UNAVAILABLE",
       },
       { status: 409 },
     );
   }
 
-  const match = matches[0];
   const liveBuild = await validatePcBuilderSelectionLive(match.build.selections);
   if (liveBuild.missingSlots.length > 0 || !liveBuild.evaluation.canAddToCart) {
     return NextResponse.json(
@@ -119,11 +188,25 @@ export async function POST(request: NextRequest) {
 
   const productId = Number(body.productId);
   const variantId = Number(body.variantId);
-  const existing = await prisma.cartItem.findFirst({
-    where: { userId, productId, variantId },
-    select: { id: true, quantity: true, productId: true, variantId: true },
-  });
+  if (!Number.isInteger(productId) || productId < 1 || !Number.isInteger(variantId) || variantId < 1) {
+    return NextResponse.json(
+      { error: "PC Builder requires an exact product variant." },
+      { status: 400 },
+    );
+  }
 
+  const lineKey = pcBuilderCartLineKey(match.build.buildId);
+  if (!lineKey) {
+    return NextResponse.json(
+      {
+        error: "PC Builder cart identity is invalid.",
+        code: "PC_BUILDER_CART_LINE_UNAVAILABLE",
+      },
+      { status: 409 },
+    );
+  }
+
+  const existing = await findBuildCartRow(userId, productId, variantId, lineKey);
   if (existing) {
     const mapping = await getCartBuildMapping(existing.id);
     if (
@@ -140,39 +223,29 @@ export async function POST(request: NextRequest) {
         { status: 201 },
       );
     }
-
-    return NextResponse.json(
-      {
-        error:
-          "This component already exists in the cart outside this PC build. Remove the existing row before adding the validated build.",
-        code: "PC_BUILDER_CART_GROUP_CONFLICT",
-      },
-      { status: 409 },
-    );
   }
 
-  const response = await corePOST(requestForCore);
-  if (!response.ok) return response;
-  const created = (await response.clone().json().catch(() => null)) as
-    | { id?: number; quantity?: number }
-    | null;
-  const cartItemId = Number(created?.id);
-  if (!Number.isInteger(cartItemId) || cartItemId < 1 || Number(created?.quantity) !== 1) {
-    return NextResponse.json(
-      {
-        error: "PC build cart grouping could not be persisted safely.",
-        code: "PC_BUILDER_CART_GROUPING_FAILED",
-      },
-      { status: 500 },
+  const created = await prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRawUnsafe<CartItemRow[]>(
+      'INSERT INTO "CartItem" ("userId", "productId", "variantId", "quantity", "lineKey") VALUES ($1, $2, $3, 1, $4) ON CONFLICT ("userId", "productId", "variantId", "lineKey") DO UPDATE SET "quantity" = 1 RETURNING "id", "quantity", "productId", "variantId"',
+      userId,
+      productId,
+      variantId,
+      lineKey,
     );
-  }
+    const row = rows[0];
+    if (!row) {
+      throw new Error("PC_BUILDER_CART_LINE_INSERT_FAILED");
+    }
 
-  await prisma.$executeRawUnsafe(
-    'INSERT INTO "PcBuildCartItem" ("cartItemId", "buildId", "slot") VALUES ($1, $2, $3) ON CONFLICT ("cartItemId") DO UPDATE SET "buildId" = EXCLUDED."buildId", "slot" = EXCLUDED."slot"',
-    cartItemId,
-    match.build.buildId,
-    match.slot,
-  );
+    await tx.$executeRawUnsafe(
+      'INSERT INTO "PcBuildCartItem" ("cartItemId", "buildId", "slot") VALUES ($1, $2, $3) ON CONFLICT ("cartItemId") DO UPDATE SET "buildId" = EXCLUDED."buildId", "slot" = EXCLUDED."slot"',
+      row.id,
+      match.build.buildId,
+      match.slot,
+    );
+    return row;
+  });
 
   return NextResponse.json(
     {
