@@ -41,11 +41,12 @@ test("checkout state can retain multiple distinct validated builds", () => {
 });
 
 test("Step 7 routes preserve old cart/order cores and add durable grouping", async () => {
-  const [cartRoute, cartItemRoute, orderRoute, migration, validationRoute] =
+  const [cartRoute, cartItemRoute, orderRoute, orderCore, migration, validationRoute] =
     await Promise.all([
       readFile(new URL("../app/api/cart/route.ts", import.meta.url), "utf8"),
       readFile(new URL("../app/api/cart/[id]/route.ts", import.meta.url), "utf8"),
       readFile(new URL("../app/api/orders/route.ts", import.meta.url), "utf8"),
+      readFile(new URL("../app/api/orders/route-core.ts", import.meta.url), "utf8"),
       readFile(
         new URL(
           "../prisma/migrations/20260820_add_pc_build_grouping/migration.sql",
@@ -63,8 +64,10 @@ test("Step 7 routes preserve old cart/order cores and add durable grouping", asy
   assert.match(cartRoute, /PcBuildCartItem/);
   assert.match(cartItemRoute, /PC_BUILD_COMPONENT_QUANTITY_LOCKED/);
   assert.match(cartItemRoute, /removeBuild/);
-  assert.match(orderRoute, /PcBuildOrderItem/);
   assert.match(orderRoute, /validatePcBuilderSelectionLive/);
+  assert.match(orderRoute, /pcBuilderBuilds: matchedBuilds/);
+  assert.match(orderCore, /PcBuildOrderItem/);
+  assert.match(orderCore, /persistPcBuilderOrderGrouping/);
   assert.match(validationRoute, /createPcBuildId/);
   assert.match(validationRoute, /buildId/);
   assert.match(migration, /CREATE TABLE "PcBuildCartItem"/);
