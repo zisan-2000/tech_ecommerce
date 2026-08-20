@@ -31,6 +31,7 @@ import {
 } from "@/lib/order-public";
 import type { PcBuilderCheckoutBuild } from "@/lib/pc-builder-checkout";
 import { pcBuildSelectionId } from "@/lib/pc-builder-grouping";
+import { computeWarehouseAvailableStock } from "@/lib/warehouse-stock";
 
 type OrderPostOptions = {
   pcBuilderBuilds?: PcBuilderCheckoutBuild[];
@@ -85,6 +86,42 @@ async function persistPcBuilderOrderGrouping(
         build.buildId,
         slot,
       );
+    }
+  }
+}
+
+function assertWarehouseDemandAvailable(
+  items: Array<{
+    quantity: number;
+    product: { type: string; name: string };
+    variant: {
+      id: number;
+      stockLevels?: Array<{ quantity: number; reserved: number }> | null;
+    };
+  }>,
+) {
+  const demand = new Map<
+    number,
+    { required: number; available: number; productName: string }
+  >();
+
+  for (const item of items) {
+    if (item.product.type !== "PHYSICAL") continue;
+    const available = computeWarehouseAvailableStock(item.variant);
+    if (available === null) {
+      throw new Error(`Inventory not configured for: ${item.product.name}`);
+    }
+    const current = demand.get(item.variant.id);
+    demand.set(item.variant.id, {
+      required: (current?.required ?? 0) + item.quantity,
+      available,
+      productName: item.product.name,
+    });
+  }
+
+  for (const value of demand.values()) {
+    if (value.available < value.required) {
+      throw new Error(`Insufficient stock for: ${value.productName}`);
     }
   }
 }
@@ -179,11 +216,11 @@ export async function POST(request: NextRequest, options: OrderPostOptions = {})
       if (!targetVariant) throw new Error(`Inventory not configured for: ${product.name}`);
       if (!targetVariant.active) throw new Error(`Variant inactive for: ${product.name}`);
       if (item.variantId !== null && targetVariant.productId !== product.id) throw new Error(`Variant mismatch for: ${product.name}`);
-      if (product.type === "PHYSICAL" && Number(targetVariant.stock) < item.quantity) throw new Error(`Insufficient stock for: ${product.name}`);
       const priceNumber = resolveFlashSalePricing(product, targetVariant.price ?? product.basePrice).salePrice;
       subtotal += priceNumber * item.quantity;
       return { productId: product.id, variantId: targetVariant.id, quantity: item.quantity, price: priceNumber, currency: String(targetVariant.currency || product.currency || "BDT"), vatClassId: product.VatClass?.id ?? null, vatClassName: product.VatClass?.name ?? null, vatClassCode: product.VatClass?.code ?? null, product, variant: targetVariant };
     });
+    assertWarehouseDemandAvailable(orderItemsData);
     const shippingQuote = await calculateShippingQuote({ country: String(country), district: String(district), area: String(area), subtotal });
     const taxQuote = await calculateTaxForItems(prisma, { country: String(country), district: String(district), currency: orderItemsData[0]?.currency || "BDT", items: orderItemsData.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity, unitPrice: item.price, currency: item.currency, vatClassId: item.vatClassId, vatClassName: item.vatClassName, vatClassCode: item.vatClassCode })) });
     const shipping_cost = shippingQuote.shippingCost;
