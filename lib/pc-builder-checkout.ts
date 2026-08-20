@@ -23,6 +23,15 @@ const VALID_SLOT_KEYS = new Set<PcBuilderSlotKey>(
   PC_BUILDER_SLOTS.map((slot) => slot.key),
 );
 
+function selectionFingerprint(
+  selections: Partial<Record<PcBuilderSlotKey, string>>,
+) {
+  return PC_BUILDER_SLOTS.flatMap((slot) => {
+    const selectionId = selections[slot.key];
+    return selectionId ? [`${slot.key}:${selectionId}`] : [];
+  }).join("|");
+}
+
 export function parsePcBuilderCheckoutBuild(
   input: unknown,
 ): PcBuilderCheckoutBuild | null {
@@ -89,9 +98,24 @@ export function appendPcBuilderCheckoutBuild(
   build: PcBuilderCheckoutBuild,
 ) {
   const previous = state?.builds ?? [];
-  const withoutSame = previous.filter((item) => item.buildId !== build.buildId);
+  const fingerprint = selectionFingerprint(build.selections);
+  const withoutSame = previous.filter(
+    (item) =>
+      item.buildId !== build.buildId &&
+      selectionFingerprint(item.selections) !== fingerprint,
+  );
   if (withoutSame.length >= PC_BUILDER_CHECKOUT_MAX_BUILDS) return null;
   return { version: 2 as const, builds: [...withoutSame, build] };
+}
+
+export function removePcBuilderCheckoutBuild(
+  state: PcBuilderCheckoutState | null,
+  buildId: string,
+): PcBuilderCheckoutState {
+  return {
+    version: 2,
+    builds: (state?.builds ?? []).filter((build) => build.buildId !== buildId),
+  };
 }
 
 export function serializePcBuilderCheckoutState(state: PcBuilderCheckoutState) {
