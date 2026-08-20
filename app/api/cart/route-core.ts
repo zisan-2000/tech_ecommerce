@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { applyFlashSalePricingToProduct } from '@/lib/flash-sale';
+import { computeWarehouseAvailableStock } from '@/lib/warehouse-stock';
 
 async function findStandardCartItem(
   userId: string,
@@ -20,6 +21,12 @@ async function findStandardCartItem(
   return id
     ? prisma.cartItem.findUnique({ where: { id } })
     : null;
+}
+
+function warehouseStockOrUnavailable(variant: {
+  stockLevels?: Array<{ quantity: number; reserved: number }> | null;
+}) {
+  return computeWarehouseAvailableStock(variant);
 }
 
 // GET cart items - Logged in user only
@@ -120,6 +127,11 @@ export async function POST(request: NextRequest) {
       where: { id: productId },
       include: {
         variants: {
+          include: {
+            stockLevels: {
+              select: { quantity: true, reserved: true },
+            },
+          },
           orderBy: { isDefault: 'desc' },
         },
         bundleItems: {
@@ -127,6 +139,11 @@ export async function POST(request: NextRequest) {
             product: {
               include: {
                 variants: {
+                  include: {
+                    stockLevels: {
+                      select: { quantity: true, reserved: true },
+                    },
+                  },
                   orderBy: { isDefault: 'desc' },
                 },
               },
@@ -153,13 +170,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check bundle stock based on child products
       let derivedBundleStock = Number.POSITIVE_INFINITY;
 
       for (const bundleItem of product.bundleItems) {
         const childProduct = bundleItem.product;
         const childVariant = childProduct.variants.find(v => v.isDefault) || childProduct.variants[0];
-        
+
         if (!childVariant) {
           return NextResponse.json(
             { error: `Bundle item "${childProduct.name}" has no inventory configured` },
@@ -167,8 +183,15 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        const availableStock = warehouseStockOrUnavailable(childVariant);
+        if (availableStock === null) {
+          return NextResponse.json(
+            { error: `Bundle item "${childProduct.name}" has no warehouse inventory configured` },
+            { status: 400 }
+          );
+        }
+
         const requiredQuantity = bundleItem.quantity * quantity;
-        const availableStock = Number(childVariant.stock);
         const maxBundlesForItem = Math.floor(availableStock / bundleItem.quantity);
         derivedBundleStock = Math.min(derivedBundleStock, maxBundlesForItem);
 
@@ -198,21 +221,33 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // For bundles, we don't need variant validation - use null variantId
       const existing = await findStandardCartItem(userId, productId, null);
 
       let cartItem;
 
       if (existing) {
         const nextQuantity = existing.quantity + quantity;
-        
-        // Re-check bundle stock for updated quantity
+
         let updatedDerivedBundleStock = Number.POSITIVE_INFINITY;
         for (const bundleItem of product.bundleItems) {
           const childProduct = bundleItem.product;
           const childVariant = childProduct.variants.find(v => v.isDefault) || childProduct.variants[0];
+          if (!childVariant) {
+            return NextResponse.json(
+              { error: `Bundle item "${childProduct.name}" has no inventory configured` },
+              { status: 400 }
+            );
+          }
+
+          const availableStock = warehouseStockOrUnavailable(childVariant);
+          if (availableStock === null) {
+            return NextResponse.json(
+              { error: `Bundle item "${childProduct.name}" has no warehouse inventory configured` },
+              { status: 400 }
+            );
+          }
+
           const requiredQuantity = bundleItem.quantity * nextQuantity;
-          const availableStock = Number(childVariant.stock);
           const maxBundlesForItem = Math.floor(availableStock / bundleItem.quantity);
           updatedDerivedBundleStock = Math.min(updatedDerivedBundleStock, maxBundlesForItem);
 
@@ -224,19 +259,19 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const bundleStockLimit =
+        const updatedBundleStockLimit =
           product.bundleStockLimit !== null && product.bundleStockLimit !== undefined
             ? Number(product.bundleStockLimit)
             : null;
-        const effectiveBundleStock =
-          bundleStockLimit !== null
-            ? Math.min(updatedDerivedBundleStock, bundleStockLimit)
+        const updatedEffectiveBundleStock =
+          updatedBundleStockLimit !== null
+            ? Math.min(updatedDerivedBundleStock, updatedBundleStockLimit)
             : updatedDerivedBundleStock;
 
-        if (nextQuantity > effectiveBundleStock) {
+        if (nextQuantity > updatedEffectiveBundleStock) {
           return NextResponse.json(
             {
-              error: `Requested bundle quantity exceeds available bundle stock. Available: ${effectiveBundleStock}`,
+              error: `Requested bundle quantity exceeds available bundle stock. Available: ${updatedEffectiveBundleStock}`,
             },
             { status: 400 }
           );
@@ -253,7 +288,7 @@ export async function POST(request: NextRequest) {
           data: {
             userId,
             productId,
-            variantId: null, // Bundles don't use variants
+            variantId: null,
             quantity,
           },
         });
@@ -290,7 +325,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (product.type === 'PHYSICAL' && Number(targetVariant.stock) < quantity) {
+    const availableStock = warehouseStockOrUnavailable(targetVariant);
+    if (product.type === 'PHYSICAL' && availableStock === null) {
+      return NextResponse.json(
+        { error: 'Warehouse inventory is not configured for the selected variant' },
+        { status: 400 }
+      );
+    }
+    if (product.type === 'PHYSICAL' && Number(availableStock) < quantity) {
       return NextResponse.json(
         { error: 'Requested quantity exceeds available stock' },
         { status: 400 }
@@ -307,7 +349,7 @@ export async function POST(request: NextRequest) {
 
     if (existing) {
       const nextQuantity = existing.quantity + quantity;
-      if (product.type === 'PHYSICAL' && Number(targetVariant.stock) < nextQuantity) {
+      if (product.type === 'PHYSICAL' && Number(availableStock) < nextQuantity) {
         return NextResponse.json(
           { error: 'Requested quantity exceeds available stock' },
           { status: 400 }
