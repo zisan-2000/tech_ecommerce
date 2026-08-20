@@ -11,6 +11,7 @@ import {
 import { pcBuilderCartLineKey } from "@/lib/pc-builder-cart-line";
 import { pcBuildSelectionId } from "@/lib/pc-builder-grouping";
 import { validatePcBuilderSelectionLive } from "@/lib/storefront-pc-builder";
+import { computeWarehouseAvailableStock } from "@/lib/warehouse-stock";
 import {
   DELETE as coreDELETE,
   GET as coreGET,
@@ -225,34 +226,72 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const created = await prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRawUnsafe<CartItemRow[]>(
-      'INSERT INTO "CartItem" ("userId", "productId", "variantId", "quantity", "lineKey") VALUES ($1, $2, $3, 1, $4) ON CONFLICT ("userId", "productId", "variantId", "lineKey") DO UPDATE SET "quantity" = 1 RETURNING "id", "quantity", "productId", "variantId"',
-      userId,
-      productId,
-      variantId,
-      lineKey,
+  try {
+    const created = await prisma.$transaction(async (tx) => {
+      const inventoryVariant = await tx.productVariant.findFirst({
+        where: {
+          id: variantId,
+          productId,
+          active: true,
+          product: { deleted: false, available: true, type: "PHYSICAL" },
+        },
+        select: {
+          stockLevels: {
+            select: { quantity: true, reserved: true },
+          },
+        },
+      });
+      const available = inventoryVariant
+        ? computeWarehouseAvailableStock(inventoryVariant)
+        : null;
+      if (available === null || available < 1) {
+        throw new Error("PC_BUILDER_WAREHOUSE_STOCK_UNAVAILABLE");
+      }
+
+      const rows = await tx.$queryRawUnsafe<CartItemRow[]>(
+        'INSERT INTO "CartItem" ("userId", "productId", "variantId", "quantity", "lineKey") VALUES ($1, $2, $3, 1, $4) ON CONFLICT ("userId", "productId", "variantId", "lineKey") DO UPDATE SET "quantity" = 1 RETURNING "id", "quantity", "productId", "variantId"',
+        userId,
+        productId,
+        variantId,
+        lineKey,
+      );
+      const row = rows[0];
+      if (!row) {
+        throw new Error("PC_BUILDER_CART_LINE_INSERT_FAILED");
+      }
+
+      await tx.$executeRawUnsafe(
+        'INSERT INTO "PcBuildCartItem" ("cartItemId", "buildId", "slot") VALUES ($1, $2, $3) ON CONFLICT ("cartItemId") DO UPDATE SET "buildId" = EXCLUDED."buildId", "slot" = EXCLUDED."slot"',
+        row.id,
+        match.build.buildId,
+        match.slot,
+      );
+      return row;
+    });
+
+    return NextResponse.json(
+      {
+        ...created,
+        pcBuildId: match.build.buildId,
+        pcBuildSlot: match.slot,
+      },
+      { status: 201 },
     );
-    const row = rows[0];
-    if (!row) {
-      throw new Error("PC_BUILDER_CART_LINE_INSERT_FAILED");
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "PC_BUILDER_WAREHOUSE_STOCK_UNAVAILABLE"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This PC build component has no live warehouse stock. Refresh the build before adding it to cart.",
+          code: "PC_BUILDER_CART_REVALIDATION_FAILED",
+          buildId: match.build.buildId,
+        },
+        { status: 409 },
+      );
     }
-
-    await tx.$executeRawUnsafe(
-      'INSERT INTO "PcBuildCartItem" ("cartItemId", "buildId", "slot") VALUES ($1, $2, $3) ON CONFLICT ("cartItemId") DO UPDATE SET "buildId" = EXCLUDED."buildId", "slot" = EXCLUDED."slot"',
-      row.id,
-      match.build.buildId,
-      match.slot,
-    );
-    return row;
-  });
-
-  return NextResponse.json(
-    {
-      ...created,
-      pcBuildId: match.build.buildId,
-      pcBuildSlot: match.slot,
-    },
-    { status: 201 },
-  );
+    throw error;
+  }
 }
