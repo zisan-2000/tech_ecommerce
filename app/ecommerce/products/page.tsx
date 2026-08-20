@@ -84,6 +84,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     filters.minPrice !== null || filters.maxPrice !== null,
     filters.inStock,
     filters.featured,
+    ...Object.values(filters.attributes).map((values) => values.length > 0),
   ].filter(Boolean).length;
   const activeFilterLinks: Array<{ key: string; label: string; href: string }> = [];
   if (filters.q) {
@@ -125,6 +126,24 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       label: `Price: ${filters.minPrice ?? 0}–${filters.maxPrice ?? "Any"}`,
       href: catalogUrl(filters, { minPrice: null, maxPrice: null, page: 1 }),
     });
+  }
+  for (const group of facets.attributes) {
+    for (const value of filters.attributes[String(group.id)] ?? []) {
+      const rest = (filters.attributes[String(group.id)] ?? []).filter(
+        (item) => item !== value,
+      );
+      const nextAttributes = { ...filters.attributes };
+      if (rest.length) {
+        nextAttributes[String(group.id)] = rest;
+      } else {
+        delete nextAttributes[String(group.id)];
+      }
+      activeFilterLinks.push({
+        key: `attr-${group.id}-${value}`,
+        label: `${group.name}: ${value}`,
+        href: catalogUrl(filters, { attributes: nextAttributes, page: 1 }),
+      });
+    }
   }
   if (filters.inStock) {
     activeFilterLinks.push({
@@ -370,6 +389,39 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                   Featured products
                 </label>
               </div>
+
+              {facets.attributes.map((group) => {
+                const selected = filters.attributes[String(group.id)] ?? [];
+                return (
+                  <fieldset key={group.id} className="space-y-2">
+                    <legend className="text-sm font-semibold">
+                      {group.name}
+                    </legend>
+                    <div className="max-h-44 space-y-1 overflow-y-auto pr-1">
+                      {group.values.map((entry) => (
+                        <label
+                          key={entry.value}
+                          className="flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            <input
+                              type="checkbox"
+                              name={`attr_${group.id}`}
+                              value={entry.value}
+                              defaultChecked={selected.includes(entry.value)}
+                              className="h-4 w-4 rounded border-border accent-primary"
+                            />
+                            <span className="truncate">{entry.value}</span>
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {entry.productCount}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                );
+              })}
 
               <label className="block space-y-2 text-sm font-semibold">
                 Sort by
