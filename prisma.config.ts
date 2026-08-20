@@ -11,6 +11,7 @@ export default {
   },
   tables: {
     external: [
+      "public.CartItem",
       "public.PcBuildCartItem",
       "public.PcBuildOrderItem",
       "public.PcBuilderSavedBuild",
