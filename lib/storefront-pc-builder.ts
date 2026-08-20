@@ -1,6 +1,5 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
 import type { Prisma } from "@/generated/prisma";
 import { resolveFlashSalePricing } from "@/lib/flash-sale";
 import {
@@ -19,6 +18,7 @@ import {
   type PcBuilderCatalogPageResponse,
 } from "@/lib/pc-builder-catalog";
 import { prisma } from "@/lib/prisma";
+import { computeVariantAvailableStock } from "@/lib/warehouse-stock";
 
 export type PcBuilderCatalogResult = {
   catalog: PcBuilderCatalog;
@@ -64,6 +64,9 @@ const pcBuilderProductSelect = {
       stock: true,
       options: true,
       isDefault: true,
+      stockLevels: {
+        select: { quantity: true, reserved: true },
+      },
     },
   },
 } satisfies Prisma.ProductSelect;
@@ -118,7 +121,7 @@ function projectProduct(
     variantId: variant.id,
     variantSku: variant.sku,
     variantLabel: variantLabel(variant.options, variant.sku),
-    stock: Math.max(0, variant.stock),
+    stock: computeVariantAvailableStock(variant),
   };
 }
 
@@ -213,25 +216,21 @@ export async function searchPcBuilderCatalogPage({
   };
 }
 
-const readPcBuilderCatalog = unstable_cache(
-  async (): Promise<PcBuilderCatalog> => {
-    const firstPages = await Promise.all(
-      PC_BUILDER_SLOTS.map((slot) =>
-        searchPcBuilderCatalogPage({
-          slot: slot.key,
-          page: 1,
-          pageSize: PC_BUILDER_CATALOG_PAGE_SIZE,
-        }),
-      ),
-    );
+async function readPcBuilderCatalog(): Promise<PcBuilderCatalog> {
+  const firstPages = await Promise.all(
+    PC_BUILDER_SLOTS.map((slot) =>
+      searchPcBuilderCatalogPage({
+        slot: slot.key,
+        page: 1,
+        pageSize: PC_BUILDER_CATALOG_PAGE_SIZE,
+      }),
+    ),
+  );
 
-    const catalog = emptyCatalog();
-    for (const page of firstPages) catalog[page.slot] = page.items;
-    return catalog;
-  },
-  ["storefront-pc-builder-v4"],
-  { revalidate: 60, tags: ["products", "pc-builder"] },
-);
+  const catalog = emptyCatalog();
+  for (const page of firstPages) catalog[page.slot] = page.items;
+  return catalog;
+}
 
 export async function validatePcBuilderSelectionLive(
   ids: Partial<Record<PcBuilderSlotKey, string>>,
