@@ -8,6 +8,7 @@ import {
   parsePcBuilderCheckoutCookie,
 } from "@/lib/pc-builder-checkout";
 import { pcBuildSelectionId } from "@/lib/pc-builder-grouping";
+import { validatePcBuilderSelectionLive } from "@/lib/storefront-pc-builder";
 import {
   DELETE as coreDELETE,
   GET as coreGET,
@@ -101,6 +102,21 @@ export async function POST(request: NextRequest) {
   }
 
   const match = matches[0];
+  const liveBuild = await validatePcBuilderSelectionLive(match.build.selections);
+  if (liveBuild.missingSlots.length > 0 || !liveBuild.evaluation.canAddToCart) {
+    return NextResponse.json(
+      {
+        error:
+          "This PC build is no longer cart-ready. Review current warehouse stock and compatibility before adding it again.",
+        code: "PC_BUILDER_CART_REVALIDATION_FAILED",
+        buildId: match.build.buildId,
+        missingSlots: liveBuild.missingSlots,
+        issues: liveBuild.evaluation.issues,
+      },
+      { status: 409 },
+    );
+  }
+
   const productId = Number(body.productId);
   const variantId = Number(body.variantId);
   const existing = await prisma.cartItem.findFirst({
