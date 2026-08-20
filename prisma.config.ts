@@ -1,4 +1,7 @@
+import nextEnv from "@next/env";
 import type { PrismaConfig } from "prisma";
+
+nextEnv.loadEnvConfig(process.cwd());
 
 export default {
   schema: "prisma",
