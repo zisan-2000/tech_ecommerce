@@ -145,7 +145,7 @@ test("critical compatibility metadata must be complete before checkout", () => {
 test("common technical formatting aliases do not create false conflicts", () => {
   const build = compatibleBuild();
   build.processor.attributes.Socket = "AM-5";
-  build.motherboard.attributes.Socket = "AM5";
+  build.motherboard.attributes.Socket = "AM5 (LGA1718)";
   build.motherboard.attributes["Form Factor"] = "Micro ATX";
   build.case.attributes["Motherboard Support"] = "Micro-ATX, Mini-ITX";
 
@@ -153,6 +153,69 @@ test("common technical formatting aliases do not create false conflicts", () => 
 
   assert.equal(result.hasErrors, false);
   assert.equal(result.canAddToCart, true);
+});
+
+test("power and length units are normalized before compatibility checks", () => {
+  const build = compatibleBuild();
+  build.processor.attributes.TDP = "0.12 kW";
+  build.graphics.attributes["Power Draw"] = "0.2kW";
+  build.graphics.attributes["GPU Length"] = "12 in";
+  build.case.attributes["Max GPU Length"] = "32 cm";
+  build.cooler.attributes["Cooler Height"] = "15 cm";
+  build.case.attributes["Max Cooler Height"] = "0.165 m";
+  build.powerSupply.attributes.Wattage = "0.65 kW";
+
+  const result = evaluatePcBuild(build);
+
+  assert.equal(result.hasErrors, false);
+  assert.equal(result.canAddToCart, true);
+  assert.equal(result.estimatedWattage, 425);
+  assert.equal(result.recommendedPsuWattage, 600);
+});
+
+test("unsupported measurement units fail closed instead of being guessed", () => {
+  const build = compatibleBuild();
+  build.processor.attributes.TDP = "120 BTU";
+  build.graphics.attributes["GPU Length"] = "12 cubits";
+  build.powerSupply.attributes.Wattage = "650 VA";
+
+  const result = evaluatePcBuild(build);
+  const codes = new Set(result.issues.map((issue) => issue.code));
+
+  assert.equal(result.canAddToCart, false);
+  assert.equal(codes.has("processor-power-data"), true);
+  assert.equal(codes.has("gpu-case-data"), true);
+  assert.equal(codes.has("power-supply-data"), true);
+});
+
+test("ambiguous boolean compatibility data fails closed", () => {
+  const build = compatibleBuild();
+  delete build.graphics;
+  delete build.cooler;
+  build.processor.attributes["Integrated Graphics"] = "Maybe";
+  build.processor.attributes["Cooler Included"] = "Unknown";
+
+  const result = evaluatePcBuild(build);
+  const codes = new Set(result.issues.map((issue) => issue.code));
+
+  assert.equal(result.canAddToCart, false);
+  assert.equal(codes.has("graphics-capability-data"), true);
+  assert.equal(codes.has("cooler-included-data"), true);
+});
+
+test("common negative boolean phrases are treated as explicit false values", () => {
+  const build = compatibleBuild();
+  delete build.graphics;
+  delete build.cooler;
+  build.processor.attributes["Integrated Graphics"] = "No iGPU";
+  build.processor.attributes["Cooler Included"] = "Not Included";
+
+  const result = evaluatePcBuild(build);
+  const codes = new Set(result.issues.map((issue) => issue.code));
+
+  assert.equal(result.canAddToCart, false);
+  assert.equal(codes.has("graphics-required"), true);
+  assert.equal(codes.has("cooler-required"), true);
 });
 
 test("share links preserve the selected product variant and ignore hostile input", () => {
