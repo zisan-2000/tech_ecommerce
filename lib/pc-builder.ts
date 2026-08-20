@@ -2,6 +2,7 @@ export * from "./pc-builder-core";
 
 import { evaluateAdvancedPcCompatibility } from "./pc-builder-advanced";
 import { validatePcBuilderPlaceholderReadiness } from "./pc-builder-placeholder-validation";
+import { normalizePcBuilderCompatibilityAttributes } from "./pc-builder-taxonomy";
 import {
   evaluatePcBuild as evaluateBasePcBuild,
   validatePcBuilderProductReadiness as validateBasePcBuilderProductReadiness,
@@ -26,32 +27,54 @@ function uniqueIssues(issues: PcBuildIssue[]) {
   });
 }
 
+function normalizeProductTaxonomy(product: PcBuilderProduct): PcBuilderProduct {
+  return {
+    ...product,
+    attributes: normalizePcBuilderCompatibilityAttributes(product.attributes),
+  };
+}
+
+function normalizeSelectionTaxonomy(
+  selection: PcBuilderSelection,
+): PcBuilderSelection {
+  return Object.fromEntries(
+    Object.entries(selection).flatMap(([slot, product]) =>
+      product
+        ? [[slot, normalizeProductTaxonomy(product as PcBuilderProduct)]]
+        : [],
+    ),
+  ) as PcBuilderSelection;
+}
+
 export function validatePcBuilderProductReadiness(
   slot: PcBuilderSlotKey,
   product: PcBuilderProduct,
 ): PcBuildIssue[] {
+  const normalizedProduct = normalizeProductTaxonomy(product);
   return uniqueIssues([
-    ...validateBasePcBuilderProductReadiness(slot, product),
-    ...validatePcBuilderPlaceholderReadiness(slot, product),
+    ...validateBasePcBuilderProductReadiness(slot, normalizedProduct),
+    ...validatePcBuilderPlaceholderReadiness(slot, normalizedProduct),
   ]);
 }
 
 export function evaluatePcBuild(
   selection: PcBuilderSelection,
 ): PcBuildEvaluation {
-  const base = evaluateBasePcBuild(selection);
-  const placeholderIssues = Object.entries(selection).flatMap(([slot, product]) =>
-    product
-      ? validatePcBuilderPlaceholderReadiness(
-          slot as PcBuilderSlotKey,
-          product as PcBuilderProduct,
-        )
-      : [],
+  const normalizedSelection = normalizeSelectionTaxonomy(selection);
+  const base = evaluateBasePcBuild(normalizedSelection);
+  const placeholderIssues = Object.entries(normalizedSelection).flatMap(
+    ([slot, product]) =>
+      product
+        ? validatePcBuilderPlaceholderReadiness(
+            slot as PcBuilderSlotKey,
+            product as PcBuilderProduct,
+          )
+        : [],
   );
   const issues = uniqueIssues([
     ...base.issues,
     ...placeholderIssues,
-    ...evaluateAdvancedPcCompatibility(selection),
+    ...evaluateAdvancedPcCompatibility(normalizedSelection),
   ]);
   const hasErrors = issues.some((item) => item.severity === "error");
 
