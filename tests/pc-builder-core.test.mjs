@@ -369,7 +369,8 @@ test("component picker disables products that are not PC-Builder-ready", async (
     "utf8",
   );
 
-  assert.match(client, /validatePcBuilderProductReadiness/);
+  assert.match(client, /evaluatePcBuilderCandidate/);
+  assert.match(client, /readinessIssues/);
   assert.match(client, /product\.stock < 1 \|\| notBuilderReady/);
   assert.match(client, /Missing required specs/);
 });
