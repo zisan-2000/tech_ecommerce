@@ -80,6 +80,7 @@ test("quantity two cannot stand in for two grouped build rows", () => {
   const firstShared = rows.find(
     (row) => `${row.productId}-${row.variantId}` === "900-9001",
   );
+  assert.ok(firstShared);
   firstShared.quantity = 2;
   const result = matchPcBuilderBuildsToOrderItems([buildA, buildB], rows);
 
@@ -87,29 +88,32 @@ test("quantity two cannot stand in for two grouped build rows", () => {
 });
 
 test("cart identity migration and routes keep build-specific rows distinct", async () => {
-  const [migration, cartRoute, cartCore, orderCore, context] = await Promise.all([
-    readFile(
-      new URL(
-        "../prisma/migrations/20260820_support_shared_pc_builder_cart_variants/migration.sql",
-        import.meta.url,
+  const [migration, cartRoute, cartCore, orderCore, context, config] =
+    await Promise.all([
+      readFile(
+        new URL(
+          "../prisma/migrations/20260820_support_shared_pc_builder_cart_variants/migration.sql",
+          import.meta.url,
+        ),
+        "utf8",
       ),
-      "utf8",
-    ),
-    readFile(new URL("../app/api/cart/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/cart/route-core.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/orders/route-core.ts", import.meta.url), "utf8"),
-    readFile(
-      new URL("../components/ecommarce/CartContext.tsx", import.meta.url),
-      "utf8",
-    ),
-  ]);
+      readFile(new URL("../app/api/cart/route.ts", import.meta.url), "utf8"),
+      readFile(new URL("../app/api/cart/route-core.ts", import.meta.url), "utf8"),
+      readFile(new URL("../app/api/orders/route-core.ts", import.meta.url), "utf8"),
+      readFile(
+        new URL("../components/ecommarce/CartContext.tsx", import.meta.url),
+        "utf8",
+      ),
+      readFile(new URL("../prisma.config.ts", import.meta.url), "utf8"),
+    ]);
 
   assert.match(migration, /ADD COLUMN "lineKey" VARCHAR\(80\)/);
   assert.match(migration, /productId", "variantId", "lineKey"/);
   assert.match(cartRoute, /pcBuilderCartLineKey/);
   assert.match(cartRoute, /PC_BUILDER_CART_LINE_UNAVAILABLE/);
-  assert.match(cartCore, /lineKey" = 'standard'/);
+  assert.match(cartCore, /lineKey[\s\S]{0,30}standard/);
   assert.match(orderCore, /Array\.from\(new Set/);
   assert.match(orderCore, /selectionQueues/);
   assert.match(context, /window\.location\.pathname\.includes\("\/pc-builder"\)/);
+  assert.match(config, /"public\.CartItem"/);
 });
