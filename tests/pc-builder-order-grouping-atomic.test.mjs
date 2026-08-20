@@ -8,7 +8,11 @@ test("PC build order grouping is persisted inside the core order transaction", a
     readFile(new URL("../app/api/orders/route-core.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(wrapper, /corePOST\(coreRequest\(request, rawBody\),\s*\{\s*pcBuilderBuilds: matchedBuilds/);
+  assert.match(
+    wrapper,
+    /corePOST\(coreRequest\(request, rawBody\),\s*\{\s*pcBuilderBuilds: matched\.builds/,
+  );
+  assert.match(wrapper, /matchPcBuilderBuildsToOrderItems/);
   assert.doesNotMatch(wrapper, /persistOrderBuildGrouping/);
   assert.doesNotMatch(wrapper, /response\.clone\(\)\.json/);
 
@@ -16,6 +20,8 @@ test("PC build order grouping is persisted inside the core order transaction", a
   assert.match(core, /persistPcBuilderOrderGrouping\(/);
   assert.match(core, /await prisma\.\$transaction\(async \(tx: any\) =>/);
   assert.match(core, /await persistPcBuilderOrderGrouping\(tx, o, options\.pcBuilderBuilds\)/);
+  assert.match(core, /selectionQueues/);
+  assert.match(core, /queue\?\.shift\(\)/);
   assert.match(core, /await tx\.\$executeRawUnsafe\(/);
   assert.match(core, /INSERT INTO "PcBuildOrderItem"/);
   assert.match(core, /PC_BUILDER_GROUPING_ATOMIC_MAPPING_FAILED/);
