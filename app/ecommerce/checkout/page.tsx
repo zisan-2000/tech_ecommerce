@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import {
   ALLOWED_SHIPPING_AREAS,
@@ -83,7 +84,8 @@ type TaxQuote = {
 
 export default function CheckoutPage() {
   const { cartItems, clearCart } = useCart();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
+  const router = useRouter();
 
   const [isMounted, setIsMounted] = useState(false);
   const [step, setStep] = useState<"details" | "payment" | "confirm">("details");
@@ -131,6 +133,10 @@ export default function CheckoutPage() {
   const [serverCartItems, setServerCartItems] = useState<any[] | null>(null);
   const [loadingServerCart, setLoadingServerCart] = useState(false);
   const [cartSynced, setCartSynced] = useState(false);
+  // `cartSynced` is state, so it does not commit before the async sync re-enters.
+  // This ref blocks the duplicate run (StrictMode / cartItems change) that would
+  // otherwise POST the same items twice.
+  const syncInFlightRef = useRef(false);
 
   // Screenshot upload
   const [paymentScreenshotPreview, setPaymentScreenshotPreview] = useState<string | null>(null);
@@ -161,19 +167,39 @@ export default function CheckoutPage() {
     setCartSynced(false);
   }, [isAuthenticated]);
 
+  // Guests must sign in first; keep the guest cart so it can be synced on return.
   useEffect(() => {
-    if (!isMounted || cartSynced) return;
+    if (!isMounted || sessionStatus !== "unauthenticated") return;
+
+    try {
+      sessionStorage.setItem("pendingCheckout", JSON.stringify(cartItems));
+      sessionStorage.setItem("redirectAfterLogin", "/ecommerce/checkout");
+    } catch {}
+
+    router.replace(
+      `/signin?callbackUrl=${encodeURIComponent("/ecommerce/checkout")}`,
+    );
+  }, [isMounted, sessionStatus, cartItems, router]);
+
+  useEffect(() => {
+    if (!isMounted || cartSynced || syncInFlightRef.current) return;
 
     if (!isAuthenticated) {
       setServerCartItems(null);
       return;
     }
 
+    syncInFlightRef.current = true;
+
     const fetchServerCart = async () => {
       try {
         setLoadingServerCart(true);
         const res = await fetch("/api/cart", { cache: "no-store" });
-        if (!res.ok) return;
+        if (!res.ok) {
+          console.error("Failed to load server cart:", res.status);
+          setServerCartItems([]);
+          return;
+        }
 
         const data = await res.json();
         const items = Array.isArray(data.items) ? data.items : [];
@@ -205,7 +231,8 @@ export default function CheckoutPage() {
 
     const syncGuestCartToServer = async () => {
       if (cartItems.length === 0) {
-        fetchServerCart();
+        await fetchServerCart();
+        syncInFlightRef.current = false;
         setCartSynced(true);
         return;
       }
@@ -214,6 +241,8 @@ export default function CheckoutPage() {
         setLoadingServerCart(true);
 
         const serverRes = await fetch("/api/cart", { cache: "no-store" });
+        let allSynced = false;
+
         if (serverRes.ok) {
           const serverData = await serverRes.json();
           const existingItems = Array.isArray(serverData.items) ? serverData.items : [];
@@ -228,6 +257,8 @@ export default function CheckoutPage() {
             (item) => !existingKeys.has(`${item.productId}:${item.variantId ?? ""}`),
           );
 
+          const failed: Array<string | number> = [];
+
           for (const item of itemsToSync) {
             const res = await fetch("/api/cart", {
               method: "POST",
@@ -239,16 +270,39 @@ export default function CheckoutPage() {
               }),
             });
 
-            if (!res.ok) console.error("Failed to sync cart item:", item.productId);
+            if (!res.ok) {
+              const detail = await res.text().catch(() => "");
+              console.error(
+                "Failed to sync cart item:",
+                item.productId,
+                res.status,
+                detail,
+              );
+              failed.push(item.productId);
+            }
           }
+
+          allSynced = failed.length === 0;
+
+          if (!allSynced) {
+            toast.error(
+              "Some items could not be moved to your account cart. They are still in your cart — please try again.",
+            );
+          }
+        } else {
+          console.error("Failed to load server cart:", serverRes.status);
         }
 
-        clearCart();
-        fetchServerCart();
+        // Load the server cart BEFORE clearing the local one, so there is never a
+        // frame where both are empty and the Order Summary renders with no items.
+        // The local cart is only dropped once every item is safely on the server.
+        await fetchServerCart();
+        if (allSynced) clearCart();
       } catch (err) {
         console.error("Error syncing guest cart to server:", err);
-        fetchServerCart();
+        await fetchServerCart();
       } finally {
+        syncInFlightRef.current = false;
         setLoadingServerCart(false);
         setCartSynced(true);
       }
@@ -382,7 +436,11 @@ export default function CheckoutPage() {
     }
   }, [availableAreas, area]);
 
-  const itemsToRender = isAuthenticated && serverCartItems ? serverCartItems : cartItems;
+  // For a signed-in user the server cart is the source of truth. Falling back to the
+  // local cart once it has been cleared is what made the summary render empty.
+  const itemsToRender = isAuthenticated
+    ? serverCartItems ?? cartItems
+    : cartItems;
 
   const subtotal = itemsToRender.reduce(
     (total, item) => total + Number(item.price) * Number(item.quantity),
@@ -841,7 +899,12 @@ export default function CheckoutPage() {
     </div>
   );
 
-  if (!isMounted || (isAuthenticated && loadingServerCart)) {
+  if (
+    !isMounted ||
+    sessionStatus === "loading" ||
+    sessionStatus === "unauthenticated" ||
+    (isAuthenticated && (loadingServerCart || !cartSynced))
+  ) {
     return (
       <div className="min-h-screen bg-background py-6 sm:py-8 lg:py-12">
         <div className="container mx-auto px-4">
