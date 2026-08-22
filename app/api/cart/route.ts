@@ -108,9 +108,17 @@ export async function GET() {
     .filter((id) => Number.isInteger(id) && id > 0);
   if (!ids.length) return response;
 
-  const rows = await prisma.$queryRawUnsafe<CartBuildMapRow[]>(
-    `SELECT "cartItemId", "buildId", "slot" FROM "PcBuildCartItem" WHERE "cartItemId" IN (${ids.join(",")})`,
-  );
+  // PC-build metadata is decorative: if this lookup fails the cart itself is still
+  // valid, so fall back to the plain cart instead of 500-ing the whole page.
+  let rows: CartBuildMapRow[] = [];
+  try {
+    rows = await prisma.$queryRawUnsafe<CartBuildMapRow[]>(
+      `SELECT "cartItemId", "buildId", "slot" FROM "PcBuildCartItem" WHERE "cartItemId" IN (${ids.join(",")})`,
+    );
+  } catch (error) {
+    console.error("Failed to load PC build cart mapping:", error);
+    return response;
+  }
   const byId = new Map(rows.map((row) => [row.cartItemId, row]));
 
   return NextResponse.json({
