@@ -14,7 +14,7 @@ import {
   type CatalogSearchParams,
   type CatalogSort,
 } from "@/lib/storefront-catalog";
-import { getSiteUrl } from "@/lib/seo";
+import { getSiteSettingsForSeo, getSiteUrl } from "@/lib/seo";
 
 type ProductsPageProps = {
   searchParams: Promise<CatalogSearchParams>;
@@ -68,7 +68,10 @@ function FilterSection({
 export async function generateMetadata({
   searchParams,
 }: ProductsPageProps): Promise<Metadata> {
-  const filters = parseCatalogFilters(await searchParams);
+  const [filters, settings] = await Promise.all([
+    searchParams.then(parseCatalogFilters),
+    getSiteSettingsForSeo(),
+  ]);
   const qualifier = filters.q
     ? `Search results for “${filters.q}”`
     : filters.category
@@ -76,7 +79,7 @@ export async function generateMetadata({
       : "All Products";
 
   return {
-    title: `${qualifier} — Tech Ecommerce`,
+    title: { absolute: `${qualifier} — ${settings.siteTitle}` },
     description:
       "Browse computers, components, accessories and gadgets with category, brand, price and stock filters.",
     alternates: {
@@ -97,7 +100,10 @@ function paginationPages(page: number, totalPages: number) {
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const parsedFilters = parseCatalogFilters(await searchParams);
-  const data = await getStorefrontCatalog(parsedFilters);
+  const [data, settings] = await Promise.all([
+    getStorefrontCatalog(parsedFilters),
+    getSiteSettingsForSeo(),
+  ]);
   const { filters, products, facets, pagination } = data;
   if (catalogUrl(parsedFilters) !== catalogUrl(filters)) {
     redirect(catalogUrl(filters));
@@ -208,7 +214,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const collectionJsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: "Tech Ecommerce product catalog",
+    name: `${settings.siteTitle} product catalog`,
     numberOfItems: pagination.total,
     mainEntity: {
       "@type": "ItemList",

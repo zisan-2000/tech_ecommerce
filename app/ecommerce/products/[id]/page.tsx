@@ -17,14 +17,23 @@ import {
   toProductPurchaseData,
 } from "@/lib/product-purchase";
 import { getStorefrontProductDetail } from "@/lib/storefront-product-detail";
-import { getSiteUrl, stripHtml, toAbsoluteUrl, truncateText } from "@/lib/seo";
+import {
+  getSiteSettingsForSeo,
+  getSiteUrl,
+  stripHtml,
+  toAbsoluteUrl,
+  truncateText,
+} from "@/lib/seo";
 
 type ProductPageProps = { params: Promise<{ id: string }> };
 const getProduct = cache(getStorefrontProductDetail);
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { id: rawId } = await params;
-  const product = await getProduct(rawId);
+  const [product, settings] = await Promise.all([
+    getProduct(rawId),
+    getSiteSettingsForSeo(),
+  ]);
   if (!product) return { title: "Product not found" };
   const description = truncateText(
     stripHtml(product.shortDesc || product.description) ||
@@ -34,7 +43,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const image = toAbsoluteUrl(product.image || "/placeholder.svg");
 
   return {
-    title: `${product.name} — Tech Ecommerce`,
+    title: { absolute: `${product.name} — ${settings.siteTitle}` },
     description,
     alternates: { canonical },
     openGraph: {
