@@ -10,10 +10,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PC_BUILDER_STORAGE_KEY } from "@/lib/pc-builder";
 import {
+  PC_BUILDER_EXTRA_ITEMS_STORAGE_KEY,
+  PC_BUILDER_STORAGE_KEY,
+} from "@/lib/pc-builder";
+import {
+  parsePcBuilderSavedExtraItems,
   parsePcBuilderSavedSelections,
   serializePcBuilderSavedSelections,
+  type PcBuilderSavedExtraItems,
   type PcBuilderSavedSelections,
 } from "@/lib/pc-builder-saved-build";
 
@@ -22,6 +27,7 @@ type SavedBuildSummary = {
   name: string;
   shareToken: string;
   selections: PcBuilderSavedSelections;
+  extraItems: PcBuilderSavedExtraItems;
   slotCount: number;
   createdAt: string;
   updatedAt: string;
@@ -41,6 +47,17 @@ function readCurrentSelections() {
   }
 }
 
+function readCurrentExtraItems(): PcBuilderSavedExtraItems {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(PC_BUILDER_EXTRA_ITEMS_STORAGE_KEY) || "{}",
+    );
+    return parsePcBuilderSavedExtraItems(parsed) ?? {};
+  } catch {
+    return {};
+  }
+}
+
 function defaultBuildName() {
   return `PC Build ${new Intl.DateTimeFormat("en-BD", { dateStyle: "medium" }).format(new Date())}`;
 }
@@ -55,10 +72,16 @@ async function copyUrl(url: URL) {
   }
 }
 
-function legacyBuildUrl(selections: PcBuilderSavedSelections) {
+function legacyBuildUrl(
+  selections: PcBuilderSavedSelections,
+  extraItems: PcBuilderSavedExtraItems = {},
+) {
   const url = new URL(window.location.href);
   url.searchParams.delete("shared");
-  url.searchParams.set("build", serializePcBuilderSavedSelections(selections));
+  url.searchParams.set(
+    "build",
+    serializePcBuilderSavedSelections(selections, extraItems),
+  );
   return url;
 }
 
@@ -101,6 +124,7 @@ export default function PcBuilderSavedBuildControls() {
       if (!selections) toast.error("Select at least one component before saving.");
       return;
     }
+    const extraItems = readCurrentExtraItems();
 
     setSaving(true);
     try {
@@ -108,7 +132,12 @@ export default function PcBuilderSavedBuildControls() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ mode: "save", name: defaultBuildName(), selections }),
+        body: JSON.stringify({
+          mode: "save",
+          name: defaultBuildName(),
+          selections,
+          extraItems,
+        }),
       });
       const payload = (await response.json().catch(() => null)) as SavedBuildResponse | { error?: string } | null;
       if (response.status === 401) {
@@ -133,13 +162,14 @@ export default function PcBuilderSavedBuildControls() {
       toast.error("Select at least one component before sharing.");
       return;
     }
+    const extraItems = readCurrentExtraItems();
 
     try {
       const response = await fetch("/api/pc-builder/builds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ mode: "share", selections }),
+        body: JSON.stringify({ mode: "share", selections, extraItems }),
       });
       const payload = (await response.json().catch(() => null)) as SavedBuildResponse | { error?: string } | null;
       if (response.ok && payload && "build" in payload) {
@@ -153,7 +183,7 @@ export default function PcBuilderSavedBuildControls() {
       // Guest/server-unavailable fallback below preserves compact share links.
     }
 
-    await copyUrl(legacyBuildUrl(selections));
+    await copyUrl(legacyBuildUrl(selections, extraItems));
   };
 
   const loadBuild = async (id: string) => {
