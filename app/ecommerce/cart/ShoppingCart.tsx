@@ -32,6 +32,48 @@ interface LocalCartItem {
   image: string;
   quantity: number;
   variantLabel?: string | null;
+  pcBuildId?: string | null;
+  pcBuildSlot?: string | null;
+  quantityItemId?: number | string | null;
+}
+
+function cartSelectionKey(item: Pick<LocalCartItem, "productId" | "variantId">) {
+  return `${item.productId}:${item.variantId ?? "default"}`;
+}
+
+function combinePcBuildCompanionQuantities(items: LocalCartItem[]) {
+  const standardQueues = new Map<string, LocalCartItem[]>();
+  for (const item of items) {
+    if (item.pcBuildId) continue;
+    const key = cartSelectionKey(item);
+    standardQueues.set(key, [...(standardQueues.get(key) ?? []), item]);
+  }
+
+  const consumedStandardIds = new Set<string>();
+  const companionByBuildRow = new Map<string, LocalCartItem>();
+  for (const item of items) {
+    if (!item.pcBuildId) continue;
+    const companion = standardQueues.get(cartSelectionKey(item))?.shift();
+    if (!companion) continue;
+    companionByBuildRow.set(String(item.id), companion);
+    consumedStandardIds.add(String(companion.id));
+  }
+
+  return items.flatMap((item) => {
+    if (!item.pcBuildId && consumedStandardIds.has(String(item.id))) return [];
+    const companion = companionByBuildRow.get(String(item.id));
+    return [
+      companion
+        ? {
+            ...item,
+            quantity: item.quantity + companion.quantity,
+            quantityItemId: companion.id,
+          }
+        : item.pcBuildId
+          ? { ...item, quantityItemId: null }
+          : item,
+    ];
+  });
 }
 
 // ✅ Simple skeleton block component
@@ -195,6 +237,8 @@ export default function CartPage() {
       quantity: i.quantity,
       image: i.image || "/placeholder.svg",
       variantLabel: i.variantLabel ?? null,
+      pcBuildId: i.pcBuildId ?? null,
+      pcBuildSlot: i.pcBuildSlot ?? null,
     }));
   }, [serverCartItems]);
 
@@ -242,6 +286,8 @@ export default function CartPage() {
                 .map(([key, value]) => `${key}: ${String(value)}`)
                 .join(", ")
             : item.variant?.sku ?? null,
+        pcBuildId: item.pcBuildId ?? null,
+        pcBuildSlot: item.pcBuildSlot ?? null,
       }));
 
       setServerCartItems(mapped);
@@ -284,7 +330,8 @@ export default function CartPage() {
           !existingItems.some(
             (serverItem: any) =>
               String(serverItem.productId) === String(localItem.productId) &&
-              String(serverItem.variantId ?? "") === String(localItem.variantId ?? "")
+              String(serverItem.variantId ?? "") === String(localItem.variantId ?? "") &&
+              String(serverItem.pcBuildId ?? "") === String(localItem.pcBuildId ?? "")
           )
       );
 
@@ -297,6 +344,7 @@ export default function CartPage() {
             productId: item.productId,
             variantId: item.variantId ?? null,
             quantity: item.quantity,
+            pcBuilder: false,
           }),
         });
       }
@@ -362,8 +410,9 @@ export default function CartPage() {
       const itemsToSync = contextItems.filter((contextItem: any) =>
         !serverItems.some(
           (serverItem: any) =>
-            String(serverItem.productId) === String(contextItem.productId) &&
-            String(serverItem.variantId ?? "") === String(contextItem.variantId ?? "")
+              String(serverItem.productId) === String(contextItem.productId) &&
+              String(serverItem.variantId ?? "") === String(contextItem.variantId ?? "") &&
+              String(serverItem.pcBuildId ?? "") === String(contextItem.pcBuildId ?? "")
         )
       );
       
@@ -377,6 +426,7 @@ export default function CartPage() {
               productId: item.productId,
               variantId: item.variantId ?? null,
               quantity: item.quantity,
+              pcBuilder: false,
             }),
           });
         } catch (error) {
@@ -437,7 +487,8 @@ export default function CartPage() {
     const existsInServer = serverItems.some(
       (serverItem: any) =>
         String(serverItem.productId) === String(contextItem.productId) &&
-        String(serverItem.variantId ?? "") === String(contextItem.variantId ?? "")
+        String(serverItem.variantId ?? "") === String(contextItem.variantId ?? "") &&
+        String(serverItem.pcBuildId ?? "") === String(contextItem.pcBuildId ?? "")
     );
     
     if (!existsInServer) {
@@ -445,7 +496,7 @@ export default function CartPage() {
     }
   });
 
-  return mergedItems;
+  return combinePcBuildCompanionQuantities(mergedItems);
 })();
 
   const subtotal = itemsToRender.reduce(
@@ -525,12 +576,52 @@ export default function CartPage() {
   };
 
   const handleUpdateQuantity = async (
-    itemId: string | number,
+    item: LocalCartItem,
     newQuantity: number
   ) => {
     if (newQuantity < 1) return;
 
     try {
+      if (isAuthenticated && item.pcBuildId) {
+        const companionQuantity = newQuantity - 1;
+        let res: Response;
+
+        if (item.quantityItemId) {
+          res = await fetch(`/api/cart/${item.quantityItemId}`, {
+            method: companionQuantity > 0 ? "PATCH" : "DELETE",
+            headers:
+              companionQuantity > 0
+                ? { "Content-Type": "application/json" }
+                : undefined,
+            body:
+              companionQuantity > 0
+                ? JSON.stringify({ quantity: companionQuantity })
+                : undefined,
+          });
+        } else {
+          res = await fetch("/api/cart", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              productId: item.productId,
+              variantId: item.variantId ?? null,
+              quantity: companionQuantity,
+              pcBuilder: false,
+            }),
+          });
+        }
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          toast.error(data?.error || "Failed to update quantity.");
+          return;
+        }
+
+        await fetchServerCart();
+        return;
+      }
+
+      const itemId = item.id;
       // Check if this is a server cart item or context item
       const isServerItem = isAuthenticated && serverCartItems?.some(item => item.id === itemId);
       
@@ -729,10 +820,7 @@ export default function CartPage() {
                                 <button
                                   className="h-10 w-10 grid place-items-center hover:bg-muted transition disabled:opacity-40"
                                   onClick={() =>
-                                    handleUpdateQuantity(
-                                      item.id,
-                                      item.quantity - 1
-                                    )
+                                    handleUpdateQuantity(item, item.quantity - 1)
                                   }
                                   disabled={item.quantity <= 1}
                                   aria-label="Decrease quantity"
@@ -745,10 +833,7 @@ export default function CartPage() {
                                 <button
                                   className="h-10 w-10 grid place-items-center hover:bg-muted transition"
                                   onClick={() =>
-                                    handleUpdateQuantity(
-                                      item.id,
-                                      item.quantity + 1
-                                    )
+                                    handleUpdateQuantity(item, item.quantity + 1)
                                   }
                                   aria-label="Increase quantity"
                                 >
@@ -783,7 +868,7 @@ export default function CartPage() {
                           <button
                             className="h-10 w-10 grid place-items-center hover:bg-muted transition disabled:opacity-40"
                             onClick={() =>
-                              handleUpdateQuantity(item.id, item.quantity - 1)
+                              handleUpdateQuantity(item, item.quantity - 1)
                             }
                             disabled={item.quantity <= 1}
                             aria-label="Decrease quantity"
@@ -796,7 +881,7 @@ export default function CartPage() {
                           <button
                             className="h-10 w-10 grid place-items-center hover:bg-muted transition"
                             onClick={() =>
-                              handleUpdateQuantity(item.id, item.quantity + 1)
+                              handleUpdateQuantity(item, item.quantity + 1)
                             }
                             aria-label="Increase quantity"
                           >

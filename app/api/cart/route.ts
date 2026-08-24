@@ -163,6 +163,11 @@ export async function POST(request: NextRequest) {
     return corePOST(requestForCore);
   }
 
+  // PC Builder quantities above the validated primary unit are stored as a
+  // normal cart line. Callers can explicitly bypass build-slot matching for
+  // those companion quantities without weakening the primary row's lock.
+  if (body.pcBuilder === false) return corePOST(requestForCore);
+
   const selectionId = pcBuildSelectionId({
     productId: body.productId as string | number,
     variantId: body.variantId as string | number | null | undefined,

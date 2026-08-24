@@ -90,3 +90,19 @@ test("successful checkout clears the completed PC Builder draft in every payment
   }
   assert.match(paymentResult, /if \(!success\) return/);
 });
+
+test("cart quantity controls keep the validated unit locked and use a standard companion line", async () => {
+  const [cartPage, cartRoute] = await Promise.all([
+    readFile(
+      new URL("../app/ecommerce/cart/ShoppingCart.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("../app/api/cart/route.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(cartPage, /combinePcBuildCompanionQuantities/);
+  assert.match(cartPage, /quantityItemId/);
+  assert.match(cartPage, /pcBuilder:\s*false/);
+  assert.match(cartRoute, /body\.pcBuilder === false/);
+  assert.match(cartRoute, /return corePOST\(requestForCore\)/);
+});
