@@ -1,65 +1,165 @@
 export const PC_BUILDER_STORAGE_KEY = "storefrontPcBuilderSelectionV1";
+export const PC_BUILDER_EXTRA_ITEMS_STORAGE_KEY =
+  "storefrontPcBuilderExtraItemsV1";
 
 export const PC_BUILDER_SLOTS = [
   {
     key: "processor",
-    label: "Processor",
+    label: "CPU",
+    group: "core",
     categorySlug: "processor",
     required: true,
+    multiple: false,
     description: "Choose the CPU platform first.",
+  },
+  {
+    key: "cooler",
+    label: "CPU Cooler",
+    group: "core",
+    categorySlug: "cpu-cooler",
+    required: false,
+    multiple: true,
+    description: "Required when the selected processor has no included cooler.",
   },
   {
     key: "motherboard",
     label: "Motherboard",
+    group: "core",
     categorySlug: "motherboard",
     required: true,
+    multiple: false,
     description: "Must match the processor socket and RAM generation.",
   },
   {
     key: "memory",
-    label: "Memory",
+    label: "RAM",
+    group: "core",
     categorySlug: "desktop-ram",
     required: true,
+    multiple: true,
     description: "Select desktop memory supported by the motherboard.",
-  },
-  {
-    key: "graphics",
-    label: "Graphics Card",
-    categorySlug: "graphics-card",
-    required: false,
-    description: "Recommended for gaming and graphics workloads.",
   },
   {
     key: "storage",
     label: "Storage",
+    group: "core",
     categorySlug: "ssd-storage",
     required: true,
+    multiple: true,
     description: "Choose an SSD or other primary storage device.",
+  },
+  {
+    key: "graphics",
+    label: "Graphics Card",
+    group: "core",
+    categorySlug: "graphics-card",
+    required: false,
+    multiple: true,
+    description: "Recommended for gaming and graphics workloads.",
   },
   {
     key: "powerSupply",
     label: "Power Supply",
+    group: "core",
     categorySlug: "power-supply",
     required: true,
+    multiple: false,
     description: "Allow safe capacity above the estimated system draw.",
   },
   {
     key: "case",
     label: "Casing",
+    group: "core",
     categorySlug: "pc-case",
     required: true,
+    multiple: false,
     description: "Must fit the motherboard, GPU and CPU cooler.",
   },
   {
-    key: "cooler",
-    label: "CPU Cooler",
-    categorySlug: "cpu-cooler",
+    key: "monitor",
+    label: "Monitor",
+    group: "peripheral",
+    categorySlug: "gaming-monitor",
     required: false,
-    description: "Required when the selected processor has no included cooler.",
+    multiple: true,
+    description: "Add one or more displays to the build.",
+  },
+  {
+    key: "casingCooler",
+    label: "Casing Cooler",
+    group: "peripheral",
+    categorySlug: "casing-cooler",
+    required: false,
+    multiple: true,
+    description: "Extra case fans for chassis airflow.",
+  },
+  {
+    key: "keyboard",
+    label: "Keyboard",
+    group: "peripheral",
+    categorySlug: "keyboard",
+    required: false,
+    multiple: false,
+    description: "Pick a desktop keyboard.",
+  },
+  {
+    key: "mouse",
+    label: "Mouse",
+    group: "peripheral",
+    categorySlug: "mouse",
+    required: false,
+    multiple: false,
+    description: "Pick a desktop mouse.",
+  },
+  {
+    key: "speaker",
+    label: "Speaker & Home Theater",
+    group: "peripheral",
+    categorySlug: "speaker",
+    required: false,
+    multiple: false,
+    description: "Add speakers or a home-theater set.",
+  },
+  {
+    key: "headphone",
+    label: "Headphone",
+    group: "peripheral",
+    categorySlug: "headphone-headsets",
+    required: false,
+    multiple: false,
+    description: "Add a headphone or headset.",
+  },
+  {
+    key: "networkAdapter",
+    label: "Wifi Adapter / LAN Card",
+    group: "peripheral",
+    categorySlug: "wifi-lan-card",
+    required: false,
+    multiple: false,
+    description: "Add wireless or wired network connectivity.",
+  },
+  {
+    key: "antivirus",
+    label: "Anti Virus",
+    group: "peripheral",
+    categorySlug: "antivirus",
+    required: false,
+    multiple: false,
+    description: "Add an antivirus licence.",
+  },
+  {
+    key: "ups",
+    label: "UPS",
+    group: "peripheral",
+    categorySlug: "ups",
+    required: false,
+    multiple: false,
+    description: "Add backup power for outages.",
   },
 ] as const;
 
 export type PcBuilderSlotKey = (typeof PC_BUILDER_SLOTS)[number]["key"];
+export type PcBuilderSlotGroup = (typeof PC_BUILDER_SLOTS)[number]["group"];
 
 export type PcBuilderProduct = {
   selectionId: string;
@@ -842,14 +942,22 @@ export function parsePcBuilderSelectionId(value: unknown) {
   return { selectionId: normalizedValue, productId, variantId };
 }
 
+const MAX_SHARED_BUILD_EXTRA_ITEMS_PER_SLOT = 8;
+const MAX_SHARED_BUILD_PAIRS = PC_BUILDER_SLOTS.length * 2;
+
+export type PcBuilderSharedExtraItems = Partial<
+  Record<PcBuilderSlotKey, string[]>
+>;
+
 export function parseSharedBuild(value: string | null | undefined) {
   const parsed: Partial<Record<PcBuilderSlotKey, string>> = {};
   if (!value || value.length > 500) return parsed;
   const validKeys = new Set<PcBuilderSlotKey>(
     PC_BUILDER_SLOTS.map((slot) => slot.key),
   );
-  for (const pair of value.split(",").slice(0, PC_BUILDER_SLOTS.length)) {
+  for (const pair of value.split(",").slice(0, MAX_SHARED_BUILD_PAIRS)) {
     const [rawKey, rawId] = pair.split(":", 2);
+    if (rawKey === "x") continue;
     const key = rawKey as PcBuilderSlotKey;
     const id = String(rawId ?? "").trim();
     if (
@@ -863,9 +971,44 @@ export function parseSharedBuild(value: string | null | undefined) {
   return parsed;
 }
 
-export function serializeSharedBuild(selection: PcBuilderSelection) {
-  return PC_BUILDER_SLOTS.flatMap((slot) => {
+// Extra (multi-add) line items are serialized as "x:slot:id" pairs so links
+// created before multi-add existed keep parsing identically.
+export function parseSharedBuildExtraItems(
+  value: string | null | undefined,
+): PcBuilderSharedExtraItems {
+  const parsed: PcBuilderSharedExtraItems = {};
+  if (!value || value.length > 500) return parsed;
+  const validKeys = new Set<PcBuilderSlotKey>(
+    PC_BUILDER_SLOTS.map((slot) => slot.key),
+  );
+  for (const pair of value.split(",").slice(0, MAX_SHARED_BUILD_PAIRS)) {
+    const [rawTag, rawKey, rawId] = pair.split(":", 3);
+    if (rawTag !== "x") continue;
+    const key = rawKey as PcBuilderSlotKey;
+    const id = String(rawId ?? "").trim();
+    if (!validKeys.has(key) || !/^\d+-\d+$/.test(id) || !validSelectionId(id)) {
+      continue;
+    }
+    const current = parsed[key] ?? [];
+    if (current.length >= MAX_SHARED_BUILD_EXTRA_ITEMS_PER_SLOT) continue;
+    if (current.includes(id)) continue;
+    parsed[key] = [...current, id];
+  }
+  return parsed;
+}
+
+export function serializeSharedBuild(
+  selection: PcBuilderSelection,
+  extraItems?: PcBuilderSharedExtraItems,
+) {
+  const primary = PC_BUILDER_SLOTS.flatMap((slot) => {
     const product = selection[slot.key];
     return product ? [`${slot.key}:${product.selectionId}`] : [];
-  }).join(",");
+  });
+  const extra = extraItems
+    ? PC_BUILDER_SLOTS.flatMap((slot) =>
+        (extraItems[slot.key] ?? []).map((id) => `x:${slot.key}:${id}`),
+      )
+    : [];
+  return [...primary, ...extra].join(",");
 }
