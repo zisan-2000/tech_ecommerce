@@ -67,3 +67,26 @@ test("cart build removal synchronizes and clears the checkout cookie safely", as
   assert.match(source, /maxAge:\s*0/);
   assert.match(source, /c\."userId" = \$2/);
 });
+
+test("successful checkout clears the completed PC Builder draft in every payment flow", async () => {
+  const [checkout, paymentResult] = await Promise.all([
+    readFile(
+      new URL("../app/ecommerce/checkout/page.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../app/ecommerce/payment-result/PaymentResultClient.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ]);
+
+  for (const source of [checkout, paymentResult]) {
+    assert.match(source, /PC_BUILDER_STORAGE_KEY/);
+    assert.match(source, /PC_BUILDER_EXTRA_ITEMS_STORAGE_KEY/);
+    assert.match(source, /clearCompletedPcBuilderDraft\(\)/);
+  }
+  assert.match(paymentResult, /if \(!success\) return/);
+});

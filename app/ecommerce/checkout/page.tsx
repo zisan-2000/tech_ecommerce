@@ -25,6 +25,19 @@ import {
   type AllowedShippingArea,
 } from "@/lib/shipping-areas";
 import PaymentMethodSelector from "@/components/checkout/PaymentMethodSelector";
+import {
+  PC_BUILDER_EXTRA_ITEMS_STORAGE_KEY,
+  PC_BUILDER_STORAGE_KEY,
+} from "@/lib/pc-builder";
+
+function clearCompletedPcBuilderDraft() {
+  try {
+    localStorage.removeItem(PC_BUILDER_STORAGE_KEY);
+    localStorage.removeItem(PC_BUILDER_EXTRA_ITEMS_STORAGE_KEY);
+  } catch {
+    // Checkout remains successful when browser storage is unavailable.
+  }
+}
 
 type UserAddress = {
   id: number;
@@ -834,6 +847,7 @@ export default function CheckoutPage() {
     }
 
     // Clear both client and server cart after order confirmation
+    clearCompletedPcBuilderDraft();
     clearCart();
     
     try {
