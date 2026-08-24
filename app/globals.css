@@ -2,37 +2,113 @@
 @tailwind components;
 @tailwind utilities;
 
+/* PC Builder quotation sheet: hidden on screen, the only thing printed. */
+#pc-builder-quotation {
+  display: none;
+}
+
 @media print {
-  body:has(#pc-builder-print-root) * {
-    visibility: hidden;
+  @page {
+    size: A4;
+    margin: 14mm;
   }
 
-  body:has(#pc-builder-print-root) #pc-builder-print-root,
-  body:has(#pc-builder-print-root) #pc-builder-print-root * {
-    visibility: visible;
-  }
-
-  body:has(#pc-builder-print-root) #pc-builder-print-root {
-    --background: 0 0% 100%;
-    --foreground: 226 71% 14%;
-    --card: 0 0% 100%;
-    --card-foreground: 226 71% 14%;
-    --muted: 214 100% 97%;
-    --muted-foreground: 217 33% 35%;
-    --border: 213 40% 80%;
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    color-scheme: light;
-    background: white;
-  }
-
-  body:has(#pc-builder-print-root) #pc-builder-print-root aside {
-    position: static;
-  }
-
-  body:has(#pc-builder-print-root) .pc-builder-print-hidden {
+  /* Collapse the storefront entirely (not just hide it) so the printed
+     document is only as tall as the quotation itself. */
+  body:has(#pc-builder-quotation) > *,
+  body:has(#pc-builder-quotation) > [data-radix-popper-content-wrapper] {
     display: none !important;
+  }
+
+  body:has(#pc-builder-quotation) {
+    background: #fff;
+  }
+
+  body:has(#pc-builder-quotation) #pc-builder-quotation {
+    display: block !important;
+    position: static;
+    width: 100%;
+    color: #000;
+    background: #fff;
+    color-scheme: light;
+    font-size: 11px;
+  }
+
+  #pc-builder-quotation .quotation-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding-bottom: 12px;
+  }
+
+  #pc-builder-quotation .quotation-brand img {
+    height: 54px;
+    width: auto;
+  }
+
+  #pc-builder-quotation .quotation-store {
+    font-size: 20px;
+    font-weight: 700;
+    color: #c1272d;
+    margin: 0;
+  }
+
+  #pc-builder-quotation .quotation-contact {
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: #111;
+  }
+
+  #pc-builder-quotation .quotation-contact a {
+    color: #1a4fa0;
+    text-decoration: none;
+  }
+
+  #pc-builder-quotation table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  #pc-builder-quotation th,
+  #pc-builder-quotation td {
+    border: 1px solid #e0663a;
+    padding: 6px 8px;
+    text-align: left;
+    vertical-align: top;
+    word-wrap: break-word;
+  }
+
+  #pc-builder-quotation th {
+    font-weight: 700;
+    font-style: italic;
+    color: #6b7280;
+    font-size: 10px;
+  }
+
+  #pc-builder-quotation td.quotation-component {
+    color: #c1272d;
+  }
+
+  #pc-builder-quotation td.quotation-name {
+    color: #1a4fa0;
+  }
+
+  #pc-builder-quotation .quotation-strike {
+    text-decoration: line-through;
+    display: block;
+    color: #6b7280;
+  }
+
+  #pc-builder-quotation .quotation-total-label {
+    text-align: right;
+    font-weight: 700;
+    border: none;
+  }
+
+  #pc-builder-quotation .quotation-total-spacer {
+    border: none;
   }
 }
 
