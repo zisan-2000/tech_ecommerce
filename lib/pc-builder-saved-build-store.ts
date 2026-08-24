@@ -6,12 +6,17 @@ import {
   isPcBuilderSavedBuildId,
   isPcBuilderShareToken,
   normalizePcBuilderSavedBuildName,
+  parsePcBuilderSavedExtraItems,
   parsePcBuilderSavedSelections,
+  type PcBuilderSavedExtraItems,
   type PcBuilderSavedSelections,
 } from "@/lib/pc-builder-saved-build";
 import { prisma } from "@/lib/prisma";
-import { validatePcBuilderSelectionLive } from "@/lib/storefront-pc-builder";
-import type { PcBuilderSlotKey } from "@/lib/pc-builder";
+import {
+  resolvePcBuilderExtraItems,
+  validatePcBuilderSelectionLive,
+} from "@/lib/storefront-pc-builder";
+import type { PcBuilderProduct, PcBuilderSlotKey } from "@/lib/pc-builder";
 
 const MAX_SAVED_BUILDS_PER_USER = 25;
 
@@ -31,6 +36,7 @@ export type PcBuilderSavedBuildSummary = {
   name: string;
   shareToken: string;
   selections: PcBuilderSavedSelections;
+  extraItems: PcBuilderSavedExtraItems;
   slotCount: number;
   createdAt: string;
   updatedAt: string;
@@ -66,18 +72,57 @@ function toSelections(input: unknown) {
   return parsed;
 }
 
+function toExtraItems(input: unknown) {
+  const parsed = parsePcBuilderSavedExtraItems(input);
+  if (!parsed) {
+    throw new PcBuilderSavedBuildError(
+      "PC_BUILDER_SAVED_SELECTION_INVALID",
+      "Additional PC build items are invalid.",
+    );
+  }
+  return parsed;
+}
+
 function toLiveSelections(selections: PcBuilderSavedSelections) {
   return selections as Partial<Record<PcBuilderSlotKey, string>>;
 }
 
+function toLiveExtraItems(extraItems: PcBuilderSavedExtraItems) {
+  return extraItems as Partial<Record<PcBuilderSlotKey, string[]>>;
+}
+
+// Rows saved before multi-add existed store the flat selections object
+// directly; newer rows store { selections, extraItems }. Both are read here.
+function splitStoredPayload(stored: unknown): {
+  selections: unknown;
+  extraItems: unknown;
+} {
+  if (
+    stored &&
+    typeof stored === "object" &&
+    !Array.isArray(stored) &&
+    "selections" in (stored as Record<string, unknown>)
+  ) {
+    const record = stored as Record<string, unknown>;
+    return { selections: record.selections, extraItems: record.extraItems };
+  }
+  return { selections: stored, extraItems: undefined };
+}
+
 function toSummary(row: SavedBuildRow): PcBuilderSavedBuildSummary {
-  const selections = toSelections(row.selections);
+  const { selections: storedSelections, extraItems: storedExtraItems } =
+    splitStoredPayload(row.selections);
+  const selections = toSelections(storedSelections);
+  const extraItems = toExtraItems(storedExtraItems);
   return {
     id: row.id,
     name: row.name,
     shareToken: row.shareToken,
     selections,
-    slotCount: Object.keys(selections).length,
+    extraItems,
+    slotCount:
+      Object.keys(selections).length +
+      Object.values(extraItems).reduce((sum, ids) => sum + (ids?.length ?? 0), 0),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -85,8 +130,11 @@ function toSummary(row: SavedBuildRow): PcBuilderSavedBuildSummary {
 
 async function restoreRow(row: SavedBuildRow) {
   const build = toSummary(row);
-  const live = await validatePcBuilderSelectionLive(toLiveSelections(build.selections));
-  return { build, ...live };
+  const [live, extra] = await Promise.all([
+    validatePcBuilderSelectionLive(toLiveSelections(build.selections)),
+    resolvePcBuilderExtraItems(toLiveExtraItems(build.extraItems)),
+  ]);
+  return { build, ...live, extraItems: extra.items, missingExtraCount: extra.missingCount };
 }
 
 export async function listPcBuilderSavedBuilds(userId: string) {
@@ -102,11 +150,16 @@ export async function savePcBuilderBuild(input: {
   userId: string;
   name?: unknown;
   selections: unknown;
+  extraItems?: unknown;
   mode?: "save" | "share";
 }) {
   const selections = toSelections(input.selections);
-  const live = await validatePcBuilderSelectionLive(toLiveSelections(selections));
-  if (live.missingSlots.length > 0) {
+  const extraItems = toExtraItems(input.extraItems);
+  const [live, extra] = await Promise.all([
+    validatePcBuilderSelectionLive(toLiveSelections(selections)),
+    resolvePcBuilderExtraItems(toLiveExtraItems(extraItems)),
+  ]);
+  if (live.missingSlots.length > 0 || extra.missingCount > 0) {
     throw new PcBuilderSavedBuildError(
       "PC_BUILDER_SAVED_COMPONENT_UNAVAILABLE",
       "One or more selected components are no longer available and cannot be saved safely.",
@@ -114,7 +167,7 @@ export async function savePcBuilderBuild(input: {
     );
   }
 
-  const canonical = canonicalPcBuilderSavedSelections(selections);
+  const canonical = canonicalPcBuilderSavedSelections(selections, extraItems);
   const selectionHash = createHash("sha256").update(canonical).digest("hex");
   const name = normalizePcBuilderSavedBuildName(
     input.name,
@@ -140,7 +193,7 @@ export async function savePcBuilderBuild(input: {
           existing[0].id,
           input.userId,
         );
-    return { build: toSummary(rows[0] ?? existing[0]), ...live };
+    return { build: toSummary(rows[0] ?? existing[0]), ...live, extraItems: extra.items };
   }
 
   const counts = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
@@ -164,9 +217,9 @@ export async function savePcBuilderBuild(input: {
     name,
     shareToken,
     selectionHash,
-    JSON.stringify(selections),
+    JSON.stringify({ selections, extraItems }),
   );
-  return { build: toSummary(rows[0]), ...live };
+  return { build: toSummary(rows[0]), ...live, extraItems: extra.items };
 }
 
 export async function getOwnedPcBuilderSavedBuild(userId: string, id: string) {
