@@ -26,6 +26,8 @@ export const STOREFRONT_CATEGORIES: StorefrontCategorySeed[] = [
   { key: "graphics", name: "Graphics Card", slug: "graphics-card", image: `${PRODUCT_ROOT}/1772530789360-amd-gaming-pc-amd-ryzen-5-7500f-gaming-desktop-pc-cover.webp`, parentKey: "components" },
   { key: "case", name: "PC Casing", slug: "pc-case", image: `${PRODUCT_ROOT}/1772530789360-amd-gaming-pc-amd-ryzen-5-7500f-gaming-desktop-pc-cover.webp`, parentKey: "components" },
   { key: "cooler", name: "CPU Cooler", slug: "cpu-cooler", image: `${PRODUCT_ROOT}/1773131036391-amd-processor-ryzen-7-9850x3d-cover.webp`, parentKey: "components" },
+  { key: "casing_cooler", name: "Casing Cooler", slug: "casing-cooler", image: `${PRODUCT_ROOT}/1773131036391-amd-processor-ryzen-7-9850x3d-cover.webp`, parentKey: "components" },
+  { key: "wifi_lan_card", name: "Wifi Adapter / LAN Card", slug: "wifi-lan-card", image: `${PRODUCT_ROOT}/1772431232261-Drone2.jpg`, parentKey: "components" },
   { key: "accessories", name: "Accessories", slug: "accessories", image: `${PRODUCT_ROOT}/1772531232004-pc-power-keyboard-k87-rgb-cover.webp` },
   { key: "keyboard", name: "Keyboard", slug: "keyboard", image: `${PRODUCT_ROOT}/1772531232004-pc-power-keyboard-k87-rgb-cover.webp`, parentKey: "accessories" },
   { key: "mouse", name: "Mouse", slug: "mouse", image: `${PRODUCT_ROOT}/1772531232004-pc-power-keyboard-k87-rgb-cover.webp`, parentKey: "accessories" },
