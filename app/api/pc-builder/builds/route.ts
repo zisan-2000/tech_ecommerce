@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       userId,
       name: source.name,
       selections: source.selections,
+      extraItems: source.extraItems,
       mode,
     });
     return NextResponse.json(result, { status: 201, headers: NO_STORE_HEADERS });

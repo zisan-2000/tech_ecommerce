@@ -7,13 +7,21 @@ import PcBuilderSavedBuildControls from "@/components/ecommarce/pc-builder/PcBui
 import {
   PC_BUILDER_SLOTS,
   parseSharedBuild,
+  parseSharedBuildExtraItems,
   type PcBuilderCatalog,
+  type PcBuilderProduct,
   type PcBuilderSelection,
+  type PcBuilderSlotKey,
 } from "@/lib/pc-builder";
 import { serializePcBuilderSavedSelections } from "@/lib/pc-builder-saved-build";
 import { getSharedPcBuilderSavedBuild } from "@/lib/pc-builder-saved-build-store";
 import { getSiteUrl } from "@/lib/seo";
-import { getPcBuilderCatalog, validatePcBuilderSelectionLive } from "@/lib/storefront-pc-builder";
+import {
+  getPcBuilderCatalog,
+  getPcBuilderStoreBranding,
+  resolvePcBuilderExtraItems,
+  validatePcBuilderSelectionLive,
+} from "@/lib/storefront-pc-builder";
 
 export const metadata: Metadata = {
   title: "PC Builder — Build a Compatible Custom PC",
@@ -21,13 +29,25 @@ export const metadata: Metadata = {
   alternates: { canonical: `${getSiteUrl()}/ecommerce/pc-builder` },
 };
 
-function mergeLiveSelectionIntoCatalog(catalog: PcBuilderCatalog, selection: PcBuilderSelection): PcBuilderCatalog {
+function mergeLiveSelectionIntoCatalog(
+  catalog: PcBuilderCatalog,
+  selection: PcBuilderSelection,
+  extraItems: Partial<Record<PcBuilderSlotKey, PcBuilderProduct[]>> = {},
+): PcBuilderCatalog {
   const next = { ...catalog } as PcBuilderCatalog;
   for (const slot of PC_BUILDER_SLOTS) {
-    const product = selection[slot.key];
-    if (!product) continue;
-    const current = catalog[slot.key] ?? [];
-    next[slot.key] = current.some((item) => item.selectionId === product.selectionId) ? current : [product, ...current];
+    const products = [
+      ...(selection[slot.key] ? [selection[slot.key]!] : []),
+      ...(extraItems[slot.key] ?? []),
+    ];
+    if (!products.length) continue;
+    let current = catalog[slot.key] ?? [];
+    for (const product of products) {
+      if (!current.some((item) => item.selectionId === product.selectionId)) {
+        current = [product, ...current];
+      }
+    }
+    next[slot.key] = current;
   }
   return next;
 }
@@ -38,7 +58,11 @@ export default async function PcBuilderPage({ searchParams }: { searchParams: Pr
   if (params.shared) {
     const shared = await getSharedPcBuilderSavedBuild(params.shared);
     if (shared) {
-      redirect(`/ecommerce/pc-builder?build=${encodeURIComponent(serializePcBuilderSavedSelections(shared.build.selections))}`);
+      redirect(
+        `/ecommerce/pc-builder?build=${encodeURIComponent(
+          serializePcBuilderSavedSelections(shared.build.selections, shared.build.extraItems),
+        )}`,
+      );
     }
     return (
       <main className="min-h-screen bg-muted/20">
@@ -53,14 +77,23 @@ export default async function PcBuilderPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const data = await getPcBuilderCatalog();
+  const [data, branding] = await Promise.all([
+    getPcBuilderCatalog(),
+    getPcBuilderStoreBranding(),
+  ]);
   let catalog = data.catalog;
   let restoreMissingSlots: string[] = [];
+  let restoredExtraItems: Partial<Record<PcBuilderSlotKey, PcBuilderProduct[]>> = {};
   const requested = parseSharedBuild(params.build);
-  if (Object.keys(requested).length > 0) {
-    const restored = await validatePcBuilderSelectionLive(requested);
-    catalog = mergeLiveSelectionIntoCatalog(catalog, restored.selection);
+  const requestedExtras = parseSharedBuildExtraItems(params.build);
+  if (Object.keys(requested).length > 0 || Object.keys(requestedExtras).length > 0) {
+    const [restored, restoredExtra] = await Promise.all([
+      validatePcBuilderSelectionLive(requested),
+      resolvePcBuilderExtraItems(requestedExtras),
+    ]);
+    catalog = mergeLiveSelectionIntoCatalog(catalog, restored.selection, restoredExtra.items);
     restoreMissingSlots = restored.missingSlots;
+    restoredExtraItems = restoredExtra.items;
   }
 
   return (
@@ -89,7 +122,12 @@ export default async function PcBuilderPage({ searchParams }: { searchParams: Pr
       </section>
       <div className="container px-4 py-8 sm:px-6 lg:py-10">
         {restoreMissingSlots.length > 0 ? <div className="mb-5 rounded-2xl border border-amber-300/60 bg-amber-50 px-5 py-4 text-sm text-amber-900 dark:bg-amber-950/20 dark:text-amber-200">Some saved components are no longer available: {restoreMissingSlots.join(", ")}. Available components were restored from live database data.</div> : null}
-        <PcBuilderClient catalog={catalog} loadFailed={data.loadFailed} />
+        <PcBuilderClient
+          catalog={catalog}
+          loadFailed={data.loadFailed}
+          branding={{ ...branding, website: `${getSiteUrl()}/ecommerce/pc-builder` }}
+          initialExtraItems={restoredExtraItems}
+        />
       </div>
     </main>
   );
