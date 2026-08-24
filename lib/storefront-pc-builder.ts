@@ -306,11 +306,109 @@ export async function validatePcBuilderSelectionLive(
   };
 }
 
+export type PcBuilderExtraItemsResolution = {
+  items: Partial<Record<PcBuilderSlotKey, PcBuilderProduct[]>>;
+  missingCount: number;
+};
+
+// Multi-add "extra" line items are additive to cart/total and are not subject
+// to the single-slot compatibility engine, so this only checks that each
+// requested product still exists, is published and has an active variant —
+// it never runs evaluatePcBuild.
+export async function resolvePcBuilderExtraItems(
+  ids: Partial<Record<PcBuilderSlotKey, string[]>>,
+): Promise<PcBuilderExtraItemsResolution> {
+  const requested = PC_BUILDER_SLOTS.flatMap((slot) =>
+    (ids[slot.key] ?? []).flatMap((rawId) => {
+      const parsed = parsePcBuilderSelectionId(rawId);
+      return parsed ? [{ slot: slot.key, ...parsed }] : [];
+    }),
+  );
+  const productIds = [...new Set(requested.map((item) => item.productId))];
+  const rows = productIds.length
+    ? await prisma.product.findMany({
+        where: {
+          id: { in: productIds },
+          deleted: false,
+          available: true,
+          type: "PHYSICAL",
+          category: { deleted: false },
+        },
+        select: pcBuilderProductSelect,
+      })
+    : [];
+
+  const items: Partial<Record<PcBuilderSlotKey, PcBuilderProduct[]>> = {};
+  let missingCount = 0;
+  for (const requestedItem of requested) {
+    const slotDefinition = PC_BUILDER_SLOTS.find(
+      (slot) => slot.key === requestedItem.slot,
+    );
+    const row = rows.find(
+      (item) =>
+        item.id === requestedItem.productId &&
+        item.category.slug === slotDefinition?.categorySlug,
+    );
+    const variant = row?.variants.find(
+      (item) => item.id === requestedItem.variantId,
+    );
+    const product = row && variant ? projectProduct(row, variant) : null;
+    if (!product) {
+      missingCount += 1;
+      continue;
+    }
+    items[requestedItem.slot] = [...(items[requestedItem.slot] ?? []), product];
+  }
+
+  return { items, missingCount };
+}
+
 export async function getPcBuilderCatalog(): Promise<PcBuilderCatalogResult> {
   try {
     return { catalog: await readPcBuilderCatalog(), loadFailed: false };
   } catch (error) {
     console.error("PC Builder catalog loading failed", error);
     return { catalog: emptyCatalog(), loadFailed: true };
+  }
+}
+
+export type PcBuilderStoreBranding = {
+  name: string;
+  logo: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string;
+};
+
+const FALLBACK_BRANDING: PcBuilderStoreBranding = {
+  name: "PC Builder",
+  logo: null,
+  phone: null,
+  email: null,
+  website: "",
+};
+
+export async function getPcBuilderStoreBranding(): Promise<PcBuilderStoreBranding> {
+  try {
+    const settings = await prisma.sitesettings.findFirst({
+      orderBy: { id: "asc" },
+      select: {
+        logo: true,
+        siteTitle: true,
+        contactNumber: true,
+        contactEmail: true,
+      },
+    });
+    if (!settings) return FALLBACK_BRANDING;
+    return {
+      name: settings.siteTitle?.trim() || FALLBACK_BRANDING.name,
+      logo: settings.logo?.trim() || null,
+      phone: settings.contactNumber?.trim() || null,
+      email: settings.contactEmail?.trim() || null,
+      website: FALLBACK_BRANDING.website,
+    };
+  } catch (error) {
+    console.error("PC Builder store branding loading failed", error);
+    return FALLBACK_BRANDING;
   }
 }
