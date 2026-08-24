@@ -11,10 +11,27 @@ import AccountHeader from "../AccountHeader";
 interface CartItem {
   id: number | string;
   productId: number;
+  variantId: number | null;
   name: string;
   price: number;
   quantity: number;
   image: string;
+}
+
+function mergeIdenticalOrderItems(items: CartItem[]) {
+  const merged = new Map<string, CartItem>();
+
+  for (const item of items) {
+    const key = `${item.productId}:${item.variantId ?? "default"}:${item.price}`;
+    const current = merged.get(key);
+    if (current) {
+      current.quantity += item.quantity;
+    } else {
+      merged.set(key, { ...item });
+    }
+  }
+
+  return [...merged.values()];
 }
 
 interface Customer {
@@ -212,14 +229,20 @@ export default function OrdersPage() {
         const mapped: Order[] = Array.isArray(data.orders)
           ? data.orders.map((o: any) => {
               const items: CartItem[] = Array.isArray(o.orderItems)
-                ? o.orderItems.map((oi: any) => ({
-                    id: oi.id,
-                    productId: oi.productId,
-                    name: oi.product?.name ?? "Unknown product",
-                    price: Number(oi.price ?? 0),
-                    quantity: oi.quantity ?? 1,
-                    image: oi.product?.image ?? "",
-                  }))
+                ? mergeIdenticalOrderItems(
+                    o.orderItems.map((oi: any) => ({
+                      id: oi.id,
+                      productId: Number(oi.productId),
+                      variantId:
+                        oi.variantId === null || oi.variantId === undefined
+                          ? null
+                          : Number(oi.variantId),
+                      name: oi.product?.name ?? "Unknown product",
+                      price: Number(oi.price ?? 0),
+                      quantity: Math.max(1, Number(oi.quantity ?? 1)),
+                      image: oi.product?.image ?? "",
+                    })),
+                  )
                 : [];
 
               return {
@@ -384,7 +407,7 @@ export default function OrdersPage() {
                           {item.image ? (
                             <img
                               src={item.image}
-                              alt={item.name}
+                              alt=""
                               className="h-full w-full object-cover"
                             />
                           ) : (

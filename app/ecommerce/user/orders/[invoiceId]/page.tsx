@@ -23,10 +23,27 @@ import ProductReviews from "@/components/ecommarce/ProductReviews";
 interface CartItem {
   id: number | string;
   productId: number;
+  variantId: number | null;
   name: string;
   price: number;
   quantity: number;
   image: string;
+}
+
+function mergeIdenticalOrderItems(items: CartItem[]) {
+  const merged = new Map<string, CartItem>();
+
+  for (const item of items) {
+    const key = `${item.productId}:${item.variantId ?? "default"}:${item.price}`;
+    const current = merged.get(key);
+    if (current) {
+      current.quantity += item.quantity;
+    } else {
+      merged.set(key, { ...item });
+    }
+  }
+
+  return [...merged.values()];
 }
 
 interface OrderRefund {
@@ -451,10 +468,14 @@ export default function OrderDetailsPage() {
 
           return {
             id: oi.id,
-            productId: oi.productId,
+            productId: Number(oi.productId),
+            variantId:
+              oi.variantId === null || oi.variantId === undefined
+                ? null
+                : Number(oi.variantId),
             name: oi.product?.name ?? "Unknown product",
             price: Number(oi.price ?? 0),
-            quantity: oi.quantity ?? 1,
+            quantity: Math.max(1, Number(oi.quantity ?? 1)),
             image: imageFromProducts || fallbackImage,
           };
         });
@@ -718,6 +739,7 @@ export default function OrderDetailsPage() {
   }
 
   const items = Array.isArray(order.cartItems) ? order.cartItems : [];
+  const displayItems = mergeIdenticalOrderItems(items);
   const subTotal = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
@@ -1012,7 +1034,7 @@ export default function OrderDetailsPage() {
               </div>
 
               <div className="px-4 md:px-6 py-4 space-y-4">
-                {items.map((item) => (
+                {displayItems.map((item) => (
                   <div
                     key={item.id}
                     className="flex gap-4 pb-4 border-b last:border-b-0 border-dashed border-border"
@@ -1021,7 +1043,7 @@ export default function OrderDetailsPage() {
                       {item.image ? (
                         <img
                           src={item.image}
-                          alt={item.name}
+                          alt=""
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -1325,7 +1347,7 @@ export default function OrderDetailsPage() {
             </Card>
 
             <Card>
-              {canLeaveReview && items.length > 0 && (
+              {canLeaveReview && displayItems.length > 0 && (
                 <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
                   <div className="mb-4">
                     <h3 className="text-lg font-semibold uppercase tracking-[0.18em] text-amber-700 shadow-md">
@@ -1337,7 +1359,7 @@ export default function OrderDetailsPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {items.map((item) => (
+                    {displayItems.map((item) => (
                       <button
                         type="button"
                         key={item.id}
