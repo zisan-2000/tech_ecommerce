@@ -75,6 +75,13 @@ export function useProductCompare() {
     window.dispatchEvent(new Event(COMPARE_CHANGE_EVENT));
   }, []);
 
+  const replace = useCallback((nextIds: number[]) => {
+    const normalized = normalizeCompareProductIds(nextIds);
+    localStorage.setItem(PRODUCT_COMPARE_STORAGE_KEY, JSON.stringify(normalized));
+    window.dispatchEvent(new Event(COMPARE_CHANGE_EVENT));
+    return normalized;
+  }, []);
+
   const href = useMemo(() => productCompareHref(ids), [ids]);
 
   return {
@@ -85,5 +92,6 @@ export function useProductCompare() {
     toggle,
     remove,
     clear,
+    replace,
   };
 }
