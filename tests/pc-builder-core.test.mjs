@@ -9,6 +9,10 @@ import {
   serializeSharedBuild,
   validatePcBuilderProductReadiness,
 } from "../lib/pc-builder.ts";
+import {
+  PC_BUILDER_SLOTS,
+  parseSharedBuildExtraItems,
+} from "../lib/pc-builder-core.ts";
 import { parseProductAttributeInput } from "../lib/product-attribute-input.ts";
 
 function component(id, overrides = {}) {
@@ -289,6 +293,34 @@ test("share links preserve the selected product variant and ignore hostile input
   assert.deepEqual(parseSharedBuild("x".repeat(501)), {});
 });
 
+test("share links round-trip multi-add extra items separately from the primary selection", () => {
+  const build = compatibleBuild();
+  const extraItems = { memory: ["55-550", "56-560"], storage: ["57-570"] };
+  const serialized = serializeSharedBuild(build, extraItems);
+
+  const parsedPrimary = parseSharedBuild(serialized);
+  assert.equal(parsedPrimary.processor, build.processor.selectionId);
+  // "x:" pairs must never leak into the primary single-selection parse.
+  assert.equal(Object.hasOwn(parsedPrimary, "memory") === false || parsedPrimary.memory === build.memory?.selectionId, true);
+
+  const parsedExtras = parseSharedBuildExtraItems(serialized);
+  assert.deepEqual(parsedExtras.memory, ["55-550", "56-560"]);
+  assert.deepEqual(parsedExtras.storage, ["57-570"]);
+  assert.equal(Object.hasOwn(parsedExtras, "processor"), false);
+});
+
+test("extra item parsing caps count per slot, keeps quantities and rejects non-variant ids", () => {
+  const tooMany = Array.from({ length: 9 }, (_, i) => `x:memory:${i + 1}-${i + 1}`).join(",");
+  const parsed = parseSharedBuildExtraItems(tooMany);
+  assert.equal((parsed.memory ?? []).length <= 8, true);
+
+  const withDuplicate = parseSharedBuildExtraItems("x:memory:1-1,x:memory:1-1");
+  assert.deepEqual(withDuplicate.memory, ["1-1", "1-1"]);
+
+  const withBareProductId = parseSharedBuildExtraItems("x:memory:1");
+  assert.equal(Object.hasOwn(withBareProductId, "memory"), false);
+});
+
 test("saved builds restore the exact variant with legacy product-id fallback", () => {
   const primary = component(10, { variantLabel: "Capacity: 1TB" });
   const alternate = component(10, {
@@ -371,8 +403,28 @@ test("component picker disables products that are not PC-Builder-ready", async (
 
   assert.match(client, /evaluatePcBuilderCandidate/);
   assert.match(client, /readinessIssues/);
-  assert.match(client, /product\.stock < 1 \|\| notBuilderReady/);
+  // Whitespace-tolerant: the formatter may wrap this condition across lines.
+  assert.match(client, /product\.stock < 1\s*\|\|\s*notBuilderReady/);
   assert.match(client, /Missing required specs/);
+});
+
+test("every PC Builder slot is backed by a seeded category", async () => {
+  const seed = await readFile(
+    new URL("../prisma/seed-data/storefront/constants.ts", import.meta.url),
+    "utf8",
+  );
+
+  for (const slot of PC_BUILDER_SLOTS) {
+    assert.match(
+      seed,
+      new RegExp(`slug: "${slot.categorySlug}"`),
+      `slot "${slot.key}" has no seeded category "${slot.categorySlug}"`,
+    );
+    assert.ok(
+      slot.group === "core" || slot.group === "peripheral",
+      `slot "${slot.key}" has an unknown group`,
+    );
+  }
 });
 
 test("demo catalog includes every required PC component category", async () => {
@@ -390,6 +442,16 @@ test("demo catalog includes every required PC component category", async () => {
     "power-supply",
     "pc-case",
     "cpu-cooler",
+    // Peripherals & Others slots.
+    "gaming-monitor",
+    "casing-cooler",
+    "keyboard",
+    "mouse",
+    "speaker",
+    "headphone-headsets",
+    "wifi-lan-card",
+    "antivirus",
+    "ups",
   ]) {
     assert.match(seed, new RegExp(`slug: "${slug}"`));
   }

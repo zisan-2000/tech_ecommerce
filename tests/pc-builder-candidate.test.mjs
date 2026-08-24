@@ -148,9 +148,10 @@ test("component picker defaults to compatible filtering and disables shown confl
 
   assert.match(client, /evaluatePcBuilderCandidate/);
   assert.match(client, /compatibleOnly/);
+  // Whitespace-tolerant: the formatter may wrap this condition across lines.
   assert.match(
     client,
-    /product\.stock < 1 \|\| notBuilderReady \|\| incompatible/,
+    /product\.stock < 1\s*\|\|\s*notBuilderReady\s*\|\|\s*incompatible/,
   );
   assert.match(client, /Compatible only/);
   assert.match(client, /Show all components/);

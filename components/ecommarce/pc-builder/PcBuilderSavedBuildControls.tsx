@@ -198,7 +198,9 @@ export default function PcBuilderSavedBuildControls() {
       if (payload.missingSlots?.length) {
         toast.info("Some saved components are unavailable; available components will still be restored.");
       }
-      window.location.assign(legacyBuildUrl(payload.build.selections).toString());
+      window.location.assign(
+        legacyBuildUrl(payload.build.selections, payload.build.extraItems).toString(),
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Saved build could not be restored");
       setBusyId(null);

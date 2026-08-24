@@ -20,6 +20,24 @@ const CATEGORY_KEYS = new Set([
   "case",
   "cooler",
 ]);
+// Peripheral slots the PC Builder offers; their categories must exist even when
+// no demo product is seeded into them yet.
+const PERIPHERAL_CATEGORY_KEYS = new Set([
+  "monitor",
+  "monitor_gaming",
+  "casing_cooler",
+  "keyboard",
+  "mouse",
+  "speaker",
+  "headset",
+  "wifi_lan_card",
+  "antivirus",
+  "ups",
+  "accessories",
+  "tv",
+  "power_solution",
+  "software",
+]);
 const products = STOREFRONT_PRODUCTS.filter((item) =>
   CATEGORY_KEYS.has(item.categoryKey),
 );
@@ -56,7 +74,9 @@ async function ensureWarehouse() {
 async function seed() {
   const requiredCategories = STOREFRONT_CATEGORIES.filter(
     (category) =>
-      category.key === "components" || CATEGORY_KEYS.has(category.key),
+      category.key === "components" ||
+      CATEGORY_KEYS.has(category.key) ||
+      PERIPHERAL_CATEGORY_KEYS.has(category.key),
   );
   const categoryIds = {};
   for (const category of requiredCategories) {

@@ -200,6 +200,7 @@ export default function PcBuilderClient({
   const [addExtraMode, setAddExtraMode] = useState(false);
   const [query, setQuery] = useState("");
   const [compatibleOnly, setCompatibleOnly] = useState(true);
+  const [hideUnconfigured, setHideUnconfigured] = useState(false);
   const [restored, setRestored] = useState(false);
   const [adding, setAdding] = useState(false);
   const {
@@ -252,7 +253,8 @@ export default function PcBuilderClient({
         const storedExtras = JSON.parse(
           localStorage.getItem(PC_BUILDER_EXTRA_ITEMS_STORAGE_KEY) || "{}",
         ) as Partial<Record<PcBuilderSlotKey, string[]>>;
-        extraIds = storedExtras && typeof storedExtras === "object" ? storedExtras : {};
+        extraIds =
+          storedExtras && typeof storedExtras === "object" ? storedExtras : {};
       } catch {
         localStorage.removeItem(PC_BUILDER_EXTRA_ITEMS_STORAGE_KEY);
       }
@@ -262,7 +264,6 @@ export default function PcBuilderClient({
     setRestored(true);
     // Only ever run this restore pass once on mount; `catalog` identity can
     // change across re-renders without meaning "restore again".
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -309,7 +310,8 @@ export default function PcBuilderClient({
   const totalCurrency =
     selectedProducts[0]?.currency ?? extraProducts[0]?.currency ?? "BDT";
 
-  // One printable line per slot; multi-add slots repeat the label only on the first row.
+  // One printable line per physical item. Repeated selectionIds are
+  // intentional quantities (for example, two identical RAM sticks).
   const quotationRows = useMemo(
     () =>
       PC_BUILDER_SLOTS.map((slot) => {
@@ -342,16 +344,20 @@ export default function PcBuilderClient({
 
   const choose = (slot: PcBuilderSlotKey, product: PcBuilderProduct) => {
     if (addExtraMode) {
-      setExtraItems((current) => {
-        const existing = current[slot] ?? [];
-        // Guard against duplicate adds (e.g. a fast double click before the
-        // dialog closes) producing two list entries with the same key.
-        if (existing.some((item) => item.selectionId === product.selectionId)) {
-          return current;
-        }
-        if (existing.length >= MAX_EXTRA_ITEMS_PER_SLOT) return current;
-        return { ...current, [slot]: [...existing, product] };
-      });
+      const existing = extraItems[slot] ?? [];
+      if (existing.length >= MAX_EXTRA_ITEMS_PER_SLOT) {
+        const label =
+          PC_BUILDER_SLOTS.find((item) => item.key === slot)?.label ??
+          "components";
+        toast.error(
+          `You can add up to ${MAX_EXTRA_ITEMS_PER_SLOT + 1} ${label} items.`,
+        );
+        return;
+      }
+      setExtraItems((current) => ({
+        ...current,
+        [slot]: [...(current[slot] ?? []), product],
+      }));
     } else {
       setSelection((current) => ({ ...current, [slot]: product }));
     }
@@ -383,12 +389,11 @@ export default function PcBuilderClient({
     });
   };
 
-  const removeExtra = (slot: PcBuilderSlotKey, selectionId: string) => {
+  const removeExtra = (slot: PcBuilderSlotKey, itemIndex: number) => {
     setExtraItems((current) => {
       const next = { ...current };
-      const remaining = (next[slot] ?? []).filter(
-        (product) => product.selectionId !== selectionId,
-      );
+      const remaining = [...(next[slot] ?? [])];
+      remaining.splice(itemIndex, 1);
       if (remaining.length) next[slot] = remaining;
       else delete next[slot];
       return next;
@@ -474,16 +479,14 @@ export default function PcBuilderClient({
         return;
       }
 
-      const validatedProducts = [
-        ...PC_BUILDER_SLOTS.flatMap((slot) => {
-          const product = payload.selection[slot.key];
-          return product ? [product] : [];
-        }),
-        ...extraProducts,
-      ];
+      const validatedProducts = PC_BUILDER_SLOTS.flatMap((slot) => {
+        const product = payload.selection[slot.key];
+        return product ? [product] : [];
+      });
       let addedCount = 0;
       for (const product of validatedProducts) {
         const added = await addToCart(product.id, 1, product.variantId, {
+          pcBuilder: true,
           product: {
             id: product.id,
             name: product.name,
@@ -503,11 +506,48 @@ export default function PcBuilderClient({
         });
         if (added) addedCount += 1;
       }
-      if (addedCount === validatedProducts.length) {
+
+      // Extras are intentionally outside the single-item compatibility slots.
+      // Aggregate identical variants into a quantity-aware standard cart row.
+      const groupedExtras = new Map<
+        string,
+        { product: PcBuilderProduct; quantity: number }
+      >();
+      for (const product of extraProducts) {
+        const current = groupedExtras.get(product.selectionId);
+        groupedExtras.set(product.selectionId, {
+          product,
+          quantity: (current?.quantity ?? 0) + 1,
+        });
+      }
+      for (const { product, quantity } of groupedExtras.values()) {
+        const added = await addToCart(product.id, quantity, product.variantId, {
+          pcBuilder: false,
+          product: {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            image: product.image,
+            variants: [
+              {
+                id: product.variantId,
+                price: product.price,
+                sku: product.variantSku,
+                options: product.variantLabel
+                  ? { Configuration: product.variantLabel }
+                  : null,
+              },
+            ],
+          },
+        });
+        if (added) addedCount += quantity;
+      }
+      const requestedCount = validatedProducts.length + extraProducts.length;
+      if (addedCount === requestedCount) {
         toast.success(`${addedCount} build components added to cart`);
       } else {
         toast.error(
-          `${addedCount} of ${validatedProducts.length} components were added. Review unavailable items.`,
+          `${addedCount} of ${requestedCount} components were added. Review unavailable items.`,
         );
       }
     } catch (error) {
@@ -539,34 +579,56 @@ export default function PcBuilderClient({
   return (
     <div
       id="pc-builder-print-root"
-      className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]"
+      className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_370px]"
     >
-      <section aria-labelledby="components-heading" className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm">
+      <section
+        aria-labelledby="components-heading"
+        className="min-w-0 space-y-4"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4 border bg-card px-5 py-4 shadow-sm">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
-              Build workspace
-            </p>
-            <h2 id="components-heading" className="mt-0.5 text-lg font-black">
-              Choose your components
+            <h2
+              id="components-heading"
+              className="text-base font-black text-primary sm:text-lg"
+            >
+              PC Builder - Build Your Own Computer
             </h2>
+            <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={hideUnconfigured}
+                onChange={(event) => setHideUnconfigured(event.target.checked)}
+                className="h-4 w-4 rounded border"
+              />
+              Hide Unconfigured Components
+            </label>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={share}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition hover:border-primary hover:text-primary"
-            >
-              <Copy className="h-3.5 w-3.5" aria-hidden="true" /> Share
-            </button>
-            <button
-              type="button"
-              onClick={reset}
-              disabled={!selectedProducts.length && !extraProducts.length}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition hover:border-destructive hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> Reset
-            </button>
+          <div className="flex items-center gap-3">
+            <div className="min-w-[140px] rounded-lg bg-primary px-5 py-3 text-center text-primary-foreground shadow-sm">
+              <p className="text-xl font-black leading-none">
+                {money(total, totalCurrency)}
+              </p>
+              <p className="mt-1 text-xs font-bold">
+                {selectedProducts.length + extraProducts.length} Items
+              </p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={share}
+                className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-muted-foreground hover:text-primary"
+              >
+                <Copy className="h-3.5 w-3.5" aria-hidden="true" /> Share
+              </button>
+              <button
+                type="button"
+                onClick={reset}
+                disabled={!selectedProducts.length && !extraProducts.length}
+                className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-muted-foreground hover:text-destructive disabled:opacity-40"
+              >
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> Reset
+              </button>
+            </div>
           </div>
         </div>
 
@@ -576,173 +638,180 @@ export default function PcBuilderClient({
         ].map((section) => (
           <div
             key={section.title}
-            className="overflow-hidden rounded-xl border bg-card shadow-sm"
+            className="overflow-hidden border bg-card shadow-sm"
           >
-            <div className="bg-muted/60 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
+            <div className="bg-slate-500 px-4 py-1.5 text-xs font-bold text-white dark:bg-slate-700">
               {section.title}
             </div>
             <div className="divide-y">
-              {section.slots.map((slot) => {
-                const product = selection[slot.key];
-                const extras = extraItems[slot.key] ?? [];
-                const SlotIcon = SLOT_ICONS[slot.key];
-                const slotIssues = evaluation.issues.filter((item) =>
-                  item.slots.includes(slot.key),
-                );
-                const hasError = slotIssues.some(
-                  (item) => item.severity === "error",
-                );
-                const canAddMore = slot.multiple && Boolean(product);
-                return (
-                  <div
-                    key={slot.key}
-                    data-testid={`pc-builder-slot-${slot.key}`}
-                    className={hasError ? "bg-destructive/[0.03]" : undefined}
-                  >
-                    <div className="grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 sm:grid-cols-[36px_180px_minmax(0,1fr)_auto]">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <SlotIcon className="h-4 w-4" aria-hidden="true" />
-                      </div>
+              {section.slots
+                .filter(
+                  (slot) =>
+                    !hideUnconfigured ||
+                    Boolean(selection[slot.key]) ||
+                    Boolean(extraItems[slot.key]?.length),
+                )
+                .map((slot) => {
+                  const product = selection[slot.key];
+                  const extras = extraItems[slot.key] ?? [];
+                  const SlotIcon = SLOT_ICONS[slot.key];
+                  const slotIssues = evaluation.issues.filter((item) =>
+                    item.slots.includes(slot.key),
+                  );
+                  const hasError = slotIssues.some(
+                    (item) => item.severity === "error",
+                  );
+                  const canAddMore = slot.multiple && Boolean(product);
+                  return (
+                    <div
+                      key={slot.key}
+                      data-testid={`pc-builder-slot-${slot.key}`}
+                      className={hasError ? "bg-destructive/[0.03]" : undefined}
+                    >
+                      <div className="grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3.5 sm:grid-cols-[52px_165px_minmax(0,1fr)_auto]">
+                        <div className="flex h-12 w-12 items-center justify-center rounded bg-primary/5 text-primary">
+                          <SlotIcon className="h-6 w-6" aria-hidden="true" />
+                        </div>
 
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <h3 className="text-sm font-semibold">
-                            {slot.label}
-                          </h3>
-                          {slot.required ? (
-                            <span className="rounded bg-primary/90 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary-foreground">
-                              Required
-                            </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <h3 className="text-sm font-semibold">
+                              {slot.label}
+                            </h3>
+                            {slot.required ? (
+                              <span className="rounded-sm bg-neutral-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                                Required
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="col-span-2 min-w-0 sm:col-span-1">
+                          {product ? (
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md border bg-white">
+                                <Image
+                                  src={product.image || "/placeholder.svg"}
+                                  alt=""
+                                  fill
+                                  sizes="36px"
+                                  className="object-contain p-1"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <Link
+                                  href={`/ecommerce/products/${product.id}`}
+                                  className="line-clamp-1 text-xs font-semibold hover:text-primary hover:underline"
+                                >
+                                  {product.name}
+                                </Link>
+                                <p className="text-xs font-bold text-primary">
+                                  {money(product.price, product.currency)}
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="truncate text-xs text-muted-foreground">
+                              {slot.description}
+                            </p>
+                          )}
+                          {slotIssues.length > 0 ? (
+                            <p
+                              className={`mt-1 flex items-start gap-1 text-[11px] ${slotIssues[0].severity === "error" ? "text-destructive" : "text-amber-700 dark:text-amber-400"}`}
+                            >
+                              <AlertTriangle
+                                className="mt-0.5 h-3 w-3 shrink-0"
+                                aria-hidden="true"
+                              />{" "}
+                              {slotIssues[0].message}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="col-span-3 flex items-center gap-2 sm:col-span-1">
+                          <button
+                            type="button"
+                            onClick={() => openSlot(slot.key)}
+                            className="inline-flex h-10 flex-1 items-center justify-center rounded border-2 border-primary px-5 text-xs font-bold text-primary transition hover:bg-primary hover:text-primary-foreground sm:flex-none sm:min-w-[90px]"
+                          >
+                            {product ? "Change" : "Choose"}
+                          </button>
+                          {product ? (
+                            <button
+                              type="button"
+                              onClick={() => remove(slot.key)}
+                              aria-label={`Remove ${slot.label}`}
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-muted-foreground transition hover:border-destructive hover:text-destructive"
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
                           ) : null}
                         </div>
                       </div>
 
-                      <div className="col-span-2 min-w-0 sm:col-span-1">
-                        {product ? (
-                          <div className="flex min-w-0 items-center gap-2.5">
-                            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md border bg-white">
-                              <Image
-                                src={product.image || "/placeholder.svg"}
-                                alt=""
-                                fill
-                                sizes="36px"
-                                className="object-contain p-1"
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <Link
-                                href={`/ecommerce/products/${product.id}`}
-                                className="line-clamp-1 text-xs font-semibold hover:text-primary hover:underline"
+                      {extras.length > 0 ? (
+                        <div className="space-y-2 border-t border-dashed bg-muted/20 px-4 py-2.5 pl-[52px]">
+                          {extras.map((extra, extraIndex) => (
+                            <div
+                              key={`${extra.selectionId}-${extraIndex}`}
+                              className="flex min-w-0 items-center gap-2.5"
+                            >
+                              <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md border bg-white">
+                                <Image
+                                  src={extra.image || "/placeholder.svg"}
+                                  alt=""
+                                  fill
+                                  sizes="32px"
+                                  className="object-contain p-0.5"
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <Link
+                                  href={`/ecommerce/products/${extra.id}`}
+                                  className="line-clamp-1 text-xs font-semibold hover:text-primary hover:underline"
+                                >
+                                  {extra.name}
+                                </Link>
+                                <p className="text-xs font-bold text-primary">
+                                  {money(extra.price, extra.currency)}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeExtra(slot.key, extraIndex)
+                                }
+                                aria-label={`Remove additional ${slot.label}`}
+                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-muted-foreground transition hover:border-destructive hover:text-destructive"
                               >
-                                {product.name}
-                              </Link>
-                              <p className="text-xs font-bold text-primary">
-                                {money(product.price, product.currency)}
-                              </p>
+                                <X className="h-3 w-3" aria-hidden="true" />
+                              </button>
                             </div>
-                          </div>
-                        ) : (
-                          <p className="truncate text-xs text-muted-foreground">
-                            {slot.description}
-                          </p>
-                        )}
-                        {slotIssues.length > 0 ? (
-                          <p
-                            className={`mt-1 flex items-start gap-1 text-[11px] ${slotIssues[0].severity === "error" ? "text-destructive" : "text-amber-700 dark:text-amber-400"}`}
-                          >
-                            <AlertTriangle
-                              className="mt-0.5 h-3 w-3 shrink-0"
-                              aria-hidden="true"
-                            />{" "}
-                            {slotIssues[0].message}
-                          </p>
-                        ) : null}
-                      </div>
+                          ))}
+                        </div>
+                      ) : null}
 
-                      <div className="col-span-3 flex items-center gap-2 sm:col-span-1">
-                        <button
-                          type="button"
-                          onClick={() => openSlot(slot.key)}
-                          className="inline-flex h-8 flex-1 items-center justify-center rounded-md border border-primary px-3 text-xs font-bold text-primary transition hover:bg-primary hover:text-primary-foreground sm:flex-none sm:min-w-[76px]"
-                        >
-                          {product ? "Change" : "Choose"}
-                        </button>
-                        {product ? (
+                      {canAddMore ? (
+                        <div className="border-t border-dashed px-4 py-1.5 pl-[52px]">
                           <button
                             type="button"
-                            onClick={() => remove(slot.key)}
-                            aria-label={`Remove ${slot.label}`}
-                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-muted-foreground transition hover:border-destructive hover:text-destructive"
+                            onClick={() => openSlot(slot.key, true)}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:underline"
                           >
-                            <X className="h-3.5 w-3.5" aria-hidden="true" />
+                            <Plus className="h-3 w-3" aria-hidden="true" /> Add
+                            another {slot.label.toLowerCase()}
                           </button>
-                        ) : null}
-                      </div>
+                        </div>
+                      ) : null}
                     </div>
-
-                    {extras.length > 0 ? (
-                      <div className="space-y-2 border-t border-dashed bg-muted/20 px-4 py-2.5 pl-[52px]">
-                        {extras.map((extra) => (
-                          <div
-                            key={extra.selectionId}
-                            className="flex min-w-0 items-center gap-2.5"
-                          >
-                            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md border bg-white">
-                              <Image
-                                src={extra.image || "/placeholder.svg"}
-                                alt=""
-                                fill
-                                sizes="32px"
-                                className="object-contain p-0.5"
-                              />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <Link
-                                href={`/ecommerce/products/${extra.id}`}
-                                className="line-clamp-1 text-xs font-semibold hover:text-primary hover:underline"
-                              >
-                                {extra.name}
-                              </Link>
-                              <p className="text-xs font-bold text-primary">
-                                {money(extra.price, extra.currency)}
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                removeExtra(slot.key, extra.selectionId)
-                              }
-                              aria-label={`Remove additional ${slot.label}`}
-                              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-muted-foreground transition hover:border-destructive hover:text-destructive"
-                            >
-                              <X className="h-3 w-3" aria-hidden="true" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {canAddMore ? (
-                      <div className="border-t border-dashed px-4 py-1.5 pl-[52px]">
-                        <button
-                          type="button"
-                          onClick={() => openSlot(slot.key, true)}
-                          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:underline"
-                        >
-                          <Plus className="h-3 w-3" aria-hidden="true" /> Add
-                          another {slot.label.toLowerCase()}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           </div>
         ))}
       </section>
 
-      <aside className="space-y-4 lg:sticky lg:top-36">
+      <aside className="space-y-4 lg:sticky lg:top-40">
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 px-3 py-2.5 text-center">
             <p className="text-lg font-black leading-none text-primary">
@@ -1152,7 +1221,9 @@ export default function PcBuilderClient({
                       </tr>
                     ) : (
                       items.map((item, itemIndex) => (
-                        <tr key={`${slot.key}-${item.selectionId}`}>
+                        <tr
+                          key={`${slot.key}-${item.selectionId}-${itemIndex}`}
+                        >
                           <td className="quotation-component">
                             {itemIndex === 0 ? slot.label : ""}
                           </td>

@@ -58,7 +58,7 @@ export function parsePcBuilderSavedExtraItems(input: unknown): PcBuilderSavedExt
     const ids: string[] = [];
     for (const rawId of rawIds) {
       const selectionId = String(rawId ?? "").trim();
-      if (!SELECTION_ID_RE.test(selectionId) || ids.includes(selectionId)) return null;
+      if (!SELECTION_ID_RE.test(selectionId)) return null;
       ids.push(selectionId);
     }
     extraItems[slot as PcBuilderSavedSlotKey] = ids;

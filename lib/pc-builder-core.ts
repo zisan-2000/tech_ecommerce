@@ -991,7 +991,6 @@ export function parseSharedBuildExtraItems(
     }
     const current = parsed[key] ?? [];
     if (current.length >= MAX_SHARED_BUILD_EXTRA_ITEMS_PER_SLOT) continue;
-    if (current.includes(id)) continue;
     parsed[key] = [...current, id];
   }
   return parsed;

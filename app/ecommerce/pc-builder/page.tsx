@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CheckCircle2, Cpu, ShieldCheck, Zap } from "lucide-react";
+import { Cpu } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import PcBuilderClient from "@/components/ecommarce/pc-builder/PcBuilderClient";
@@ -97,30 +97,20 @@ export default async function PcBuilderPage({ searchParams }: { searchParams: Pr
   }
 
   return (
-    <main className="min-h-screen bg-muted/20">
-      <section className="border-b bg-card">
-        <div className="container px-4 py-10 sm:px-6 lg:py-14">
-          <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-primary"><Cpu className="h-4 w-4" aria-hidden="true" /> Custom PC Builder</div>
-              <h1 className="mt-4 max-w-3xl text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">Build your PC with compatibility confidence</h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">Select each component, see compatibility conflicts instantly and add the complete stock-checked build to your cart in one action.</p>
-              <div className="mt-5 flex flex-wrap gap-2"><PcBuilderSavedBuildControls /></div>
+    <main className="min-h-screen bg-[#f5f6f8] dark:bg-background">
+      <section className="border-b bg-card shadow-sm">
+        <div className="container flex flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-start gap-2 text-primary sm:items-center">
+              <Cpu className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <h1 className="min-w-0 text-xl font-black sm:text-2xl">PC Builder - Build Your Own Computer</h1>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              {[
-                [ShieldCheck, "Compatibility checks", "Socket, memory, power and physical clearance"],
-                [Zap, "Power estimate", "Recommended PSU capacity with safety headroom"],
-                [CheckCircle2, "Stock aware", "Only available variants can be selected and added"],
-              ].map(([Icon, title, description]) => {
-                const FeatureIcon = Icon as typeof ShieldCheck;
-                return <div key={String(title)} className="flex items-start gap-3 rounded-xl border bg-background/70 p-3.5"><FeatureIcon className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><div><p className="text-sm font-bold">{String(title)}</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">{String(description)}</p></div></div>;
-              })}
-            </div>
+            <p className="mt-1 text-sm text-muted-foreground">Choose compatible parts and create your custom desktop PC.</p>
           </div>
+          <div className="flex flex-wrap gap-2"><PcBuilderSavedBuildControls /></div>
         </div>
       </section>
-      <div className="container px-4 py-8 sm:px-6 lg:py-10">
+      <div className="container max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
         {restoreMissingSlots.length > 0 ? <div className="mb-5 rounded-2xl border border-amber-300/60 bg-amber-50 px-5 py-4 text-sm text-amber-900 dark:bg-amber-950/20 dark:text-amber-200">Some saved components are no longer available: {restoreMissingSlots.join(", ")}. Available components were restored from live database data.</div> : null}
         <PcBuilderClient
           catalog={catalog}

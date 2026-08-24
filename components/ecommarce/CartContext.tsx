@@ -51,6 +51,7 @@ type CartAnimationOptions = {
   image?: string;
   imageRect?: CartAnimationRect;
   product?: ProductApiItem;
+  pcBuilder?: boolean;
 };
 
 interface CartContextType {
@@ -332,8 +333,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
           : variant?.sku ?? null;
 
       const fromPcBuilder =
-        typeof window !== "undefined" &&
-        window.location.pathname.includes("/pc-builder");
+        options?.pcBuilder ??
+        (typeof window !== "undefined" &&
+          window.location.pathname.includes("/pc-builder"));
       let pcBuildId: string | null = null;
       let pcBuildSlot: string | null = null;
 

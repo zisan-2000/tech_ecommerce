@@ -7,6 +7,7 @@ import {
   isPcBuilderSavedBuildId,
   isPcBuilderShareToken,
   normalizePcBuilderSavedBuildName,
+  parsePcBuilderSavedExtraItems,
   parsePcBuilderSavedSelections,
   serializePcBuilderSavedSelections,
 } from "../lib/pc-builder-saved-build.ts";
@@ -23,6 +24,44 @@ test("saved selection serialization is stable across object insertion order", ()
   const b = { processor: "10-100", motherboard: "11-101" };
   assert.equal(canonicalPcBuilderSavedSelections(a), canonicalPcBuilderSavedSelections(b));
   assert.equal(serializePcBuilderSavedSelections(a), "processor:10-100,motherboard:11-101");
+});
+
+test("saved extra items accept only known slots and reject malformed input", () => {
+  assert.deepEqual(parsePcBuilderSavedExtraItems(undefined), {});
+  assert.deepEqual(parsePcBuilderSavedExtraItems(null), {});
+  assert.deepEqual(parsePcBuilderSavedExtraItems({}), {});
+  assert.deepEqual(
+    parsePcBuilderSavedExtraItems({ memory: ["10-100", "11-101"] }),
+    { memory: ["10-100", "11-101"] },
+  );
+  assert.equal(parsePcBuilderSavedExtraItems({ attacker: ["10-100"] }), null);
+  assert.equal(parsePcBuilderSavedExtraItems({ memory: "10-100" }), null);
+  assert.equal(parsePcBuilderSavedExtraItems({ memory: ["not-an-id"] }), null);
+  assert.deepEqual(
+    parsePcBuilderSavedExtraItems({ memory: ["10-100", "10-100"] }),
+    { memory: ["10-100", "10-100"] },
+    "duplicate selectionIds represent multiple physical units",
+  );
+  assert.equal(
+    parsePcBuilderSavedExtraItems({ memory: Array.from({ length: 9 }, (_, i) => `${i + 1}-${i + 1}`) }),
+    null,
+    "more than 8 extra items in one slot must be rejected",
+  );
+});
+
+test("saved selection serialization includes extra items with an x: prefix", () => {
+  const selections = { processor: "10-100" };
+  const extraItems = { memory: ["11-101", "12-102"] };
+  const serialized = serializePcBuilderSavedSelections(selections, extraItems);
+  assert.equal(serialized, "processor:10-100,x:memory:11-101,x:memory:12-102");
+});
+
+test("canonical selections differ when extra items differ", () => {
+  const selections = { processor: "10-100" };
+  assert.notEqual(
+    canonicalPcBuilderSavedSelections(selections, { memory: ["11-101"] }),
+    canonicalPcBuilderSavedSelections(selections, {}),
+  );
 });
 
 test("saved build identifiers use opaque bounded formats", () => {
