@@ -20,7 +20,7 @@ const requiredMigrations = [
 ];
 
 try {
-  const [relations, migrations, extensions, cartColumns] = await Promise.all([
+  const [relations, migrationTables, extensions, cartColumns] = await Promise.all([
     prisma.$queryRawUnsafe(
       `SELECT c.relname AS name
        FROM pg_class c
@@ -31,12 +31,10 @@ try {
       requiredRelations,
     ),
     prisma.$queryRawUnsafe(
-      `SELECT "migration_name" AS name
-       FROM "_prisma_migrations"
-       WHERE "finished_at" IS NOT NULL
-         AND "rolled_back_at" IS NULL
-         AND "migration_name" = ANY($1::text[])`,
-      requiredMigrations,
+      `SELECT table_name AS name
+       FROM information_schema.tables
+       WHERE table_schema = 'public'
+         AND table_name = '_prisma_migrations'`,
     ),
     prisma.$queryRawUnsafe(
       "SELECT extname AS name FROM pg_extension WHERE extname = 'pg_trgm'",
@@ -50,15 +48,29 @@ try {
     ),
   ]);
 
+  const migrations =
+    migrationTables.length > 0
+      ? await prisma.$queryRawUnsafe(
+          `SELECT "migration_name" AS name
+           FROM "_prisma_migrations"
+           WHERE "finished_at" IS NOT NULL
+             AND "rolled_back_at" IS NULL
+             AND "migration_name" = ANY($1::text[])`,
+          requiredMigrations,
+        )
+      : [];
+
   const relationNames = new Set(relations.map((row) => row.name));
   const migrationNames = new Set(migrations.map((row) => row.name));
   const missing = [
     ...requiredRelations
       .filter((name) => !relationNames.has(name))
       .map((name) => `relation public.${name}`),
-    ...requiredMigrations
-      .filter((name) => !migrationNames.has(name))
-      .map((name) => `migration ${name}`),
+    ...(migrationTables.length > 0
+      ? requiredMigrations
+          .filter((name) => !migrationNames.has(name))
+          .map((name) => `migration ${name}`)
+      : []),
   ];
 
   if (extensions.length === 0) missing.push("extension pg_trgm");
@@ -69,9 +81,18 @@ try {
     for (const item of missing) console.error(`- Missing ${item}`);
     process.exitCode = 1;
   } else {
+    const migrationSummary =
+      migrationTables.length > 0
+        ? `${requiredMigrations.length} migrations`
+        : "live schema objects";
     console.log(
-      `PC Builder database is ready (${requiredRelations.length} relations, ${requiredMigrations.length} migrations, pg_trgm, CartItem.lineKey).`,
+      `PC Builder database is ready (${requiredRelations.length} relations, ${migrationSummary}, pg_trgm, CartItem.lineKey).`,
     );
+    if (migrationTables.length === 0) {
+      console.warn(
+        "Prisma migration history table is absent; readiness was verified from live database objects.",
+      );
+    }
   }
 } catch (error) {
   console.error("PC Builder database verification could not complete:", error);

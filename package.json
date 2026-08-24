@@ -25,6 +25,7 @@
     "seed:storefront": "tsx prisma/seed-storefront.ts",
     "seed:laptops": "tsx prisma/laptop-seed.ts",
     "seed:pc-builder": "node --no-warnings --experimental-strip-types scripts/seed-pc-builder.mjs",
+    "repair:pc-builder-db": "node scripts/repair-pc-builder-database.mjs",
     "verify:pc-builder-db": "node scripts/verify-pc-builder-database.mjs",
     "seed:storefront-menu": "tsx prisma/seed-storefront-menu.ts",
     "seed:flash-sales": "node scripts/seed-flash-sales.mjs",
