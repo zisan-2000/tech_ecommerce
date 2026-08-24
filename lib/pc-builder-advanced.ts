@@ -142,7 +142,7 @@ function storageInterface(value: string) {
 }
 
 function isM2FormFactor(value: string) {
-  return /^m\.?\s*2\b/i.test(value.trim());
+  return /^(?:m\.?\s*2\b|m2\d*)/i.test(value.trim());
 }
 
 type ConnectorCounts = {

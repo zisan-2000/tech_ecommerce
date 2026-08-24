@@ -1,4 +1,9 @@
 export * from "./pc-builder-core";
+export {
+  parseSharedBuild,
+  selectionFromIds,
+  serializeSharedBuild,
+} from "./pc-builder-core";
 
 import { evaluateAdvancedPcCompatibility } from "./pc-builder-advanced";
 import { validatePcBuilderPlaceholderReadiness } from "./pc-builder-placeholder-validation";

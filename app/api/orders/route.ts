@@ -3,7 +3,10 @@ import {
   PC_BUILDER_CHECKOUT_COOKIE,
   parsePcBuilderCheckoutCookie,
 } from "@/lib/pc-builder-checkout";
-import { matchPcBuilderBuildsToOrderItems } from "@/lib/pc-builder-order-match";
+import {
+  matchPcBuilderBuildsToOrderItems,
+  type CheckoutItem,
+} from "@/lib/pc-builder-order-match";
 import { validatePcBuilderSelectionLive } from "@/lib/storefront-pc-builder";
 import { GET, POST as corePOST } from "./route-core";
 
@@ -28,6 +31,12 @@ function coreRequest(request: NextRequest, rawBody: string) {
   });
 }
 
+function isCheckoutItem(value: unknown): value is CheckoutItem {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const productId = (value as Record<string, unknown>).productId;
+  return typeof productId === "string" || typeof productId === "number";
+}
+
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   let body: Record<string, unknown>;
@@ -42,7 +51,7 @@ export async function POST(request: NextRequest) {
   }
 
   const items = Array.isArray(body.items)
-    ? (body.items as Array<Record<string, unknown>>)
+    ? body.items.filter(isCheckoutItem)
     : [];
   if (!items.length) return corePOST(coreRequest(request, rawBody));
 
@@ -68,9 +77,9 @@ export async function POST(request: NextRequest) {
     const errorMessage =
       matched.error.code === "PC_BUILD_COMPONENT_QUANTITY_LOCKED"
         ? "PC build component quantity must remain 1 at checkout."
-        : matched.error.code === "PC_BUILDER_CART_GROUPING_AMBIGUOUS"
-          ? "PC Builder cart grouping is ambiguous. Restore the validated build rows before checkout."
-          : "Your PC Builder cart changed after validation. Restore the missing build components or return to PC Builder.";
+        : matched.error.code === "PC_BUILDER_CART_CHANGED"
+          ? "Your PC Builder cart changed after validation. Restore the missing build components or return to PC Builder."
+          : "PC Builder cart grouping is ambiguous. Restore the validated build rows before checkout.";
 
     return NextResponse.json(
       {

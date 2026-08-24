@@ -9,6 +9,7 @@ import {
   serializePcBuilderCheckoutState,
 } from "@/lib/pc-builder-checkout";
 import { prisma } from "@/lib/prisma";
+import { replayNextRequest } from "@/lib/replay-next-request";
 import { DELETE as coreDELETE, PATCH as corePATCH } from "./route-core";
 
 type CartBuildMapRow = {
@@ -81,25 +82,26 @@ export async function PATCH(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const requestForCore = request.clone();
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return corePATCH(requestForCore, ctx);
+  if (!userId) return corePATCH(request, ctx);
 
   const { id } = await ctx.params;
   const cartItemId = Number(id);
   if (!Number.isInteger(cartItemId) || cartItemId < 1) {
-    return corePATCH(requestForCore, { params: Promise.resolve({ id }) });
+    return corePATCH(request, { params: Promise.resolve({ id }) });
   }
 
   const mapping = await getMapping(cartItemId, userId);
   if (!mapping) {
-    return corePATCH(requestForCore, { params: Promise.resolve({ id }) });
+    return corePATCH(request, { params: Promise.resolve({ id }) });
   }
 
+  const rawBody = await request.text();
+  const requestForCore = replayNextRequest(request, rawBody);
   let quantity = Number.NaN;
   try {
-    const body = await request.json();
+    const body = JSON.parse(rawBody);
     quantity = Number(body?.quantity);
   } catch {
     return corePATCH(requestForCore, { params: Promise.resolve({ id }) });

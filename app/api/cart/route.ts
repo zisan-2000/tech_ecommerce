@@ -9,7 +9,12 @@ import {
   type PcBuilderCheckoutBuild,
 } from "@/lib/pc-builder-checkout";
 import { pcBuilderCartLineKey } from "@/lib/pc-builder-cart-line";
+import {
+  isPcBuilderDatabaseInfrastructureError,
+  PC_BUILDER_DATABASE_UNAVAILABLE,
+} from "@/lib/pc-builder-database";
 import { pcBuildSelectionId } from "@/lib/pc-builder-grouping";
+import { replayNextRequest } from "@/lib/replay-next-request";
 import { validatePcBuilderSelectionLive } from "@/lib/storefront-pc-builder";
 import { computeWarehouseAvailableStock } from "@/lib/warehouse-stock";
 import {
@@ -37,6 +42,13 @@ type CartItemRow = {
   productId: number;
   variantId: number | null;
 };
+
+function pcBuilderDatabaseUnavailableResponse() {
+  return NextResponse.json(PC_BUILDER_DATABASE_UNAVAILABLE, {
+    status: 503,
+    headers: { "Retry-After": "30" },
+  });
+}
 
 async function getCartBuildMapping(cartItemId: number) {
   const rows = await prisma.$queryRawUnsafe<CartBuildMapRow[]>(
@@ -133,14 +145,16 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const requestForCore = request.clone();
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return corePOST(requestForCore);
+  if (!userId) return corePOST(request);
+
+  const rawBody = await request.text();
+  const requestForCore = replayNextRequest(request, rawBody);
 
   let body: Record<string, unknown>;
   try {
-    const parsed = await request.json();
+    const parsed = JSON.parse(rawBody);
     body =
       parsed && typeof parsed === "object" && !Array.isArray(parsed)
         ? (parsed as Record<string, unknown>)
@@ -165,11 +179,20 @@ export async function POST(request: NextRequest) {
 
   const requestedBuildId =
     typeof body.pcBuildId === "string" ? body.pcBuildId.trim() : null;
-  const match = await chooseBuildMatch(
-    userId,
-    matches as BuildMatch[],
-    requestedBuildId,
-  );
+  let match: BuildMatch | null;
+  try {
+    match = await chooseBuildMatch(
+      userId,
+      matches as BuildMatch[],
+      requestedBuildId,
+    );
+  } catch (error) {
+    if (isPcBuilderDatabaseInfrastructureError(error)) {
+      console.error("PC Builder cart storage is not ready", error);
+      return pcBuilderDatabaseUnavailableResponse();
+    }
+    throw error;
+  }
   if (!match) {
     return NextResponse.json(
       {
@@ -215,23 +238,31 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const existing = await findBuildCartRow(userId, productId, variantId, lineKey);
-  if (existing) {
-    const mapping = await getCartBuildMapping(existing.id);
-    if (
-      mapping?.buildId === match.build.buildId &&
-      mapping.slot === match.slot &&
-      existing.quantity === 1
-    ) {
-      return NextResponse.json(
-        {
-          ...existing,
-          pcBuildId: mapping.buildId,
-          pcBuildSlot: mapping.slot,
-        },
-        { status: 201 },
-      );
+  try {
+    const existing = await findBuildCartRow(userId, productId, variantId, lineKey);
+    if (existing) {
+      const mapping = await getCartBuildMapping(existing.id);
+      if (
+        mapping?.buildId === match.build.buildId &&
+        mapping.slot === match.slot &&
+        existing.quantity === 1
+      ) {
+        return NextResponse.json(
+          {
+            ...existing,
+            pcBuildId: mapping.buildId,
+            pcBuildSlot: mapping.slot,
+          },
+          { status: 201 },
+        );
+      }
     }
+  } catch (error) {
+    if (isPcBuilderDatabaseInfrastructureError(error)) {
+      console.error("PC Builder cart storage is not ready", error);
+      return pcBuilderDatabaseUnavailableResponse();
+    }
+    throw error;
   }
 
   try {
@@ -286,6 +317,10 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
+    if (isPcBuilderDatabaseInfrastructureError(error)) {
+      console.error("PC Builder cart storage is not ready", error);
+      return pcBuilderDatabaseUnavailableResponse();
+    }
     if (
       error instanceof Error &&
       error.message === "PC_BUILDER_WAREHOUSE_STOCK_UNAVAILABLE"

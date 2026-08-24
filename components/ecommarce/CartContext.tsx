@@ -359,6 +359,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           }
         } catch (error) {
           console.error("Failed to sync PC Builder cart row:", error);
+          return false;
         }
       }
 

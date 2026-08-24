@@ -41,6 +41,7 @@ function compact(value: unknown) {
 
 function canonicalSocket(value: unknown) {
   let token = compact(value);
+  token = token.replace(/^(?:amd|intel)/, "");
   token = token.replace(/^(?:cpusocket|socket)/, "");
   token = token.replace(/^amd(?=am\d)/, "");
   token = token.replace(/^intel(?=lga\d)/, "");

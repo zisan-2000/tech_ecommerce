@@ -115,5 +115,6 @@ test("cart identity migration and routes keep build-specific rows distinct", asy
   assert.match(orderCore, /Array\.from\(new Set/);
   assert.match(orderCore, /selectionQueues/);
   assert.match(context, /window\.location\.pathname\.includes\("\/pc-builder"\)/);
-  assert.match(config, /"public\.CartItem"/);
+  assert.doesNotMatch(config, /"public\.CartItem"/);
+  assert.match(config, /"public\.PcBuildCartItem"/);
 });

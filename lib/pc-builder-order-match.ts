@@ -1,7 +1,7 @@
 import type { PcBuilderCheckoutBuild } from "./pc-builder-checkout";
 import { pcBuildSelectionId } from "./pc-builder-grouping";
 
-type CheckoutItem = {
+export type CheckoutItem = {
   productId: string | number;
   variantId?: string | number | null;
   quantity?: unknown;

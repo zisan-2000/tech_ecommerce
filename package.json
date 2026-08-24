@@ -25,14 +25,12 @@
     "seed:storefront": "tsx prisma/seed-storefront.ts",
     "seed:laptops": "tsx prisma/laptop-seed.ts",
     "seed:pc-builder": "node --no-warnings --experimental-strip-types scripts/seed-pc-builder.mjs",
+    "verify:pc-builder-db": "node scripts/verify-pc-builder-database.mjs",
     "seed:storefront-menu": "tsx prisma/seed-storefront-menu.ts",
     "seed:flash-sales": "node scripts/seed-flash-sales.mjs",
     "email": "email dev",
     "cron:sla:trigger": "node scripts/cron/trigger-sla-eval.mjs",
     "postinstall": "prisma generate && copyfiles node_modules/pdfjs-dist/build/pdf.worker.min.js public"
-  },
-  "prisma": {
-    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "dependencies": {
     "@better-fetch/fetch": "^1.1.12",
