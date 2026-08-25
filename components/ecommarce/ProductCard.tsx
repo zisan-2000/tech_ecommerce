@@ -244,12 +244,21 @@ export default function ProductCardCompact({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const imageFrameRef = useRef<HTMLDivElement>(null);
 
+  const hasStockSignal =
+    product.type === "BUNDLE"
+      ? (product.bundleStockLimit !== undefined &&
+          product.bundleStockLimit !== null) ||
+        (product.stock !== undefined && product.stock !== null) ||
+        product.available !== undefined
+      : (product.stock !== undefined && product.stock !== null) ||
+        product.available !== undefined;
   const effectiveStock =
     product.type === "BUNDLE"
       ? Number(product.bundleStockLimit ?? product.stock ?? 0)
       : Number(product.stock ?? 0);
 
-  const isOutOfStock = effectiveStock === 0;
+  const isOutOfStock =
+    product.available === false || (hasStockSignal && effectiveStock === 0);
   const isBestSeller = Boolean(product.rank && product.rank <= 3);
   const productHighlights = getProductHighlights(product);
   const colorSwatches = getColorSwatches(product.variants);

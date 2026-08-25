@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import ProductConversionTools from "@/components/ecommarce/product-detail/ProductConversionTools";
+import PriceDropAlertButton from "@/components/ecommarce/PriceDropAlertButton";
 import { useProductCompare } from "@/hooks/use-product-compare";
 import { useSession } from "@/lib/auth-client";
 import {
@@ -476,6 +477,12 @@ export default function ProductPurchasePanel({
                 />
                 <span className="hidden sm:inline">Wishlist</span>
               </button>
+              <PriceDropAlertButton
+                productId={product.id}
+                variantId={selectedVariant?.id ?? null}
+                productHref={`/ecommerce/products/${product.id}`}
+                compact
+              />
               <button
                 type="button"
                 onClick={toggleCompare}

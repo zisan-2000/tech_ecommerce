@@ -3,15 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Bell,
   ShoppingBag,
-  FileText,
   User,
   Lock,
   MapPin,
   Heart,
-  Monitor,
-  Star,
-  CreditCard,
   FileTextIcon,
 } from "lucide-react";
 
@@ -31,6 +28,7 @@ export default function AccountMenu() {
     { label: "Change Password", href: "/ecommerce/user/change-password", icon: <Lock className="h-4 w-4" /> },
     { label: "Addresses", href: "/ecommerce/user/addresses", icon: <MapPin className="h-4 w-4" /> },
     { label: "Wish List", href: "/ecommerce/user/wishlist", icon: <Heart className="h-4 w-4" /> },
+    { label: "Notifications", href: "/ecommerce/user/notifications", icon: <Bell className="h-4 w-4" /> },
   ];
 
   return (

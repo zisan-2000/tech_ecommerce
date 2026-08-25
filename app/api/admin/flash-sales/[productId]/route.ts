@@ -7,6 +7,7 @@ import { privateJson } from "@/lib/public-cache";
 import { logActivity } from "@/lib/activity-log";
 import { parseFlashSaleConfiguration } from "@/lib/flash-sale";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
+import { evaluatePriceDropAlertsForProduct } from "@/lib/price-drop-alerts";
 
 async function ensureAccess() {
   const session = await getServerSession(authOptions);
@@ -148,6 +149,7 @@ export async function PUT(
       metadata: { message: `Flash sale configured for ${existing.name}` },
     });
     revalidateStorefrontCatalog();
+    await evaluatePriceDropAlertsForProduct(id);
     return privateJson(snapshot(updated));
   } catch (error) {
     console.error("FLASH SALE UPDATE ERROR:", error);

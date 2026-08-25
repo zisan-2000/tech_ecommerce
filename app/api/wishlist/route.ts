@@ -4,6 +4,10 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { applyFlashSalePricingToProduct } from "@/lib/flash-sale";
+import {
+  createWishlistPriceDropAlertIfMissing,
+  evaluatePriceDropAlertsForProduct,
+} from "@/lib/price-drop-alerts";
 
 // GET /api/wishlist -> current user's wishlist items + product details
 export async function GET(request: NextRequest) {
@@ -21,7 +25,14 @@ export async function GET(request: NextRequest) {
         product: { available: true, deleted: false },
       },
       include: {
-        product: true,
+        product: {
+          include: {
+            variants: {
+              where: { active: true },
+              select: { price: true, stock: true },
+            },
+          },
+        },
       },
       // 🔹 createdAt নেই, তাই id দিয়ে sort করছি (নতুন আইটেম আগে)
       orderBy: {
@@ -32,7 +43,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       items: wishlist.map((item) => ({
         ...item,
-        product: applyFlashSalePricingToProduct(item.product),
+        product: {
+          ...applyFlashSalePricingToProduct(item.product),
+          stock: item.product.variants.reduce(
+            (sum, variant) => sum + variant.stock,
+            0,
+          ),
+        },
       })),
     });
   } catch (error) {
@@ -84,6 +101,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
+      await createWishlistPriceDropAlertIfMissing({ userId, productId });
+      await evaluatePriceDropAlertsForProduct(productId, userId);
       return NextResponse.json(
         { message: "Already in wishlist" },
         { status: 200 }
@@ -99,6 +118,8 @@ export async function POST(request: NextRequest) {
         product: true,
       },
     });
+    await createWishlistPriceDropAlertIfMissing({ userId, productId });
+    await evaluatePriceDropAlertsForProduct(productId, userId);
 
     return NextResponse.json(
       {

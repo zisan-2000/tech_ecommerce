@@ -18,6 +18,7 @@ import { isStorefrontRequest, privateJson, publicJson } from "@/lib/public-cache
 import { storefrontProductSelect } from "@/lib/storefront-product";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { applyFlashSalePricingToProduct } from "@/lib/flash-sale";
+import { evaluatePriceDropAlertsForProduct } from "@/lib/price-drop-alerts";
 import {
   isExpectedProductVersion,
   parseProductAvailabilityPatch,
@@ -764,6 +765,7 @@ export async function PUT(
     }
 
     revalidateStorefrontCatalog();
+    await evaluatePriceDropAlertsForProduct(id);
 
     return NextResponse.json(withRelationsWithColorImages);
   } catch (err) {
