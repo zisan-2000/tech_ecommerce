@@ -1,0 +1,104 @@
+name: Build single Prisma schema cleanup
+
+on:
+  push:
+    branches:
+      - automation/single-schema-builder
+
+permissions:
+  contents: write
+
+jobs:
+  build-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout cleanup branch
+        uses: actions/checkout@v4
+        with:
+          ref: chore/business-network-single-schema
+          fetch-depth: 0
+
+      - name: Consolidate Prisma schema and update contracts
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          schema_path = Path('prisma/schema.prisma')
+          extra_path = Path('prisma/business-network.prisma')
+          config_path = Path('prisma.config.ts')
+          business_test_path = Path('tests/business-network-organization-core.test.mjs')
+          pc_test_path = Path('tests/pc-builder-prisma-schema.test.mjs')
+
+          schema = schema_path.read_text(encoding='utf-8')
+          extra = extra_path.read_text(encoding='utf-8')
+          if 'model Organization {' not in schema:
+              schema_path.write_text(
+                  schema.rstrip() + '\n\n// B2B & Partner Commerce Network - Organization Core\n\n' + extra.lstrip(),
+                  encoding='utf-8',
+              )
+          extra_path.unlink()
+
+          config = config_path.read_text(encoding='utf-8')
+          config = config.replace('schema: "prisma",', 'schema: "prisma/schema.prisma",')
+          config_path.write_text(config, encoding='utf-8')
+
+          business_test = business_test_path.read_text(encoding='utf-8')
+          business_test = business_test.replace(
+              '../prisma/business-network.prisma',
+              '../prisma/schema.prisma',
+          )
+          business_test_path.write_text(business_test, encoding='utf-8')
+
+          pc_test = pc_test_path.read_text(encoding='utf-8')
+          second_test = pc_test.index('test("hand-written PC Builder tables remain explicitly external"')
+          tail = pc_test[second_test:]
+          first = '''import assert from "node:assert/strict";
+          import test from "node:test";
+          import { access, readFile } from "node:fs/promises";
+
+          const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
+
+          test("Prisma uses the canonical single schema file", async () => {
+            const [schema, config] = await Promise.all([
+              read("../prisma/schema.prisma"),
+              read("../prisma.config.ts"),
+            ]);
+
+            assert.match(config, /schema:\\s*"prisma\\/schema\\.prisma"/);
+            assert.match(schema, /model CartItem\\s*\\{/);
+            assert.match(schema, /lineKey\\s+String\\s+@default\\("standard"\\)\\s+@db\\.VarChar\\(80\\)/);
+            assert.match(schema, /@@unique\\(\\[userId, productId, variantId, lineKey\\]\\)/);
+            assert.match(schema, /@@index\\(\\[userId, lineKey\\]\\)/);
+            assert.match(schema, /model Organization\\s*\\{/);
+
+            await assert.rejects(
+              access(new URL("../prisma/business-network.prisma", import.meta.url)),
+              (error) => error?.code === "ENOENT",
+            );
+            await assert.rejects(
+              access(new URL("../prisma/pc-builder.prisma", import.meta.url)),
+              (error) => error?.code === "ENOENT",
+            );
+          });
+
+          '''
+          # Strip indentation introduced by this Python heredoc string.
+          import textwrap
+          pc_test_path.write_text(textwrap.dedent(first) + tail, encoding='utf-8')
+          PY
+
+      - name: Run schema contract tests
+        run: |
+          node --test tests/business-network-organization-core.test.mjs
+          node --test tests/pc-builder-prisma-schema.test.mjs
+
+      - name: Commit cleanup to target branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add prisma/schema.prisma prisma.config.ts tests/business-network-organization-core.test.mjs tests/pc-builder-prisma-schema.test.mjs
+          git rm prisma/business-network.prisma
+          git commit -m "chore: consolidate Prisma models into schema.prisma"
+          git push origin HEAD:chore/business-network-single-schema
