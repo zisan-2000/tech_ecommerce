@@ -27,6 +27,11 @@ interface Product {
   available: boolean;
   updatedAt: string;
   featured?: boolean;
+  flashSaleEnabled?: boolean;
+  flashSalePrice?: number | null;
+  flashSaleStartsAt?: string | null;
+  flashSaleEndsAt?: string | null;
+  flashSaleSortOrder?: number;
   categoryId?: number;
   brandId?: number | null;
   category?: Category;
@@ -234,6 +239,35 @@ export default function ProductsPage() {
     [],
   );
 
+  const updateProductFlashSale = useCallback((id: number, data: any) => {
+    const patch = {
+      flashSaleEnabled: Boolean(data.flashSaleEnabled),
+      flashSalePrice:
+        data.flashSalePrice === null || data.flashSalePrice === undefined
+          ? null
+          : Number(data.flashSalePrice),
+      flashSaleStartsAt: data.flashSaleStartsAt ?? null,
+      flashSaleEndsAt: data.flashSaleEndsAt ?? null,
+      flashSaleSortOrder: Number(data.flashSaleSortOrder ?? 0),
+      updatedAt: data.updatedAt,
+    };
+
+    setProducts((prev) =>
+      prev.map((product) =>
+        product.id === id ? { ...product, ...patch } : product,
+      ),
+    );
+    if (productsPageCache) {
+      productsPageCache = {
+        ...productsPageCache,
+        products: productsPageCache.products.map((product) =>
+          product.id === id ? { ...product, ...patch } : product,
+        ),
+      };
+    }
+    invalidateStorefrontProductCache();
+  }, []);
+
   const deleteProduct = useCallback(async (id: number) => {
     await fetch(`/api/products/${id}`, { method: "DELETE" });
 
@@ -265,6 +299,7 @@ export default function ProductsPage() {
         onCreate={createProduct}
         onUpdate={updateProduct}
         onAvailabilityChange={updateProductAvailability}
+        onFlashSaleChange={updateProductFlashSale}
         onDelete={deleteProduct}
       />
     </div>

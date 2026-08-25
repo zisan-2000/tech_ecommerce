@@ -6,6 +6,7 @@ import { getInventoryStatus } from "@/lib/stock-status";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import Image from "next/image";
 import {
   AlertDialog,
@@ -29,6 +30,8 @@ import {
   Boxes,
   Package,
   AlertTriangle,
+  CalendarClock,
+  Flame,
   Power,
   PowerOff,
 } from "lucide-react";
@@ -71,6 +74,7 @@ export default function ProductManager({
   onCreate,
   onUpdate,
   onAvailabilityChange,
+  onFlashSaleChange,
   onDelete,
   categories,
   brands,
@@ -95,6 +99,16 @@ export default function ProductManager({
   const [availabilityProduct, setAvailabilityProduct] = useState<any>(null);
   const [availabilityDialogOpen, setAvailabilityDialogOpen] = useState(false);
   const [isChangingAvailability, setIsChangingAvailability] = useState(false);
+  const [flashSaleProduct, setFlashSaleProduct] = useState<any>(null);
+  const [flashSaleSaving, setFlashSaleSaving] = useState(false);
+  const [flashSaleError, setFlashSaleError] = useState("");
+  const [flashSaleForm, setFlashSaleForm] = useState({
+    enabled: true,
+    salePrice: "",
+    durationDays: "1",
+    durationHours: "0",
+    sortOrder: "0",
+  });
   const [attributesOpen, setAttributesOpen] = useState(false);
   const [digitalAssetsOpen, setDigitalAssetsOpen] = useState(false);
   const [warehouseId, setWarehouseId] = useState<string>("");
@@ -364,6 +378,40 @@ export default function ProductManager({
     setAvailabilityDialogOpen(true);
   };
 
+  const openFlashSaleModal = (product: any) => {
+    const startsAt = product.flashSaleStartsAt
+      ? new Date(product.flashSaleStartsAt)
+      : new Date();
+    const endsAt = product.flashSaleEndsAt
+      ? new Date(product.flashSaleEndsAt)
+      : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const durationMs = Math.max(60 * 60 * 1000, endsAt.getTime() - startsAt.getTime());
+    const durationDays = Math.floor(durationMs / (24 * 60 * 60 * 1000));
+    const durationHours = Math.max(
+      0,
+      Math.round((durationMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)),
+    );
+
+    setFlashSaleProduct(product);
+    setFlashSaleError("");
+    setFlashSaleForm({
+      enabled: Boolean(product.flashSaleEnabled || !product.flashSalePrice),
+      salePrice: String(
+        product.flashSalePrice ??
+          Math.max(1, Math.round(Number(product.basePrice ?? 0) * 0.9)),
+      ),
+      durationDays: String(durationDays),
+      durationHours: String(durationHours),
+      sortOrder: String(product.flashSaleSortOrder ?? 0),
+    });
+  };
+
+  const closeFlashSaleModal = () => {
+    if (flashSaleSaving) return;
+    setFlashSaleProduct(null);
+    setFlashSaleError("");
+  };
+
   const closeAvailabilityModal = () => {
     setAvailabilityDialogOpen(false);
     setAvailabilityProduct(null);
@@ -417,6 +465,87 @@ export default function ProductManager({
       );
     } finally {
       setIsChangingAvailability(false);
+    }
+  };
+
+  const handleFlashSaleSave = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!flashSaleProduct) return;
+
+    const salePrice = Number(flashSaleForm.salePrice);
+    const days = Number(flashSaleForm.durationDays);
+    const hours = Number(flashSaleForm.durationHours);
+    const durationMs = (days * 24 + hours) * 60 * 60 * 1000;
+    const basePrice = Number(flashSaleProduct.basePrice ?? 0);
+
+    if (!Number.isFinite(salePrice) || salePrice <= 0 || salePrice >= basePrice) {
+      setFlashSaleError("Sale price must be greater than 0 and lower than regular price.");
+      return;
+    }
+    if (!Number.isInteger(days) || !Number.isInteger(hours) || durationMs <= 0) {
+      setFlashSaleError("Duration must be at least 1 hour.");
+      return;
+    }
+
+    const startsAt = new Date();
+    const endsAt = new Date(startsAt.getTime() + durationMs);
+
+    try {
+      setFlashSaleSaving(true);
+      setFlashSaleError("");
+      const response = await fetch(`/api/admin/flash-sales/${flashSaleProduct.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: flashSaleForm.enabled,
+          salePrice,
+          startsAt: startsAt.toISOString(),
+          endsAt: endsAt.toISOString(),
+          sortOrder: Number(flashSaleForm.sortOrder) || 0,
+          expectedUpdatedAt: flashSaleProduct.updatedAt,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to save flash sale.");
+      }
+
+      onFlashSaleChange?.(flashSaleProduct.id, payload);
+      toast.success("Flash sale saved successfully");
+      closeFlashSaleModal();
+    } catch (error) {
+      setFlashSaleError(
+        error instanceof Error ? error.message : "Failed to save flash sale.",
+      );
+    } finally {
+      setFlashSaleSaving(false);
+    }
+  };
+
+  const handleFlashSaleRemove = async () => {
+    if (!flashSaleProduct) return;
+    try {
+      setFlashSaleSaving(true);
+      setFlashSaleError("");
+      const response = await fetch(`/api/admin/flash-sales/${flashSaleProduct.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expectedUpdatedAt: flashSaleProduct.updatedAt }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to remove flash sale.");
+      }
+
+      onFlashSaleChange?.(flashSaleProduct.id, payload);
+      toast.success("Flash sale removed");
+      closeFlashSaleModal();
+    } catch (error) {
+      setFlashSaleError(
+        error instanceof Error ? error.message : "Failed to remove flash sale.",
+      );
+    } finally {
+      setFlashSaleSaving(false);
     }
   };
 
@@ -484,6 +613,19 @@ export default function ProductManager({
     if (status === "OUT_OF_STOCK") return "Out of Stock";
     if (status === "LOW_STOCK") return "Low Stock";
     return "In Stock";
+  };
+
+  const getFlashSaleStatus = (product: any) => {
+    if (!product.flashSaleEnabled || !product.flashSaleStartsAt || !product.flashSaleEndsAt) {
+      return null;
+    }
+    const startsAt = new Date(product.flashSaleStartsAt).getTime();
+    const endsAt = new Date(product.flashSaleEndsAt).getTime();
+    const now = Date.now();
+    if (Number.isNaN(startsAt) || Number.isNaN(endsAt)) return null;
+    if (startsAt > now) return "Scheduled";
+    if (endsAt <= now) return "Expired";
+    return "Live";
   };
 
   const filterSelectClass =
@@ -560,6 +702,177 @@ export default function ProductManager({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {flashSaleProduct ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Flame className="h-5 w-5 fill-orange-500 text-orange-500" />
+                  <h2 className="text-lg font-semibold">Configure Flash Sale</h2>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {flashSaleProduct.name}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={flashSaleSaving}
+                onClick={closeFlashSaleModal}
+              >
+                Close
+              </Button>
+            </div>
+
+            <form onSubmit={handleFlashSaleSave} className="space-y-4">
+              <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Regular price</span>
+                  <strong>৳{Number(flashSaleProduct.basePrice ?? 0).toLocaleString("en-US")}</strong>
+                </div>
+                {flashSaleProduct.flashSalePrice ? (
+                  <div className="mt-1 flex justify-between gap-3">
+                    <span className="text-muted-foreground">Current flash price</span>
+                    <strong className="text-rose-600">
+                      ৳{Number(flashSaleProduct.flashSalePrice).toLocaleString("en-US")}
+                    </strong>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="flash-sale-price">Sale price</Label>
+                  <Input
+                    id="flash-sale-price"
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    value={flashSaleForm.salePrice}
+                    onChange={(event) =>
+                      setFlashSaleForm((prev) => ({
+                        ...prev,
+                        salePrice: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="flash-sale-order">Display order</Label>
+                  <Input
+                    id="flash-sale-order"
+                    type="number"
+                    min="0"
+                    max="9999"
+                    value={flashSaleForm.sortOrder}
+                    onChange={(event) =>
+                      setFlashSaleForm((prev) => ({
+                        ...prev,
+                        sortOrder: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="flash-sale-days">Duration days</Label>
+                  <Input
+                    id="flash-sale-days"
+                    type="number"
+                    min="0"
+                    value={flashSaleForm.durationDays}
+                    onChange={(event) =>
+                      setFlashSaleForm((prev) => ({
+                        ...prev,
+                        durationDays: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="flash-sale-hours">Duration hours</Label>
+                  <Input
+                    id="flash-sale-hours"
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={flashSaleForm.durationHours}
+                    onChange={(event) =>
+                      setFlashSaleForm((prev) => ({
+                        ...prev,
+                        durationHours: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={flashSaleForm.enabled}
+                  onChange={(event) =>
+                    setFlashSaleForm((prev) => ({
+                      ...prev,
+                      enabled: event.target.checked,
+                    }))
+                  }
+                  className="mt-0.5 h-4 w-4 accent-orange-600"
+                />
+                <span>
+                  <span className="block font-semibold">Enable flash sale</span>
+                  <span className="text-muted-foreground">
+                    The deal starts immediately and ends after the selected duration.
+                  </span>
+                </span>
+              </label>
+
+              {flashSaleError ? (
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+                  {flashSaleError}
+                </p>
+              ) : null}
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={flashSaleSaving || !flashSaleProduct.flashSalePrice}
+                  onClick={handleFlashSaleRemove}
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  Remove flash sale
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={flashSaleSaving}
+                    onClick={closeFlashSaleModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={flashSaleSaving || !flashSaleProduct.available}
+                    className="bg-orange-600 text-white hover:bg-orange-700"
+                  >
+                    {flashSaleSaving ? "Saving..." : "Save flash sale"}
+                  </Button>
+                </div>
+              </div>
+              {!flashSaleProduct.available ? (
+                <p className="text-right text-sm text-destructive">
+                  Activate this product before enabling a flash sale.
+                </p>
+              ) : null}
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {/* WAREHOUSE CONTROLS */}
       {/* Page Header */}
@@ -887,11 +1200,14 @@ export default function ProductManager({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 px-4 pb-6 sm:grid-cols-2 sm:gap-6 sm:px-6 xl:grid-cols-3 2xl:grid-cols-4">
-          {filtered.map((p: any) => (
-            <SpotlightCard
-              key={p.id}
-              className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-200 hover:border-border hover:shadow-md"
-            >
+          {filtered.map((p: any) => {
+            const flashSaleStatus = getFlashSaleStatus(p);
+
+            return (
+              <SpotlightCard
+                key={p.id}
+                className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-200 hover:border-border hover:shadow-md"
+              >
               {/* Image */}
               <div className="relative h-44 overflow-hidden bg-muted sm:h-48">
                 {p.image ? (
@@ -923,6 +1239,19 @@ export default function ProductManager({
                       Featured
                     </span>
                   )}
+                  {flashSaleStatus ? (
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                        flashSaleStatus === "Live"
+                          ? "border-orange-200 bg-orange-500 text-white"
+                          : flashSaleStatus === "Scheduled"
+                            ? "border-blue-200 bg-blue-600 text-white"
+                            : "border-muted bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      Flash {flashSaleStatus}
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* Top-right type badge */}
@@ -1061,6 +1390,16 @@ export default function ProductManager({
                     </Button>
 
                     <Button
+                      onClick={() => openFlashSaleModal(p)}
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+                    >
+                      <Flame className="mr-1 h-3.5 w-3.5" />
+                      Flash Sale
+                    </Button>
+
+                    <Button
                       onClick={() => openDeleteModal(p)}
                       variant="destructive"
                       size="sm"
@@ -1072,8 +1411,9 @@ export default function ProductManager({
                   </div>
                 </div>
               </CardContent>
-            </SpotlightCard>
-          ))}
+              </SpotlightCard>
+            );
+          })}
         </div>
       )}
 
