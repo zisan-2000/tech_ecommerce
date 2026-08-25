@@ -4806,3 +4806,272 @@ enum WarehouseTransferStatus {
   RECEIVED
   CANCELLED
 }
+
+// B2B & Partner Commerce Network - Organization Core
+
+enum OrganizationCompanyType {
+  PROPRIETORSHIP
+  PARTNERSHIP
+  LIMITED_COMPANY
+  PUBLIC_LIMITED
+  NGO
+  GOVERNMENT
+  EDUCATIONAL_INSTITUTION
+  OTHER
+}
+
+enum OrganizationStatus {
+  DRAFT
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  REJECTED
+  CLOSED
+}
+
+enum OrganizationCapabilityType {
+  CORPORATE_BUYER
+  AFFILIATE
+  RESELLER
+  DEALER
+  MARKETING_PARTNER
+  SERVICE_PARTNER
+}
+
+enum OrganizationCapabilityStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum OrganizationMemberStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  REMOVED
+}
+
+enum OrganizationPortalRole {
+  OWNER
+  ADMIN
+  BUYER
+  APPROVER
+  FINANCE
+  PARTNER_MANAGER
+  PARTNER_MARKETER
+  PARTNER_FINANCE
+  VIEWER
+}
+
+enum OrganizationAddressType {
+  REGISTERED
+  BILLING
+  SHIPPING
+  BRANCH
+}
+
+enum OrganizationDocumentType {
+  TRADE_LICENSE
+  TIN
+  BIN
+  CERTIFICATE_OF_INCORPORATION
+  BOARD_RESOLUTION
+  OWNER_NID
+  DIRECTOR_NID
+  BANK_DOCUMENT
+  TAX_COMPLIANCE_CERTIFICATE
+  OTHER
+}
+
+enum OrganizationDocumentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+model Organization {
+  id              String                  @id @default(cuid())
+  code            String                  @unique @db.VarChar(32)
+  legalName       String
+  displayName     String?
+  companyType     OrganizationCompanyType
+  status          OrganizationStatus      @default(DRAFT)
+  email           String?
+  phone           String?
+  website         String?
+  tradeLicenseNo  String?
+  tin             String?
+  bin             String?
+  registrationNo  String?
+  country         String                  @default("BD") @db.VarChar(2)
+  currency        String                  @default("BDT") @db.VarChar(3)
+  verifiedAt      DateTime?
+  verifiedById    String?
+  rejectionReason String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  capabilities    OrganizationCapability[]
+  members         OrganizationMember[]
+  invitations     OrganizationInvitation[]
+  addresses       OrganizationAddress[]
+  branches        OrganizationBranch[]
+  documents       OrganizationDocument[]
+  auditLogs       BusinessAuditLog[]
+
+  @@index([status])
+  @@index([legalName])
+  @@index([tradeLicenseNo])
+  @@index([tin])
+  @@index([bin])
+}
+
+model OrganizationCapability {
+  id             String                       @id @default(cuid())
+  organizationId String
+  type           OrganizationCapabilityType
+  status         OrganizationCapabilityStatus @default(PENDING)
+  approvedAt     DateTime?
+  approvedById   String?
+  revokedAt      DateTime?
+  reason         String?
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, type])
+  @@index([type, status])
+}
+
+model OrganizationMember {
+  id             String                   @id @default(cuid())
+  organizationId String
+  userId         String
+  status         OrganizationMemberStatus @default(ACTIVE)
+  title          String?
+  department     String?
+  phone          String?
+  isPrimary      Boolean                  @default(false)
+  joinedAt       DateTime                 @default(now())
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roles          OrganizationMemberRoleGrant[]
+  auditLogs      BusinessAuditLog[]
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId, status])
+}
+
+model OrganizationMemberRoleGrant {
+  id        String                 @id @default(cuid())
+  memberId  String
+  role      OrganizationPortalRole
+  grantedAt DateTime               @default(now())
+  grantedBy String?
+  member    OrganizationMember     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, role])
+  @@index([role])
+}
+
+model OrganizationInvitation {
+  id             String                 @id @default(cuid())
+  organizationId String
+  email          String
+  role           OrganizationPortalRole
+  tokenHash      String                 @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime               @default(now())
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, email])
+  @@index([expiresAt])
+}
+
+model OrganizationAddress {
+  id             String                  @id @default(cuid())
+  organizationId String
+  type           OrganizationAddressType
+  label          String?
+  country        String                  @default("BD")
+  division       String?
+  district       String?
+  area           String?
+  postCode       String?
+  addressLine    String
+  isDefault      Boolean                 @default(false)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, type])
+}
+
+model OrganizationBranch {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  code           String?
+  phone          String?
+  email          String?
+  country        String   @default("BD")
+  division       String?
+  district       String?
+  area           String?
+  addressLine    String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@index([organizationId, isActive])
+}
+
+model OrganizationDocument {
+  id              String                     @id @default(cuid())
+  organizationId  String
+  type            OrganizationDocumentType
+  status          OrganizationDocumentStatus @default(PENDING)
+  documentNumber  String?
+  fileUrl         String
+  fileName        String?
+  issuedAt        DateTime?
+  expiresAt       DateTime?
+  verifiedAt      DateTime?
+  verifiedById    String?
+  rejectionReason String?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+  organization    Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, type])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model BusinessAuditLog {
+  id             BigInt   @id @default(autoincrement())
+  organizationId String?
+  memberId       String?
+  actorUserId    String?
+  action         String
+  entityType     String
+  entityId       String
+  before         Json?
+  after          Json?
+  ipHash         String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  organization   Organization?       @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  member         OrganizationMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorUserId, createdAt])
+}

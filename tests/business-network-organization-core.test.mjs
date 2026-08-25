@@ -17,7 +17,7 @@ const expectedModels = [
 ];
 
 test("M1 organization core schema contains the frozen foundation models", async () => {
-  const schema = await read("../prisma/business-network.prisma");
+  const schema = await read("../prisma/schema.prisma");
 
   for (const model of expectedModels) {
     assert.match(schema, new RegExp(`model ${model}\\s*\\{`));
@@ -76,7 +76,7 @@ test("M1 migration creates only the organization-core database surface", async (
 
 test("M1 keeps member identity ready for M2 portal RBAC without mixing global RBAC", async () => {
   const [businessSchema, rootSchema] = await Promise.all([
-    read("../prisma/business-network.prisma"),
+    read("../prisma/schema.prisma"),
     read("../prisma/schema.prisma"),
   ]);
 

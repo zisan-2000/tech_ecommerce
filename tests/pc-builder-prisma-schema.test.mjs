@@ -4,21 +4,23 @@ import { access, readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("Prisma uses the intentional multi-file schema folder", async () => {
-  const [schema, businessSchema, config] = await Promise.all([
+test("Prisma uses the canonical single schema file", async () => {
+  const [schema, config] = await Promise.all([
     read("../prisma/schema.prisma"),
-    read("../prisma/business-network.prisma"),
     read("../prisma.config.ts"),
   ]);
 
-  assert.match(config, /schema:\s*"prisma"/);
+  assert.match(config, /schema:\s*"prisma\/schema\.prisma"/);
   assert.match(schema, /model CartItem\s*\{/);
   assert.match(schema, /lineKey\s+String\s+@default\("standard"\)\s+@db\.VarChar\(80\)/);
   assert.match(schema, /@@unique\(\[userId, productId, variantId, lineKey\]\)/);
   assert.match(schema, /@@index\(\[userId, lineKey\]\)/);
-  assert.match(businessSchema, /model Organization\s*\{/);
-  assert.doesNotMatch(businessSchema, /model CartItem\s*\{/);
+  assert.match(schema, /model Organization\s*\{/);
 
+  await assert.rejects(
+    access(new URL("../prisma/business-network.prisma", import.meta.url)),
+    (error) => error?.code === "ENOENT",
+  );
   await assert.rejects(
     access(new URL("../prisma/pc-builder.prisma", import.meta.url)),
     (error) => error?.code === "ENOENT",
