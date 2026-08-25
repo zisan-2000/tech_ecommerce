@@ -2,6 +2,8 @@ import { unstable_cache } from "next/cache.js";
 import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { resolveFlashSalePricing } from "@/lib/flash-sale";
+import { getRankedSearchProductIds } from "@/lib/search/server";
+import { parseSearchIntent } from "@/lib/search/core";
 
 const CATALOG_PAGE_SIZES = [12, 24, 36] as const;
 export const CATALOG_MAX_PRICE = 99_999_999.99;
@@ -16,6 +18,7 @@ const CATALOG_MAX_FACET_VALUES_PER_GROUP = 40;
 const CATALOG_ATTRIBUTE_PREFIX = "attr_";
 const PRODUCT_TYPES = ["PHYSICAL", "DIGITAL", "SERVICE", "BUNDLE"] as const;
 const SORT_OPTIONS = [
+  "relevance",
   "newest",
   "popular",
   "price-asc",
@@ -202,6 +205,8 @@ function parseAttributeFilters(searchParams: CatalogSearchParams) {
 export function parseCatalogFilters(
   searchParams: CatalogSearchParams,
 ): CatalogFilters {
+  const intent = parseSearchIntent(firstValue(searchParams.q));
+  const normalizedQuery = normalizeSearch(intent.searchText);
   const rawBrands = searchParams.brand;
   const brands = Array.from(
     new Set(
@@ -215,18 +220,22 @@ export function parseCatalogFilters(
   const type = PRODUCT_TYPES.includes(rawType as CatalogProductType)
     ? (rawType as CatalogProductType)
     : "";
-  const rawSort = firstValue(searchParams.sort) ?? "newest";
+  const rawSort = firstValue(searchParams.sort) ?? (normalizedQuery ? "relevance" : "newest");
   const sort = SORT_OPTIONS.includes(rawSort as CatalogSort)
     ? (rawSort as CatalogSort)
-    : "newest";
+    : normalizedQuery
+      ? "relevance"
+      : "newest";
   const requestedPageSize = Number(firstValue(searchParams.perPage) ?? 24);
   const perPage = CATALOG_PAGE_SIZES.includes(
     requestedPageSize as (typeof CATALOG_PAGE_SIZES)[number],
   )
     ? (requestedPageSize as (typeof CATALOG_PAGE_SIZES)[number])
     : 24;
-  const rawMinPrice = optionalMoney(firstValue(searchParams.minPrice));
-  const rawMaxPrice = optionalMoney(firstValue(searchParams.maxPrice));
+  const explicitMinPrice = optionalMoney(firstValue(searchParams.minPrice));
+  const explicitMaxPrice = optionalMoney(firstValue(searchParams.maxPrice));
+  const rawMinPrice = explicitMinPrice ?? intent.minPrice;
+  const rawMaxPrice = explicitMaxPrice ?? intent.maxPrice;
   const [minPrice, maxPrice] =
     rawMinPrice !== null &&
     rawMaxPrice !== null &&
@@ -235,7 +244,7 @@ export function parseCatalogFilters(
       : [rawMinPrice, rawMaxPrice];
 
   return {
-    q: normalizeSearch(firstValue(searchParams.q)),
+    q: normalizedQuery,
     category: normalizeSlug(firstValue(searchParams.category), true),
     brands,
     type,
@@ -586,6 +595,7 @@ function descendantCategoryIds(
 function catalogOrderBy(
   sort: CatalogSort,
 ): Prisma.ProductOrderByWithRelationInput[] {
+  if (sort === "relevance") return [{ soldCount: "desc" }, { id: "desc" }];
   if (sort === "popular") return [{ soldCount: "desc" }, { id: "desc" }];
   if (sort === "price-asc") return [{ basePrice: "asc" }, { id: "desc" }];
   if (sort === "price-desc") return [{ basePrice: "desc" }, { id: "desc" }];
@@ -689,16 +699,46 @@ const readCatalog = unstable_cache(
         : {}),
     };
     const skip = (filters.page - 1) * filters.perPage;
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        orderBy: catalogOrderBy(filters.sort),
-        skip,
-        take: filters.perPage,
-        select: catalogProductSelect,
-      }),
-      prisma.product.count({ where }),
-    ]);
+    let products: RawCatalogProduct[];
+    let total: number;
+    if (filters.q && filters.sort === "relevance") {
+      const rankedIds = await getRankedSearchProductIds(filters.q);
+      if (rankedIds.length === 0) {
+        products = [];
+        total = 0;
+      } else {
+        const eligibleRows = await prisma.product.findMany({
+          where: { ...where, id: { in: rankedIds } },
+          select: { id: true },
+        });
+        const eligible = new Set(eligibleRows.map((row) => row.id));
+        const orderedIds = rankedIds.filter((id) => eligible.has(id));
+        total = orderedIds.length;
+        const pageIds = orderedIds.slice(skip, skip + filters.perPage);
+        const pageRows = pageIds.length
+          ? await prisma.product.findMany({
+              where: { id: { in: pageIds } },
+              select: catalogProductSelect,
+            })
+          : [];
+        const pageById = new Map(pageRows.map((product) => [product.id, product]));
+        products = pageIds.flatMap((id) => {
+          const product = pageById.get(id);
+          return product ? [product] : [];
+        });
+      }
+    } else {
+      [products, total] = await Promise.all([
+        prisma.product.findMany({
+          where,
+          orderBy: catalogOrderBy(filters.sort),
+          skip,
+          take: filters.perPage,
+          select: catalogProductSelect,
+        }),
+        prisma.product.count({ where }),
+      ]);
+    }
 
     return {
       filters,

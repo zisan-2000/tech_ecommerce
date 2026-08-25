@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ChevronDown, Filter, PackageSearch, Search } from "lucide-react";
 import CatalogFilterForm from "@/components/ecommarce/catalog/CatalogFilterForm";
 import CatalogProductGrid from "@/components/ecommarce/catalog/CatalogProductGrid";
+import SearchResultsTelemetry from "@/components/ecommarce/search/SearchResultsTelemetry";
 import {
   CATALOG_MAX_PRICE,
   catalogCanonicalUrl,
@@ -21,6 +22,7 @@ type ProductsPageProps = {
 };
 
 const SORT_LABELS: Array<{ value: CatalogSort; label: string }> = [
+  { value: "relevance", label: "Most relevant" },
   { value: "newest", label: "Newest" },
   { value: "popular", label: "Popular" },
   { value: "price-asc", label: "Price: Low to High" },
@@ -227,6 +229,24 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
       />
+      {filters.q ? (
+        <SearchResultsTelemetry
+          query={filters.q}
+          resultCount={pagination.total}
+          filters={{
+            category: filters.category,
+            brands: filters.brands,
+            type: filters.type,
+            minPrice: filters.minPrice,
+            maxPrice: filters.maxPrice,
+            inStock: filters.inStock,
+            featured: filters.featured,
+            attributes: filters.attributes,
+            sort: filters.sort,
+            page: filters.page,
+          }}
+        />
+      ) : null}
       <div className="container px-3 py-5 sm:px-6 lg:py-8">
         <section className="overflow-hidden rounded-3xl border bg-gradient-to-br from-primary/10 via-background to-accent/10 px-5 py-7 sm:px-8 sm:py-10">
           <div className="max-w-3xl">
@@ -579,7 +599,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             ) : null}
 
             {products.length ? (
-              <CatalogProductGrid products={products} />
+              <CatalogProductGrid
+                products={products}
+                searchQuery={filters.q}
+                resultCount={pagination.total}
+              />
             ) : (
               <div className="rounded-3xl border border-dashed bg-muted/20 px-6 py-16 text-center">
                 <PackageSearch className="mx-auto h-12 w-12 text-muted-foreground" />

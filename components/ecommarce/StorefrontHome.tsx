@@ -35,11 +35,6 @@ export default function StorefrontHome({
     <div className="storefront-type min-h-screen w-full bg-background">
       <Header
         siteSettingsData={data.siteSettings}
-        productsData={data.products.map((product) => ({
-          id: product.id,
-          name: product.name,
-          image: product.image,
-        }))}
         categoriesData={data.categories}
       />
 

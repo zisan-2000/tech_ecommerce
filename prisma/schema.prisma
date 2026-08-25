@@ -3842,6 +3842,78 @@ model AnalyticsEvent {
   @@map("analytics_events")
 }
 
+model SearchEvent {
+  id              BigInt          @id @default(autoincrement())
+  event           SearchEventType
+  queryId         String?         @db.VarChar(64)
+  query           String          @db.VarChar(100)
+  normalizedQuery String          @db.VarChar(100)
+  resultCount     Int?
+  productId       Int?
+  position        Int?
+  visitorId       String?         @db.VarChar(100)
+  sessionId       String?         @db.VarChar(100)
+  userId          String?         @db.VarChar(100)
+  filters         Json?
+  metadata        Json?
+  createdAt       DateTime        @default(now())
+
+  @@index([event, createdAt])
+  @@index([normalizedQuery, createdAt])
+  @@index([queryId])
+  @@index([productId, createdAt])
+  @@index([sessionId, createdAt])
+}
+
+model SearchSynonym {
+  id        Int      @id @default(autoincrement())
+  label     String   @db.VarChar(100)
+  terms     String[]
+  locale    String   @default("en-BD") @db.VarChar(16)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, updatedAt])
+}
+
+model SearchQueryRule {
+  id         Int                 @id @default(autoincrement())
+  name       String              @db.VarChar(120)
+  query      String              @db.VarChar(100)
+  matchType  SearchRuleMatchType @default(CONTAINS)
+  action     Json
+  priority   Int                 @default(0)
+  active     Boolean             @default(true)
+  startsAt   DateTime?
+  endsAt     DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@index([active, priority])
+  @@index([query, active])
+  @@index([startsAt, endsAt])
+}
+
+model SearchIndexOutbox {
+  id            BigInt   @id @default(autoincrement())
+  dedupeKey     String   @unique @db.VarChar(160)
+  entityType    String   @db.VarChar(40)
+  entityId      String   @db.VarChar(80)
+  action        String   @db.VarChar(24)
+  payload       Json?
+  status        String   @default("PENDING") @db.VarChar(24)
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now())
+  processedAt   DateTime?
+  lastError     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([entityType, entityId])
+}
+
 model GeoIpCache {
   id        Int      @id @default(autoincrement())
   ip        String   @unique
@@ -4105,6 +4177,23 @@ enum AnalyticsEventName {
   session_start
   page_view
   heartbeat
+}
+
+enum SearchEventType {
+  SEARCH_SUBMITTED
+  SUGGESTION_CLICKED
+  RESULTS_VIEWED
+  RESULT_CLICKED
+  ZERO_RESULTS
+  FILTER_APPLIED
+  ADD_TO_CART
+  PURCHASE_COMPLETED
+}
+
+enum SearchRuleMatchType {
+  EXACT
+  PREFIX
+  CONTAINS
 }
 
 enum ChatStatus {

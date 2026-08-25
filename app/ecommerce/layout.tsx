@@ -11,7 +11,6 @@ async function StorefrontHeader() {
   return (
     <Header
       siteSettingsData={navigation.siteSettings}
-      productsData={[]}
       categoriesData={navigation.categories}
     />
   );

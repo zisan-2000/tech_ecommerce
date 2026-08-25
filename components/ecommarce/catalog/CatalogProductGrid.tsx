@@ -9,6 +9,7 @@ import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { useSession } from "@/lib/auth-client";
 import { useProductCompare } from "@/hooks/use-product-compare";
 import type { StorefrontCatalogProduct } from "@/lib/storefront-catalog";
+import { sendSearchEvent } from "@/lib/search/client-analytics";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +24,12 @@ const formatBDT = (value: number) =>
 
 export default function CatalogProductGrid({
   products,
+  searchQuery = "",
+  resultCount,
 }: {
   products: StorefrontCatalogProduct[];
+  searchQuery?: string;
+  resultCount?: number;
 }) {
   const { status } = useSession();
   const { addToCart } = useCart();
@@ -81,8 +86,16 @@ export default function CatalogProductGrid({
       }
       if (await addToCart(product.id)) toast.success(`“${product.name}” added to cart.`);
       else toast.error("Product could not be added to cart.");
+      if (searchQuery) {
+        sendSearchEvent({
+          event: "ADD_TO_CART",
+          query: searchQuery,
+          resultCount,
+          productId: product.id,
+        });
+      }
     },
-    [addToCart],
+    [addToCart, resultCount, searchQuery],
   );
 
   const toggleCompare = useCallback(
@@ -104,8 +117,23 @@ export default function CatalogProductGrid({
       ) : null}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
         {products.map((product, index) => (
-          <ProductCard
+          <div
             key={product.id}
+            className="h-full"
+            onClickCapture={(event) => {
+              if (!searchQuery) return;
+              const target = event.target as HTMLElement;
+              if (!target.closest("a[href*='/ecommerce/products/']")) return;
+              sendSearchEvent({
+                event: "RESULT_CLICKED",
+                query: searchQuery,
+                resultCount,
+                productId: product.id,
+                position: index + 1,
+              });
+            }}
+          >
+          <ProductCard
             product={{
               id: product.id,
               name: product.name,
@@ -135,6 +163,7 @@ export default function CatalogProductGrid({
             formatPrice={formatBDT}
             imagePriority={index < 2}
           />
+          </div>
         ))}
       </div>
 

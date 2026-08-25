@@ -26,6 +26,16 @@ import { getDashboardRoute } from "@/lib/dashboard-route";
 
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
 
+import SearchSuggestionPanel from "@/components/ecommarce/search/SearchSuggestionPanel";
+
+import { sendSearchEvent } from "@/lib/search/client-analytics";
+
+import type {
+  SearchSuggestionLink,
+  SearchSuggestionProduct,
+  SearchSuggestionResponse,
+} from "@/lib/search/core";
+
 import { useCart } from "@/components/ecommarce/CartContext";
 
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
@@ -93,14 +103,6 @@ const HEADER_SHOP_ACTIONS = [
     icon: Monitor,
   },
 ] as const;
-
-interface ProductSummary {
-  id: number | string;
-
-  name: string;
-
-  image?: string | null;
-}
 
 interface CategoryDTO {
   id: number;
@@ -532,15 +534,9 @@ function MobileCategoryTree({
 
 export default function Header({
   siteSettingsData,
-
-  productsData,
-
   categoriesData,
 }: {
   siteSettingsData?: SiteSettings;
-
-  productsData?: ProductSummary[];
-
   categoriesData?: CategoryDTO[];
 }) {
   const router = useRouter();
@@ -581,19 +577,16 @@ export default function Header({
 
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [allProducts, setAllProducts] = useState<ProductSummary[]>(
-    () => productsData ?? [],
-  );
-
-  const [searchResults, setSearchResults] = useState<ProductSummary[]>([]);
+  const [searchData, setSearchData] =
+    useState<SearchSuggestionResponse | null>(null);
 
   const [searchLoading, setSearchLoading] = useState(false);
 
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
-  const [hasLoadedProducts, setHasLoadedProducts] = useState(
-    Boolean(productsData),
-  );
+  const [activeSearchIndex, setActiveSearchIndex] = useState(-1);
 
   const [categoryTree, setCategoryTree] = useState<CategoryNode[]>(() =>
     categoriesData
@@ -678,47 +671,6 @@ export default function Header({
   }, [cartItems]);
 
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        if (productsData) {
-          setAllProducts(productsData);
-
-          setHasLoadedProducts(true);
-
-          return;
-        }
-
-        setSearchLoading(true);
-
-        const data = await cachedFetchJson<any[]>(
-          "/api/products?view=storefront&fields=summary",
-          { ttlMs: 30 * 1000 },
-        );
-
-        const mapped: ProductSummary[] = Array.isArray(data)
-          ? data.map((p: any) => ({
-              id: p.id,
-
-              name: p.name,
-
-              image: p.image ?? null,
-            }))
-          : [];
-
-        setAllProducts(mapped);
-
-        setHasLoadedProducts(true);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setSearchLoading(false);
-      }
-    };
-
-    loadProducts();
-  }, [productsData]);
-
-  useEffect(() => {
     const loadCategories = async () => {
       try {
         if (categoriesData) {
@@ -768,26 +720,49 @@ export default function Header({
   }, [categoriesData]);
 
   useEffect(() => {
-    if (!searchTerm || searchTerm.trim().length < 2 || !hasLoadedProducts) {
-      setSearchResults([]);
-
+    const query = searchTerm.trim();
+    if (query.length < 2) {
+      setSearchData(null);
+      setSearchError(null);
+      setSearchLoading(false);
       setShowSearchDropdown(false);
-
+      setActiveSearchIndex(-1);
       return;
     }
 
-    const term = searchTerm.toLowerCase();
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSearchLoading(true);
+      setSearchError(null);
+      setShowSearchDropdown(true);
+      try {
+        const response = await fetch(
+          `/api/search/suggest?q=${encodeURIComponent(query)}&limit=8`,
+          { cache: "no-store", signal: controller.signal },
+        );
+        if (!response.ok) throw new Error(`Search failed (${response.status})`);
+        const data = (await response.json()) as SearchSuggestionResponse;
+        if (!controller.signal.aborted) {
+          setSearchData(data);
+          setActiveSearchIndex(-1);
+        }
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error("Header search suggestions failed", error);
+        setSearchData(null);
+        setSearchError(
+          "Search is temporarily unavailable. Press Enter to view results.",
+        );
+      } finally {
+        if (!controller.signal.aborted) setSearchLoading(false);
+      }
+    }, 220);
 
-    const filtered = allProducts
-
-      .filter((p) => p.name.toLowerCase().includes(term))
-
-      .slice(0, 8);
-
-    setSearchResults(filtered);
-
-    setShowSearchDropdown(filtered.length > 0);
-  }, [searchTerm, allProducts, hasLoadedProducts]);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [searchTerm]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -829,27 +804,80 @@ export default function Header({
     };
   }, [mobileMenuOpen]);
 
-  const handleSelectProduct = (p: ProductSummary) => {
+  const handleSelectProduct = (
+    product: SearchSuggestionProduct,
+    position: number,
+  ) => {
+    sendSearchEvent({
+      event: "SUGGESTION_CLICKED",
+      query: searchData?.query || searchTerm,
+      queryId: searchData?.queryId,
+      resultCount: searchData?.total,
+      productId: product.id,
+      position,
+    });
     setSearchTerm("");
-
     setShowSearchDropdown(false);
-
     setMobileSearchOpen(false);
-
-    router.push(`/ecommerce/products/${p.id}`);
+    router.push(`/ecommerce/products/${product.id}`);
   };
 
-  const submitCatalogSearch = () => {
-    const query = searchTerm.trim();
+  const submitCatalogSearch = (queryOverride?: string) => {
+    const query = (queryOverride ?? searchTerm).trim();
     if (!query) return;
+    sendSearchEvent({
+      event: "SEARCH_SUBMITTED",
+      query,
+      queryId: searchData?.queryId,
+      resultCount: searchData?.total,
+    });
     setShowSearchDropdown(false);
     setMobileSearchOpen(false);
     router.push(`/ecommerce/products?q=${encodeURIComponent(query)}`);
   };
 
+  const handleBrandSelect = (brand: SearchSuggestionLink) => {
+    setShowSearchDropdown(false);
+    setMobileSearchOpen(false);
+    router.push(`/ecommerce/products?brand=${encodeURIComponent(brand.slug)}`);
+  };
+
+  const handleCategorySelect = (category: SearchSuggestionLink) => {
+    setShowSearchDropdown(false);
+    setMobileSearchOpen(false);
+    router.push(
+      `/ecommerce/products?category=${encodeURIComponent(category.slug)}`,
+    );
+  };
+
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const resultCount = searchData?.products.length ?? 0;
+    if (e.key === "ArrowDown" && resultCount > 0) {
+      e.preventDefault();
+      setShowSearchDropdown(true);
+      setActiveSearchIndex((current) => (current + 1) % resultCount);
+      return;
+    }
+    if (e.key === "ArrowUp" && resultCount > 0) {
+      e.preventDefault();
+      setShowSearchDropdown(true);
+      setActiveSearchIndex((current) =>
+        current <= 0 ? resultCount - 1 : current - 1,
+      );
+      return;
+    }
+    if (e.key === "Escape") {
+      setShowSearchDropdown(false);
+      setActiveSearchIndex(-1);
+      return;
+    }
     if (e.key === "Enter") {
       e.preventDefault();
+      const activeProduct = searchData?.products[activeSearchIndex];
+      if (activeProduct) {
+        handleSelectProduct(activeProduct, activeSearchIndex + 1);
+        return;
+      }
       submitCatalogSearch();
     }
   };
@@ -990,7 +1018,16 @@ export default function Header({
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleSearchKeyDown}
               onFocus={() =>
-                searchResults.length > 0 && setShowSearchDropdown(true)
+                searchTerm.trim().length >= 2 && setShowSearchDropdown(true)
+              }
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={showSearchDropdown}
+              aria-controls="desktop-search-suggestions"
+              aria-activedescendant={
+                activeSearchIndex >= 0 && searchData?.products[activeSearchIndex]
+                  ? `desktop-search-suggestions-product-${searchData.products[activeSearchIndex].id}`
+                  : undefined
               }
               placeholder="Type a product, brand or model..."
               className="h-12 w-full rounded-lg border-0 bg-white px-5 pr-28 text-sm text-slate-900 outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-blue-400"
@@ -998,7 +1035,7 @@ export default function Header({
 
             <button
               type="button"
-              onClick={submitCatalogSearch}
+              onClick={() => submitCatalogSearch()}
               className="absolute bottom-0 right-0 top-0 flex w-28 items-center justify-center gap-2 rounded-r-lg bg-slate-700 text-sm font-bold text-white transition hover:bg-slate-600"
               aria-label="Search"
             >
@@ -1007,27 +1044,18 @@ export default function Header({
             </button>
 
             {showSearchDropdown && (
-              <div className="absolute top-full z-[9999] mt-2 max-h-80 w-full overflow-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl">
-                {searchLoading && !hasLoadedProducts ? (
-                  <div className="px-4 py-3 text-sm text-muted-foreground">
-                    Loading...
-                  </div>
-                ) : searchResults.length === 0 ? (
-                  <div className="px-4 py-3 text-sm text-muted-foreground">
-                    No results found.
-                  </div>
-                ) : (
-                  searchResults.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleSelectProduct(p)}
-                      className="w-full px-4 py-3 text-left text-sm hover:bg-muted"
-                    >
-                      {p.name}
-                    </button>
-                  ))
-                )}
+              <div className="absolute top-full z-[9999] mt-2 w-full">
+                <SearchSuggestionPanel
+                  id="desktop-search-suggestions"
+                  data={searchData}
+                  loading={searchLoading}
+                  error={searchError}
+                  activeIndex={activeSearchIndex}
+                  onProductSelect={handleSelectProduct}
+                  onQuerySelect={submitCatalogSearch}
+                  onBrandSelect={handleBrandSelect}
+                  onCategorySelect={handleCategorySelect}
+                />
               </div>
             )}
           </div>
@@ -1132,7 +1160,16 @@ export default function Header({
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
                   onFocus={() =>
-                    searchResults.length > 0 && setShowSearchDropdown(true)
+                    searchTerm.trim().length >= 2 && setShowSearchDropdown(true)
+                  }
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded={showSearchDropdown}
+                  aria-controls="mobile-search-suggestions"
+                  aria-activedescendant={
+                    activeSearchIndex >= 0 && searchData?.products[activeSearchIndex]
+                      ? `mobile-search-suggestions-product-${searchData.products[activeSearchIndex].id}`
+                      : undefined
                   }
                   placeholder="Search..."
                   className={`h-10 min-w-0 flex-1 bg-transparent pr-3 text-sm text-primary-foreground outline-none placeholder:text-primary-foreground/70 transition-all duration-300 ${
@@ -1144,17 +1181,18 @@ export default function Header({
               </div>
 
               {mobileSearchOpen && showSearchDropdown && (
-                <div className="absolute right-0 top-full z-[9999] mt-2 max-h-72 w-[220px] max-w-[calc(100vw-2rem)] overflow-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl">
-                  {searchResults.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleSelectProduct(p)}
-                      className="w-full px-4 py-3 text-left text-sm hover:bg-muted"
-                    >
-                      {p.name}
-                    </button>
-                  ))}
+                <div className="absolute right-0 top-full z-[9999] mt-2 w-[min(92vw,30rem)]">
+                  <SearchSuggestionPanel
+                    id="mobile-search-suggestions"
+                    data={searchData}
+                    loading={searchLoading}
+                    error={searchError}
+                    activeIndex={activeSearchIndex}
+                    onProductSelect={handleSelectProduct}
+                    onQuerySelect={submitCatalogSearch}
+                    onBrandSelect={handleBrandSelect}
+                    onCategorySelect={handleCategorySelect}
+                  />
                 </div>
               )}
             </div>
