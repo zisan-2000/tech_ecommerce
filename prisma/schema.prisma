@@ -43,6 +43,7 @@ model User {
   shipmentAssignmentsTo                     ShipmentAssignment[]                   @relation("ShipmentAssignmentTo")
   shipmentCostLogsCreated                   ShipmentCostLog[]
   addresses                                 UserAddress[]
+  organizationMemberships                   OrganizationMember[]
   assignedUserRoles                         UserRole[]                             @relation("AssignedUserRoles")
   userRoles                                 UserRole[]                             @relation("UserRoles")
   assignedWarehouseMemberships              WarehouseMembership[]                  @relation("AssignedWarehouseMemberships")
@@ -4957,6 +4958,7 @@ model OrganizationMember {
   createdAt      DateTime                 @default(now())
   updatedAt      DateTime                 @updatedAt
   organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   roles          OrganizationMemberRoleGrant[]
   auditLogs      BusinessAuditLog[]
 
