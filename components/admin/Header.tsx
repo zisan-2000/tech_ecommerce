@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isDarkLikeTheme } from "@/lib/theme";
+import { DEFAULT_SITE_TITLE } from "@/lib/site-defaults";
 import Image from "next/image";
 
 const THEME_OPTIONS = [
@@ -271,7 +272,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
             ) : siteSettings?.siteTitle ? (
               siteSettings.siteTitle + " Admin"
             ) : (
-              "Tech Ecommerce Admin"
+              `${DEFAULT_SITE_TITLE} Admin`
             )}
           </h1>
           <h1 className="text-lg font-bold text-foreground sm:hidden">

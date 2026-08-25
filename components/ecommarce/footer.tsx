@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
+import { DEFAULT_SITE_TITLE } from "@/lib/site-defaults";
 import SpotlightCard from "../SpotlightCard";
 import {
   Facebook,
@@ -274,7 +275,7 @@ export default function Footer({
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-foreground">
-                    {siteSettings.siteTitle || "Tech Ecommerce"}
+                    {siteSettings.siteTitle?.trim() || DEFAULT_SITE_TITLE}
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     Computers, components and gadgets
@@ -481,7 +482,7 @@ export default function Footer({
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-xs text-muted-foreground">
-              © {currentYear} {siteSettings?.siteTitle || "Tech Ecommerce"} All rights reserved.
+              © {currentYear} {siteSettings.siteTitle?.trim() || DEFAULT_SITE_TITLE} All rights reserved.
             </p>
 
             <div className="flex items-center gap-6">

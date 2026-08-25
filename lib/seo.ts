@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_SITE_TITLE } from "@/lib/site-defaults";
 
 type SiteSettingsSeo = {
   siteTitle: string;
@@ -11,7 +12,6 @@ type SiteSettingsSeo = {
   address: string | null;
 };
 
-const DEFAULT_SITE_TITLE = "Tech Ecommerce";
 const DEFAULT_SITE_DESCRIPTION =
   "Shop computers, components, accessories and gadgets with verified inventory, secure checkout and nationwide delivery across Bangladesh.";
 const DEFAULT_SITE_LOGO = "/assets/favicon.png";

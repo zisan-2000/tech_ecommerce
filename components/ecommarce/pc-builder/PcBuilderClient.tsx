@@ -579,7 +579,7 @@ export default function PcBuilderClient({
   return (
     <div
       id="pc-builder-print-root"
-      className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_370px]"
+      className="grid items-start gap-16 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_370px]"
     >
       <section
         aria-labelledby="components-heading"
@@ -834,114 +834,146 @@ export default function PcBuilderClient({
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-          <div className="border-b bg-muted/40 px-5 py-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
-              Build summary
-            </p>
-            <div className="mt-2 flex items-end justify-between gap-3">
-              <h2 className="text-xl font-black">Your custom PC</h2>
-              <span className="text-sm font-bold text-muted-foreground">
+        <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+          {/* Header */}
+          <div className="border-b px-5 py-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <div>
+                <p className="font-mono text-[11px] text-muted-foreground">
+                  BUILD-SPEC
+                </p>
+                <h2 className="mt-1 text-lg font-semibold">Your custom PC</h2>
+              </div>
+              <span className="font-mono text-xs text-muted-foreground">
                 {evaluation.completedRequiredCount}/{evaluation.requiredCount}{" "}
                 required
               </span>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{
-                  width: `${(evaluation.completedRequiredCount / evaluation.requiredCount) * 100}%`,
-                }}
-              />
+
+            <div className="mt-3 flex h-1.5 gap-0.5">
+              {Array.from({ length: evaluation.requiredCount || 0 }).map(
+                (_, i) => (
+                  <div
+                    key={i}
+                    className={`h-full flex-1 rounded-full ${
+                      i < evaluation.completedRequiredCount
+                        ? "bg-primary"
+                        : "bg-muted"
+                    }`}
+                  />
+                ),
+              )}
             </div>
           </div>
 
-          <div className="space-y-4 p-5">
-            <div className="flex items-center justify-between border-b pb-4">
-              <span className="text-sm font-semibold text-muted-foreground">
+          <div className="p-5">
+            {/* Price */}
+            <div className="flex items-baseline justify-between border-b border-dashed pb-4">
+              <span className="text-sm text-muted-foreground">
                 Estimated total
               </span>
-              <span className="text-2xl font-black text-primary">
+              <span className="font-mono text-2xl font-semibold tabular-nums text-primary">
                 {money(total, totalCurrency)}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border bg-muted/30 p-3">
-                <Zap className="h-4 w-4 text-amber-500" aria-hidden="true" />
-                <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
-                  Estimated draw
-                </p>
-                <p className="text-lg font-black">
-                  {evaluation.estimatedWattage || 0}W
-                </p>
+
+            {/* Signature element: power headroom gauge */}
+            <div className="border-b pb-4 pt-4">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Estimated draw</span>
+                <span>Recommended PSU</span>
               </div>
-              <div className="rounded-xl border bg-muted/30 p-3">
-                <CircleGauge
-                  className="h-4 w-4 text-primary"
-                  aria-hidden="true"
-                />
-                <p className="mt-2 text-[11px] font-semibold text-muted-foreground">
-                  Recommended PSU
-                </p>
-                <p className="text-lg font-black">
+              <div className="mt-1.5 flex items-baseline justify-between font-mono tabular-nums">
+                <span className="text-lg font-semibold">
+                  {evaluation.estimatedWattage || 0}W
+                </span>
+                <span className="text-lg font-semibold text-muted-foreground">
                   {evaluation.recommendedPsuWattage || 0}W+
-                </p>
+                </span>
+              </div>
+              <div className="relative mt-2 h-1.5 rounded-full bg-muted">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-amber-500"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      ((evaluation.estimatedWattage || 0) /
+                        (evaluation.recommendedPsuWattage || 1)) *
+                        100,
+                    )}%`,
+                  }}
+                />
+                {/* Safe-headroom threshold tick, ~80% of recommended PSU */}
+                <div
+                  className="absolute -inset-y-[3px] w-px bg-foreground/40"
+                  style={{ left: "80%" }}
+                />
               </div>
             </div>
 
+            {/* Issues — left-border flags instead of tinted boxes */}
             {evaluation.issues.length ? (
-              <div aria-live="polite" className="space-y-2">
+              <div aria-live="polite" className="space-y-1.5 border-b py-4">
                 {evaluation.issues.map((item) => (
                   <div
                     key={item.code}
-                    className={`rounded-lg border px-3 py-2 text-xs ${item.severity === "error" ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-amber-300/50 bg-amber-50 text-amber-800 dark:bg-amber-950/20 dark:text-amber-300"}`}
+                    className={`border-l-2 pl-3 text-xs leading-relaxed ${
+                      item.severity === "error"
+                        ? "border-destructive text-destructive"
+                        : "border-amber-500 text-amber-700 dark:text-amber-400"
+                    }`}
                   >
-                    <span className="font-bold">
+                    <span className="font-semibold">
                       {item.severity === "error"
-                        ? "Compatibility issue: "
-                        : "Check: "}
+                        ? "Compatibility issue — "
+                        : "Check — "}
                     </span>
                     {item.message}
                   </div>
                 ))}
               </div>
             ) : selectedProducts.length ? (
-              <div className="flex items-start gap-2 rounded-lg border border-emerald-300/50 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300">
+              <div className="flex items-start gap-2 border-b py-4 text-xs text-muted-foreground">
                 <CheckCircle2
-                  className="mt-0.5 h-4 w-4 shrink-0"
+                  className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600"
                   aria-hidden="true"
-                />{" "}
+                />
                 No compatibility conflict detected in the selected components.
               </div>
             ) : null}
 
             {!evaluation.requiredComplete ? (
-              <p className="text-center text-xs text-muted-foreground">
+              <p className="pt-4 text-center text-xs text-muted-foreground">
                 Select every required component to add the build to your cart.
               </p>
             ) : null}
-            <button
-              type="button"
-              onClick={addBuildToCart}
-              disabled={!evaluation.canAddToCart || adding}
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-black text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <ShoppingCart className="h-5 w-5" aria-hidden="true" />
-              {adding
-                ? "Adding build..."
-                : evaluation.hasErrors
-                  ? "Resolve compatibility issues"
-                  : "Add complete build to cart"}
-            </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              disabled={!selectedProducts.length && !extraProducts.length}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border text-sm font-bold transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Printer className="h-4 w-4" aria-hidden="true" /> Print build
-            </button>
-            <p className="text-[10px] leading-relaxed text-muted-foreground">
+
+            <div className="mt-4 space-y-2">
+              <button
+                type="button"
+                onClick={addBuildToCart}
+                disabled={!evaluation.canAddToCart || adding}
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <ShoppingCart className="h-4 w-4" aria-hidden="true" />
+                {adding
+                  ? "Adding build…"
+                  : evaluation.hasErrors
+                    ? "Resolve compatibility issues"
+                    : "Add complete build to cart"}
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                disabled={!selectedProducts.length && !extraProducts.length}
+                className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border text-xs font-medium text-muted-foreground transition hover:border-foreground/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Printer className="h-3.5 w-3.5" aria-hidden="true" /> Print
+                build
+              </button>
+            </div>
+
+            <p className="mt-4 text-[10px] leading-relaxed text-muted-foreground">
               Compatibility results depend on product specification data. Verify
               BIOS version, connectors and physical clearances before purchase.
             </p>

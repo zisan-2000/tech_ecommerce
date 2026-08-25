@@ -3,13 +3,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Boxes, Package } from "lucide-react";
 import { getStorefrontCatalogFacets } from "@/lib/storefront-catalog";
+import { getSiteSettingsForSeo } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Shop by Category — Tech Ecommerce",
-  description:
-    "Browse computers, components, accessories and gadgets by category.",
-  alternates: { canonical: "/ecommerce/categories" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettingsForSeo();
+
+  return {
+    title: { absolute: `Shop by Category — ${settings.siteTitle}` },
+    description:
+      "Browse computers, components, accessories and gadgets by category.",
+    alternates: { canonical: "/ecommerce/categories" },
+  };
+}
 
 export default async function CategoriesPage() {
   const { categories } = await getStorefrontCatalogFacets();

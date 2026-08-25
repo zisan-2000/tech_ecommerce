@@ -3,12 +3,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, BadgeCheck } from "lucide-react";
 import { getStorefrontCatalogFacets } from "@/lib/storefront-catalog";
+import { getSiteSettingsForSeo } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Shop by Brand — Tech Ecommerce",
-  description: "Explore available computers, components and gadgets by brand.",
-  alternates: { canonical: "/ecommerce/brands" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettingsForSeo();
+
+  return {
+    title: { absolute: `Shop by Brand — ${settings.siteTitle}` },
+    description: "Explore available computers, components and gadgets by brand.",
+    alternates: { canonical: "/ecommerce/brands" },
+  };
+}
 
 export default async function BrandsPage() {
   const { brands } = await getStorefrontCatalogFacets();

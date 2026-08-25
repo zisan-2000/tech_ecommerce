@@ -4,15 +4,20 @@ import {
   emptyStorefrontHomeData,
   getStorefrontHomeData,
 } from "@/lib/storefront-home";
+import { getSiteSettingsForSeo } from "@/lib/seo";
 
 export const revalidate = 120;
 
-export const metadata: Metadata = {
-  title: "Tech Ecommerce — Computers, Components & Gadgets",
-  description:
-    "Shop computers, components, accessories and gadgets with nationwide delivery across Bangladesh.",
-  alternates: { canonical: "/" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettingsForSeo();
+
+  return {
+    title: { absolute: `${settings.siteTitle} — Computers, Components & Gadgets` },
+    description:
+      "Shop computers, components, accessories and gadgets with nationwide delivery across Bangladesh.",
+    alternates: { canonical: "/" },
+  };
+}
 
 async function loadStorefrontHome() {
   try {
