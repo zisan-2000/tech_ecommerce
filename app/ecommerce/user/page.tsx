@@ -17,19 +17,11 @@ import {
 } from "lucide-react";
 import AccountHeader from "./AccountHeader";
 
-type CustomerNotification = {
-  id: number;
-  title: string;
-  message: string;
-  status: "UNREAD" | "READ";
-  targetUrl: string | null;
-  createdAt: string;
-};
-
 type Tile = {
   title: string;
   href: string;
   icon: React.ReactNode;
+  badgeCount?: number;
 };
 
 function Skeleton({ className = "" }: { className?: string }) {
@@ -66,16 +58,23 @@ function DashboardSkeleton() {
   );
 }
 
-function TileCard({ title, href, icon }: Tile) {
+function TileCard({ title, href, icon, badgeCount = 0 }: Tile) {
+  const visibleBadgeCount = Math.min(99, Math.max(0, badgeCount));
+
   return (
     <Link href={href} className="group block">
       <Card
         className="
-          h-[120px] rounded-2xl border border-border bg-card text-card-foreground
+          relative h-[120px] rounded-2xl border border-border bg-card text-card-foreground
           shadow-sm transition-all duration-300 hover:-translate-y-[2px] hover:shadow-md
           md:h-[140px]
         "
       >
+        {visibleBadgeCount > 0 ? (
+          <span className="absolute right-3 top-3 flex min-w-6 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[11px] font-bold leading-5 text-white shadow-sm">
+            {visibleBadgeCount === 99 ? "99+" : visibleBadgeCount}
+          </span>
+        ) : null}
         <div className="flex h-full flex-col items-center justify-center gap-3">
           <div
             className="
@@ -95,45 +94,27 @@ function TileCard({ title, href, icon }: Tile) {
 
 export default function UserDashboardPage() {
   const { data: session, status } = useSession();
-  // const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
-  // const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // useEffect(() => {
-  //   if (status !== "authenticated") return;
+  useEffect(() => {
+    if (status !== "authenticated") return;
 
-  //   const loadNotifications = async () => {
-  //     try {
-  //       const response = await fetch("/api/customer-notifications?limit=5", {
-  //         cache: "no-store",
-  //       });
-  //       if (!response.ok) return;
-  //       const payload = await response.json();
-  //       setNotifications(Array.isArray(payload.items) ? payload.items : []);
-  //       setUnreadCount(Number(payload.unreadCount) || 0);
-  //     } catch (error) {
-  //       console.error("Failed to load customer notifications:", error);
-  //     }
-  //   };
+    const loadNotificationCount = async () => {
+      try {
+        const response = await fetch(
+          "/api/customer-notifications?unreadOnly=true&limit=1",
+          { cache: "no-store" },
+        );
+        if (!response.ok) return;
+        const payload = await response.json();
+        setUnreadCount(Number(payload.unreadCount) || 0);
+      } catch (error) {
+        console.error("Failed to load customer notification count:", error);
+      }
+    };
 
-  //   void loadNotifications();
-  // }, [status]);
-
-  // const markAllRead = async () => {
-  //   try {
-  //     const response = await fetch("/api/customer-notifications", {
-  //       method: "PATCH",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ markAll: true }),
-  //     });
-  //     if (!response.ok) return;
-  //     setUnreadCount(0);
-  //     setNotifications((items) =>
-  //       items.map((item) => ({ ...item, status: "READ" as const })),
-  //     );
-  //   } catch (error) {
-  //     console.error("Failed to update customer notifications:", error);
-  //   }
-  // };
+    void loadNotificationCount();
+  }, [status]);
 
   const userName =
     session?.user?.name ||
@@ -175,6 +156,7 @@ export default function UserDashboardPage() {
       title: "Notifications",
       href: "/ecommerce/user/notifications",
       icon: <Bell className="h-5 w-5" />,
+      badgeCount: unreadCount,
     },
   ];
 
@@ -222,62 +204,6 @@ export default function UserDashboardPage() {
           ))}
         </div>
 
-        {/* <Card className="mt-6 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                <Bell className="h-5 w-5 text-foreground" aria-hidden="true" />
-              </span>
-              <div>
-                <h2 className="text-sm font-semibold">Notifications</h2>
-                <p className="text-xs text-muted-foreground">
-                  {unreadCount > 0
-                    ? `${unreadCount} unread price update${unreadCount === 1 ? "" : "s"}`
-                    : "No unread notifications"}
-                </p>
-              </div>
-            </div>
-            {unreadCount > 0 ? (
-              <button
-                type="button"
-                onClick={markAllRead}
-                className="h-8 rounded border border-border px-3 text-xs font-semibold text-foreground hover:bg-accent"
-              >
-                Mark all read
-              </button>
-            ) : null}
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {notifications.length > 0 ? (
-              notifications.map((notification) => (
-                <Link
-                  key={notification.id}
-                  href={notification.targetUrl ?? "/ecommerce/user"}
-                  className="block rounded-lg border border-border bg-muted/40 p-3 transition hover:bg-muted"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground">
-                        {notification.title}
-                      </p>
-                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {notification.message}
-                      </p>
-                    </div>
-                    {notification.status === "UNREAD" ? (
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-rose-500" />
-                    ) : null}
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                Price drop alerts will appear here.
-              </p>
-            )}
-          </div>
-        </Card> */}
       </div>
     </div>
   );
