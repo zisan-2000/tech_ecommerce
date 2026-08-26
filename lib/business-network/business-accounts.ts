@@ -42,6 +42,7 @@ async function assertAccountDependencies(
     select: {
       id: true,
       status: true,
+      currency: true,
       capabilities: {
         where: { type: "CORPORATE_BUYER" },
         select: { status: true },
@@ -88,6 +89,7 @@ async function assertAccountDependencies(
       throw new BusinessNetworkError(404, "ACCOUNT_MANAGER_NOT_FOUND", "Account manager not found.");
     }
   }
+  return organization;
 }
 
 function assertStatusTransition(current: BusinessAccountStatus, next: BusinessAccountStatus) {
@@ -129,6 +131,17 @@ export async function listBusinessAccounts(input: {
       include: {
         organization: { select: { id: true, code: true, legalName: true, displayName: true, status: true, currency: true } },
         pricingTier: { select: { id: true, code: true, name: true, isActive: true } },
+        creditAccount: {
+          select: {
+            id: true,
+            creditLimit: true,
+            currentBalance: true,
+            currency: true,
+            paymentTermDays: true,
+            isActive: true,
+            reviewDate: true,
+          },
+        },
         _count: { select: { contractPrices: true } },
       },
     }),
@@ -147,6 +160,7 @@ export async function getBusinessAccount(id: string) {
         },
       },
       pricingTier: true,
+      creditAccount: true,
       contractPrices: { orderBy: [{ isActive: "desc" }, { startsAt: "desc" }, { id: "asc" }] },
     },
   });
@@ -162,7 +176,7 @@ export async function createBusinessAccount(input: {
   request: Request;
 }) {
   return runSerializableTransaction(async (tx) => {
-    await assertAccountDependencies(tx, input.data);
+    const organization = await assertAccountDependencies(tx, input.data);
     const now = new Date();
     const account = await tx.businessAccount.create({
       data: {
@@ -175,6 +189,15 @@ export async function createBusinessAccount(input: {
       },
       include: { organization: true, pricingTier: true },
     });
+    const creditAccount = input.data.allowCredit
+      ? await tx.organizationCreditAccount.create({
+          data: {
+            businessAccountId: account.id,
+            currency: organization.currency,
+            paymentTermDays: input.data.paymentTermDays > 0 ? input.data.paymentTermDays : 30,
+          },
+        })
+      : null;
     await writeBusinessAudit({
       tx,
       request: input.request,
@@ -185,7 +208,19 @@ export async function createBusinessAccount(input: {
       entityId: account.id,
       after: account,
     });
-    return account;
+    if (creditAccount) {
+      await writeBusinessAudit({
+        tx,
+        request: input.request,
+        organizationId: account.organizationId,
+        actorUserId: input.actorUserId,
+        action: BUSINESS_AUDIT_ACTIONS.creditAccountProvisioned,
+        entityType: "OrganizationCreditAccount",
+        entityId: creditAccount.id,
+        after: creditAccount,
+      });
+    }
+    return { ...account, creditAccount };
   });
 }
 
@@ -196,13 +231,16 @@ export async function updateBusinessAccount(input: {
   request: Request;
 }) {
   return runSerializableTransaction(async (tx) => {
-    const current = await tx.businessAccount.findUnique({ where: { id: input.id } });
+    const current = await tx.businessAccount.findUnique({
+      where: { id: input.id },
+      include: { creditAccount: true },
+    });
     if (!current) {
       throw new BusinessNetworkError(404, "BUSINESS_ACCOUNT_NOT_FOUND", "Business account not found.");
     }
     const nextStatus = input.data.status ?? current.status;
     assertStatusTransition(current.status, nextStatus);
-    await assertAccountDependencies(tx, {
+    const organization = await assertAccountDependencies(tx, {
       organizationId: current.organizationId,
       status: nextStatus,
       pricingTierId: input.data.pricingTierId === undefined ? current.pricingTierId : input.data.pricingTierId,
@@ -221,6 +259,34 @@ export async function updateBusinessAccount(input: {
       },
       include: { organization: true, pricingTier: true },
     });
+    let creditAccount = current.creditAccount;
+    if (input.data.allowCredit === true && !creditAccount) {
+      creditAccount = await tx.organizationCreditAccount.create({
+        data: {
+          businessAccountId: current.id,
+          currency: organization.currency,
+          paymentTermDays:
+            (input.data.paymentTermDays ?? current.paymentTermDays) > 0
+              ? (input.data.paymentTermDays ?? current.paymentTermDays)
+              : 30,
+        },
+      });
+      await writeBusinessAudit({
+        tx,
+        request: input.request,
+        organizationId: current.organizationId,
+        actorUserId: input.actorUserId,
+        action: BUSINESS_AUDIT_ACTIONS.creditAccountProvisioned,
+        entityType: "OrganizationCreditAccount",
+        entityId: creditAccount.id,
+        after: creditAccount,
+      });
+    } else if (input.data.allowCredit === false && creditAccount?.isActive) {
+      creditAccount = await tx.organizationCreditAccount.update({
+        where: { id: creditAccount.id },
+        data: { isActive: false },
+      });
+    }
     await writeBusinessAudit({
       tx,
       request: input.request,
@@ -232,6 +298,6 @@ export async function updateBusinessAccount(input: {
       before: current,
       after: account,
     });
-    return account;
+    return { ...account, creditAccount };
   });
 }

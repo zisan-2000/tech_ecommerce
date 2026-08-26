@@ -753,6 +753,18 @@ export const SYSTEM_PERMISSIONS = [
     key: "business.pricing.manage",
     description: "Create and update business pricing tiers, rules, and contracts.",
   },
+  {
+    key: "business.credit.view",
+    description: "Read corporate credit accounts, limits, balances, and ledgers.",
+  },
+  {
+    key: "business.credit.manage",
+    description: "Configure corporate credit limits, terms, reviews, and availability.",
+  },
+  {
+    key: "business.credit.adjust",
+    description: "Post audited debit or credit adjustments to the corporate credit ledger.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];

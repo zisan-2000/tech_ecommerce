@@ -20,6 +20,9 @@ export const BUSINESS_AUDIT_ACTIONS = {
   pricingRuleRemoved: "BUSINESS_PRICING_RULE_REMOVED",
   contractPriceCreated: "CONTRACT_PRICE_CREATED",
   contractPriceUpdated: "CONTRACT_PRICE_UPDATED",
+  creditAccountProvisioned: "ORGANIZATION_CREDIT_ACCOUNT_PROVISIONED",
+  creditLimitSet: "ORGANIZATION_CREDIT_LIMIT_SET",
+  creditLedgerAdjusted: "ORGANIZATION_CREDIT_LEDGER_ADJUSTED",
 } as const;
 
 type BusinessAuditAction =
@@ -38,7 +41,9 @@ type AuditInput = {
     | "BusinessAccount"
     | "BusinessPricingTier"
     | "BusinessPricingRule"
-    | "ContractPrice";
+    | "ContractPrice"
+    | "OrganizationCreditAccount"
+    | "CreditLedgerEntry";
   entityId: string;
   before?: unknown;
   after?: unknown;

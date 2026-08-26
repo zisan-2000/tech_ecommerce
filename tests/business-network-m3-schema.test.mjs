@@ -24,7 +24,10 @@ test("M3 keeps one canonical Prisma schema and adds the frozen pricing models", 
     assert.match(schema, new RegExp(`model ${modelName}\\s*\\{`));
   }
   assert.match(schema, /businessAccount\s+BusinessAccount\?/);
-  assert.doesNotMatch(schema, /OrganizationCreditAccount/);
+  assert.doesNotMatch(
+    await read("../prisma/migrations/20260826_m3_business_account_pricing_engine/migration.sql"),
+    /OrganizationCreditAccount/,
+  );
 });
 
 test("M3 migration is additive, constrained, and does not modify catalog/search tables", async () => {

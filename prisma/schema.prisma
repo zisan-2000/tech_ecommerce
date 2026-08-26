@@ -641,6 +641,7 @@ model Order {
   refunds               Refund[]
   shipments             Shipment?
   deliveryAssignments   DeliveryAssignment[]
+  creditLedgerEntries   CreditLedgerEntry[]
 }
 
 model Payment {
@@ -4920,6 +4921,19 @@ enum BusinessPriceSource {
   QUOTATION
 }
 
+enum CreditLedgerEntryType {
+  CREDIT_DRAW
+  REPAYMENT
+  CREDIT_NOTE
+  DEBIT_ADJUSTMENT
+  CREDIT_ADJUSTMENT
+}
+
+enum CreditLedgerDirection {
+  DEBIT
+  CREDIT
+}
+
 model Organization {
   id              String                   @id @default(cuid())
   code            String                   @unique @db.VarChar(32)
@@ -5087,24 +5101,25 @@ model OrganizationDocument {
 }
 
 model BusinessAccount {
-  id               String                @id @default(cuid())
-  organizationId   String                @unique
-  accountNumber    String                @unique @db.VarChar(32)
-  status           BusinessAccountStatus @default(PENDING)
+  id               String                     @id @default(cuid())
+  organizationId   String                     @unique
+  accountNumber    String                     @unique @db.VarChar(32)
+  status           BusinessAccountStatus      @default(PENDING)
   pricingTierId    String?
   accountManagerId String?
-  paymentTermDays  Int                   @default(0)
-  allowCredit      Boolean               @default(false)
-  allowCoupons     Boolean               @default(false)
-  requirePo        Boolean               @default(false)
+  paymentTermDays  Int                        @default(0)
+  allowCredit      Boolean                    @default(false)
+  allowCoupons     Boolean                    @default(false)
+  requirePo        Boolean                    @default(false)
   notes            String?
   activatedAt      DateTime?
   suspendedAt      DateTime?
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  pricingTier      BusinessPricingTier?  @relation(fields: [pricingTierId], references: [id])
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+  organization     Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pricingTier      BusinessPricingTier?       @relation(fields: [pricingTierId], references: [id])
   contractPrices   ContractPrice[]
+  creditAccount    OrganizationCreditAccount?
 
   @@index([status])
   @@index([pricingTierId])
@@ -5177,6 +5192,44 @@ model ContractPrice {
   @@index([productId])
   @@index([variantId])
   @@index([startsAt, endsAt])
+}
+
+model OrganizationCreditAccount {
+  id                String              @id @default(cuid())
+  businessAccountId String              @unique
+  creditLimit       Decimal             @default(0) @db.Decimal(14, 2)
+  currentBalance    Decimal             @default(0) @db.Decimal(14, 2)
+  currency          String              @default("BDT") @db.VarChar(3)
+  paymentTermDays   Int                 @default(30)
+  isActive          Boolean             @default(true)
+  reviewDate        DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  businessAccount   BusinessAccount     @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+  entries           CreditLedgerEntry[]
+
+  @@index([isActive, reviewDate])
+}
+
+model CreditLedgerEntry {
+  id              String                    @id @default(cuid())
+  creditAccountId String
+  type            CreditLedgerEntryType
+  direction       CreditLedgerDirection
+  amount          Decimal                   @db.Decimal(14, 2)
+  currency        String                    @default("BDT") @db.VarChar(3)
+  orderId         Int?
+  sourceType      String?
+  sourceId        String?
+  description     String?
+  createdById     String?
+  createdAt       DateTime                  @default(now())
+  creditAccount   OrganizationCreditAccount @relation(fields: [creditAccountId], references: [id], onDelete: Restrict)
+  order           Order?                    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([creditAccountId, createdAt])
+  @@index([orderId])
+  @@index([sourceType, sourceId])
 }
 
 model BusinessAuditLog {
