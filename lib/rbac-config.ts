@@ -777,6 +777,26 @@ export const SYSTEM_PERMISSIONS = [
     key: "business.rfq.assign",
     description: "Assign corporate customer sales RFQs to internal users.",
   },
+  {
+    key: "business.quotation.view",
+    description: "Read corporate sales quotations and their immutable version history.",
+  },
+  {
+    key: "business.quotation.create",
+    description: "Create corporate sales quotations and quotation versions.",
+  },
+  {
+    key: "business.quotation.update",
+    description: "Submit and cancel corporate sales quotations.",
+  },
+  {
+    key: "business.quotation.approve",
+    description: "Approve internally reviewed corporate sales quotations.",
+  },
+  {
+    key: "business.quotation.send",
+    description: "Issue approved corporate sales quotations to customers.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];

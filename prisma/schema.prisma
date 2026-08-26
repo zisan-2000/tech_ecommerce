@@ -4944,6 +4944,26 @@ enum SalesRfqStatus {
   CANCELLED
 }
 
+enum SalesQuotationStatus {
+  DRAFT
+  INTERNAL_REVIEW
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum SalesQuotationVersionStatus {
+  DRAFT
+  ISSUED
+  ACCEPTED
+  SUPERSEDED
+  REJECTED
+  EXPIRED
+}
+
 model Organization {
   id              String                   @id @default(cuid())
   code            String                   @unique @db.VarChar(32)
@@ -4974,6 +4994,7 @@ model Organization {
   auditLogs       BusinessAuditLog[]
   businessAccount BusinessAccount?
   salesRfqs       SalesRfq[]
+  salesQuotations SalesQuotation[]
 
   @@index([status])
   @@index([legalName])
@@ -5263,6 +5284,7 @@ model SalesRfq {
   requestedBy         OrganizationMember   @relation(fields: [requestedByMemberId], references: [id], onDelete: Restrict)
   items               SalesRfqItem[]
   attachments         SalesRfqAttachment[]
+  quotations          SalesQuotation[]
 
   @@index([organizationId, status])
   @@index([assignedToUserId, status])
@@ -5298,6 +5320,79 @@ model SalesRfqAttachment {
   salesRfq   SalesRfq @relation(fields: [salesRfqId], references: [id], onDelete: Cascade)
 
   @@index([salesRfqId])
+}
+
+model SalesQuotation {
+  id              String                  @id @default(cuid())
+  quotationNumber String                  @unique
+  organizationId  String
+  salesRfqId      String?
+  status          SalesQuotationStatus    @default(DRAFT)
+  validUntil      DateTime?
+  createdById     String?
+  approvedById    String?
+  approvedAt      DateTime?
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  acceptedAt      DateTime?
+  rejectedAt      DateTime?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  organization    Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  salesRfq        SalesRfq?               @relation(fields: [salesRfqId], references: [id], onDelete: SetNull)
+  versions        SalesQuotationVersion[]
+
+  @@index([organizationId, status])
+  @@index([salesRfqId])
+}
+
+model SalesQuotationVersion {
+  id            String                      @id @default(cuid())
+  quotationId   String
+  versionNumber Int
+  status        SalesQuotationVersionStatus @default(DRAFT)
+  isCurrent     Boolean                     @default(true)
+  subtotal      Decimal                     @db.Decimal(14, 2)
+  discountTotal Decimal                     @default(0) @db.Decimal(14, 2)
+  vatTotal      Decimal                     @default(0) @db.Decimal(14, 2)
+  shippingTotal Decimal                     @default(0) @db.Decimal(14, 2)
+  grandTotal    Decimal                     @db.Decimal(14, 2)
+  currency      String                      @default("BDT") @db.VarChar(3)
+  paymentTerms  String?
+  deliveryTerms String?
+  warrantyTerms String?
+  notes         String?
+  pdfUrl        String?
+  createdById   String?
+  issuedAt      DateTime?
+  acceptedAt    DateTime?
+  createdAt     DateTime                    @default(now())
+  quotation     SalesQuotation              @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  items         SalesQuotationItem[]
+
+  @@unique([quotationId, versionNumber])
+  @@index([quotationId, isCurrent])
+}
+
+model SalesQuotationItem {
+  id                 String                @id @default(cuid())
+  quotationVersionId String
+  productId          Int?
+  variantId          Int?
+  productName        String
+  skuSnapshot        String?
+  quantity           Int
+  publicUnitPrice    Decimal?              @db.Decimal(14, 2)
+  unitPrice          Decimal               @db.Decimal(14, 2)
+  discountAmount     Decimal               @default(0) @db.Decimal(14, 2)
+  vatAmount          Decimal               @default(0) @db.Decimal(14, 2)
+  lineTotal          Decimal               @db.Decimal(14, 2)
+  createdAt          DateTime              @default(now())
+  quotationVersion   SalesQuotationVersion @relation(fields: [quotationVersionId], references: [id], onDelete: Cascade)
+
+  @@index([quotationVersionId])
+  @@index([productId])
+  @@index([variantId])
 }
 
 model BusinessAuditLog {

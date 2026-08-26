@@ -32,6 +32,16 @@ export const BUSINESS_AUDIT_ACTIONS = {
   salesRfqClosed: "SALES_RFQ_CLOSED",
   salesRfqAttachmentAdded: "SALES_RFQ_ATTACHMENT_ADDED",
   salesRfqAttachmentRemoved: "SALES_RFQ_ATTACHMENT_REMOVED",
+  salesQuotationCreated: "SALES_QUOTATION_CREATED",
+  salesQuotationVersionCreated: "SALES_QUOTATION_VERSION_CREATED",
+  salesQuotationSubmittedReview: "SALES_QUOTATION_SUBMITTED_REVIEW",
+  salesQuotationApproved: "SALES_QUOTATION_APPROVED",
+  salesQuotationSent: "SALES_QUOTATION_SENT",
+  salesQuotationViewed: "SALES_QUOTATION_VIEWED",
+  salesQuotationAccepted: "SALES_QUOTATION_ACCEPTED",
+  salesQuotationRejected: "SALES_QUOTATION_REJECTED",
+  salesQuotationExpired: "SALES_QUOTATION_EXPIRED",
+  salesQuotationCancelled: "SALES_QUOTATION_CANCELLED",
 } as const;
 
 type BusinessAuditAction =
@@ -54,7 +64,9 @@ type AuditInput = {
     | "OrganizationCreditAccount"
     | "CreditLedgerEntry"
     | "SalesRfq"
-    | "SalesRfqAttachment";
+    | "SalesRfqAttachment"
+    | "SalesQuotation"
+    | "SalesQuotationVersion";
   entityId: string;
   before?: unknown;
   after?: unknown;
