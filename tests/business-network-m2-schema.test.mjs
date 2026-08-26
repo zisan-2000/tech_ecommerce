@@ -49,3 +49,15 @@ test("M2 invitation persistence has only a token hash and keeps PC Builder exter
     assert.match(prismaConfig, new RegExp(`public\\.${table}`));
   }
 });
+
+test("M2 member DELETE contract performs a guarded soft removal", async () => {
+  const route = await read(
+    "../app/api/business/organization/members/[memberId]/route.ts",
+  );
+  assert.match(route, /export async function DELETE/);
+  assert.match(route, /assertSameOriginBusinessMutation\(request\)/);
+  assert.match(route, /requireBusinessPermission\("organization\.members\.manage"\)/);
+  assert.match(route, /updateOrganizationMemberStatus\(\{/);
+  assert.match(route, /status: "REMOVED"/);
+  assert.doesNotMatch(route, /organizationMember\.delete/);
+});
