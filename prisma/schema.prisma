@@ -4934,6 +4934,16 @@ enum CreditLedgerDirection {
   CREDIT
 }
 
+enum SalesRfqStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  QUOTED
+  CLOSED
+  REJECTED
+  CANCELLED
+}
+
 model Organization {
   id              String                   @id @default(cuid())
   code            String                   @unique @db.VarChar(32)
@@ -4963,6 +4973,7 @@ model Organization {
   documents       OrganizationDocument[]
   auditLogs       BusinessAuditLog[]
   businessAccount BusinessAccount?
+  salesRfqs       SalesRfq[]
 
   @@index([status])
   @@index([legalName])
@@ -5004,6 +5015,7 @@ model OrganizationMember {
   user           User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
   roles          OrganizationMemberRoleGrant[]
   auditLogs      BusinessAuditLog[]
+  rfqsRequested  SalesRfq[]
 
   @@unique([organizationId, userId])
   @@index([userId])
@@ -5230,6 +5242,62 @@ model CreditLedgerEntry {
   @@index([creditAccountId, createdAt])
   @@index([orderId])
   @@index([sourceType, sourceId])
+}
+
+model SalesRfq {
+  id                  String               @id @default(cuid())
+  rfqNumber           String               @unique
+  organizationId      String
+  requestedByMemberId String
+  status              SalesRfqStatus       @default(DRAFT)
+  subject             String
+  requestedDelivery   DateTime?
+  quotationDueAt      DateTime?
+  notes               String?
+  assignedToUserId    String?
+  submittedAt         DateTime?
+  closedAt            DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requestedBy         OrganizationMember   @relation(fields: [requestedByMemberId], references: [id], onDelete: Restrict)
+  items               SalesRfqItem[]
+  attachments         SalesRfqAttachment[]
+
+  @@index([organizationId, status])
+  @@index([assignedToUserId, status])
+}
+
+model SalesRfqItem {
+  id              String   @id @default(cuid())
+  salesRfqId      String
+  productId       Int?
+  variantId       Int?
+  productName     String
+  skuSnapshot     String?
+  description     String?
+  quantity        Int
+  targetUnitPrice Decimal? @db.Decimal(14, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  salesRfq        SalesRfq @relation(fields: [salesRfqId], references: [id], onDelete: Cascade)
+
+  @@index([salesRfqId])
+  @@index([productId])
+  @@index([variantId])
+}
+
+model SalesRfqAttachment {
+  id         String   @id @default(cuid())
+  salesRfqId String
+  title      String?
+  fileUrl    String
+  fileName   String?
+  mimeType   String?
+  createdAt  DateTime @default(now())
+  salesRfq   SalesRfq @relation(fields: [salesRfqId], references: [id], onDelete: Cascade)
+
+  @@index([salesRfqId])
 }
 
 model BusinessAuditLog {

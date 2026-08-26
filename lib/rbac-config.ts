@@ -765,6 +765,18 @@ export const SYSTEM_PERMISSIONS = [
     key: "business.credit.adjust",
     description: "Post audited debit or credit adjustments to the corporate credit ledger.",
   },
+  {
+    key: "business.rfq.view",
+    description: "Read corporate customer sales RFQs and their supporting documents.",
+  },
+  {
+    key: "business.rfq.manage",
+    description: "Review, reject, and close corporate customer sales RFQs.",
+  },
+  {
+    key: "business.rfq.assign",
+    description: "Assign corporate customer sales RFQs to internal users.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];
