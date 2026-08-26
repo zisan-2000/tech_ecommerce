@@ -4,6 +4,15 @@ export function sanitizeBusinessAuditValue(value: unknown): unknown {
   if (value === null || value === undefined) return null;
   if (value instanceof Date) return value.toISOString();
   if (typeof value === "bigint") return value.toString();
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    value.constructor?.name === "Decimal" &&
+    "toString" in value &&
+    typeof value.toString === "function"
+  ) {
+    return value.toString();
+  }
   if (Array.isArray(value)) return value.map(sanitizeBusinessAuditValue);
   if (typeof value === "object") {
     return Object.fromEntries(

@@ -737,6 +737,22 @@ export const SYSTEM_PERMISSIONS = [
     description:
       "Access delivery-man assignment and operational dashboard flows.",
   },
+  {
+    key: "business.account.view",
+    description: "Read business accounts and their commercial configuration.",
+  },
+  {
+    key: "business.account.manage",
+    description: "Create and update business accounts and account status.",
+  },
+  {
+    key: "business.pricing.view",
+    description: "Read business pricing tiers, rules, and contract prices.",
+  },
+  {
+    key: "business.pricing.manage",
+    description: "Create and update business pricing tiers, rules, and contracts.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];

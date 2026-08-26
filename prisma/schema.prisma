@@ -769,18 +769,18 @@ model Wishlist {
 }
 
 model PriceDropAlert {
-  id             Int       @id @default(autoincrement())
+  id             Int             @id @default(autoincrement())
   userId         String
   productId      Int
   variantId      Int?
-  baselinePrice  Decimal   @db.Decimal(10, 2)
-  currency       String    @default("USD") @db.VarChar(3)
-  active         Boolean   @default(true)
+  baselinePrice  Decimal         @db.Decimal(10, 2)
+  currency       String          @default("USD") @db.VarChar(3)
+  active         Boolean         @default(true)
   lastNotifiedAt DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  product        Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   variant        ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@index([productId, active])
@@ -789,21 +789,21 @@ model PriceDropAlert {
 }
 
 model CustomerNotification {
-  id          Int                        @id @default(autoincrement())
-  userId      String
-  type        CustomerNotificationType
-  status      CustomerNotificationStatus @default(UNREAD)
-  title       String
-  message     String
-  targetUrl   String?
-  productId   Int?
-  variantId   Int?
-  metadata    Json?
-  readAt      DateTime?
-  createdAt   DateTime                   @default(now())
-  user        User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product     Product?                   @relation(fields: [productId], references: [id], onDelete: SetNull)
-  variant     ProductVariant?            @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  id        Int                        @id @default(autoincrement())
+  userId    String
+  type      CustomerNotificationType
+  status    CustomerNotificationStatus @default(UNREAD)
+  title     String
+  message   String
+  targetUrl String?
+  productId Int?
+  variantId Int?
+  metadata  Json?
+  readAt    DateTime?
+  createdAt DateTime                   @default(now())
+  user      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product?                   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant   ProductVariant?            @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   @@index([userId, status, createdAt])
   @@index([productId, createdAt])
@@ -3926,17 +3926,17 @@ model SearchSynonym {
 }
 
 model SearchQueryRule {
-  id         Int                 @id @default(autoincrement())
-  name       String              @db.VarChar(120)
-  query      String              @db.VarChar(100)
-  matchType  SearchRuleMatchType @default(CONTAINS)
-  action     Json
-  priority   Int                 @default(0)
-  active     Boolean             @default(true)
-  startsAt   DateTime?
-  endsAt     DateTime?
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
+  id        Int                 @id @default(autoincrement())
+  name      String              @db.VarChar(120)
+  query     String              @db.VarChar(100)
+  matchType SearchRuleMatchType @default(CONTAINS)
+  action    Json
+  priority  Int                 @default(0)
+  active    Boolean             @default(true)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 
   @@index([active, priority])
   @@index([query, active])
@@ -3944,19 +3944,19 @@ model SearchQueryRule {
 }
 
 model SearchIndexOutbox {
-  id            BigInt   @id @default(autoincrement())
-  dedupeKey     String   @unique @db.VarChar(160)
-  entityType    String   @db.VarChar(40)
-  entityId      String   @db.VarChar(80)
-  action        String   @db.VarChar(24)
+  id            BigInt    @id @default(autoincrement())
+  dedupeKey     String    @unique @db.VarChar(160)
+  entityType    String    @db.VarChar(40)
+  entityId      String    @db.VarChar(80)
+  action        String    @db.VarChar(24)
   payload       Json?
-  status        String   @default("PENDING") @db.VarChar(24)
-  attempts      Int      @default(0)
-  nextAttemptAt DateTime @default(now())
+  status        String    @default("PENDING") @db.VarChar(24)
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
   processedAt   DateTime?
   lastError     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([status, nextAttemptAt])
   @@index([entityType, entityId])
@@ -4892,13 +4892,41 @@ enum OrganizationDocumentStatus {
   EXPIRED
 }
 
+enum BusinessAccountStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum BusinessPriceScopeType {
+  GLOBAL
+  PRODUCT
+  VARIANT
+  CATEGORY
+  BRAND
+}
+
+enum BusinessPriceAdjustmentType {
+  FIXED_PRICE
+  PERCENT_DISCOUNT
+  AMOUNT_DISCOUNT
+}
+
+enum BusinessPriceSource {
+  PUBLIC
+  TIER
+  CONTRACT
+  QUOTATION
+}
+
 model Organization {
-  id              String                  @id @default(cuid())
-  code            String                  @unique @db.VarChar(32)
+  id              String                   @id @default(cuid())
+  code            String                   @unique @db.VarChar(32)
   legalName       String
   displayName     String?
   companyType     OrganizationCompanyType
-  status          OrganizationStatus      @default(DRAFT)
+  status          OrganizationStatus       @default(DRAFT)
   email           String?
   phone           String?
   website         String?
@@ -4906,13 +4934,13 @@ model Organization {
   tin             String?
   bin             String?
   registrationNo  String?
-  country         String                  @default("BD") @db.VarChar(2)
-  currency        String                  @default("BDT") @db.VarChar(3)
+  country         String                   @default("BD") @db.VarChar(2)
+  currency        String                   @default("BDT") @db.VarChar(3)
   verifiedAt      DateTime?
   verifiedById    String?
   rejectionReason String?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
   capabilities    OrganizationCapability[]
   members         OrganizationMember[]
   invitations     OrganizationInvitation[]
@@ -4920,6 +4948,7 @@ model Organization {
   branches        OrganizationBranch[]
   documents       OrganizationDocument[]
   auditLogs       BusinessAuditLog[]
+  businessAccount BusinessAccount?
 
   @@index([status])
   @@index([legalName])
@@ -4946,19 +4975,19 @@ model OrganizationCapability {
 }
 
 model OrganizationMember {
-  id             String                   @id @default(cuid())
+  id             String                        @id @default(cuid())
   organizationId String
   userId         String
-  status         OrganizationMemberStatus @default(ACTIVE)
+  status         OrganizationMemberStatus      @default(ACTIVE)
   title          String?
   department     String?
   phone          String?
-  isPrimary      Boolean                  @default(false)
-  joinedAt       DateTime                 @default(now())
-  createdAt      DateTime                 @default(now())
-  updatedAt      DateTime                 @updatedAt
-  organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isPrimary      Boolean                       @default(false)
+  joinedAt       DateTime                      @default(now())
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+  organization   Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
   roles          OrganizationMemberRoleGrant[]
   auditLogs      BusinessAuditLog[]
 
@@ -5015,20 +5044,20 @@ model OrganizationAddress {
 }
 
 model OrganizationBranch {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
   name           String
   code           String?
   phone          String?
   email          String?
-  country        String   @default("BD")
+  country        String       @default("BD")
   division       String?
   district       String?
   area           String?
   addressLine    String
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, name])
@@ -5057,8 +5086,101 @@ model OrganizationDocument {
   @@index([expiresAt])
 }
 
+model BusinessAccount {
+  id               String                @id @default(cuid())
+  organizationId   String                @unique
+  accountNumber    String                @unique @db.VarChar(32)
+  status           BusinessAccountStatus @default(PENDING)
+  pricingTierId    String?
+  accountManagerId String?
+  paymentTermDays  Int                   @default(0)
+  allowCredit      Boolean               @default(false)
+  allowCoupons     Boolean               @default(false)
+  requirePo        Boolean               @default(false)
+  notes            String?
+  activatedAt      DateTime?
+  suspendedAt      DateTime?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pricingTier      BusinessPricingTier?  @relation(fields: [pricingTierId], references: [id])
+  contractPrices   ContractPrice[]
+
+  @@index([status])
+  @@index([pricingTierId])
+  @@index([accountManagerId])
+}
+
+model BusinessPricingTier {
+  id          String                @id @default(cuid())
+  code        String                @unique
+  name        String
+  description String?
+  priority    Int                   @default(100)
+  isActive    Boolean               @default(true)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  accounts    BusinessAccount[]
+  rules       BusinessPricingRule[]
+
+  @@index([isActive, priority])
+}
+
+model BusinessPricingRule {
+  id             String                      @id @default(cuid())
+  pricingTierId  String
+  scopeType      BusinessPriceScopeType
+  targetKey      String
+  productId      Int?
+  variantId      Int?
+  categoryId     Int?
+  brandId        Int?
+  minQuantity    Int                         @default(1)
+  adjustmentType BusinessPriceAdjustmentType
+  value          Decimal                     @db.Decimal(14, 4)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  isActive       Boolean                     @default(true)
+  priority       Int                         @default(100)
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+  pricingTier    BusinessPricingTier         @relation(fields: [pricingTierId], references: [id], onDelete: Cascade)
+
+  @@unique([pricingTierId, targetKey, minQuantity])
+  @@index([pricingTierId, isActive, priority])
+  @@index([productId])
+  @@index([variantId])
+  @@index([categoryId])
+  @@index([brandId])
+}
+
+model ContractPrice {
+  id                String                 @id @default(cuid())
+  businessAccountId String
+  scopeType         BusinessPriceScopeType
+  targetKey         String
+  productId         Int?
+  variantId         Int?
+  categoryId        Int?
+  brandId           Int?
+  minQuantity       Int                    @default(1)
+  unitPrice         Decimal                @db.Decimal(14, 2)
+  currency          String                 @default("BDT") @db.VarChar(3)
+  startsAt          DateTime
+  endsAt            DateTime?
+  isActive          Boolean                @default(true)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  businessAccount   BusinessAccount        @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+
+  @@index([businessAccountId, isActive])
+  @@index([productId])
+  @@index([variantId])
+  @@index([startsAt, endsAt])
+}
+
 model BusinessAuditLog {
-  id             BigInt   @id @default(autoincrement())
+  id             BigInt              @id @default(autoincrement())
   organizationId String?
   memberId       String?
   actorUserId    String?
@@ -5069,7 +5191,7 @@ model BusinessAuditLog {
   after          Json?
   ipHash         String?
   userAgent      String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime            @default(now())
   organization   Organization?       @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   member         OrganizationMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
 

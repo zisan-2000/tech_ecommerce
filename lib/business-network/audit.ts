@@ -11,6 +11,15 @@ export const BUSINESS_AUDIT_ACTIONS = {
   invitationAccepted: "ORGANIZATION_INVITATION_ACCEPTED",
   memberRolesUpdated: "ORGANIZATION_MEMBER_ROLES_UPDATED",
   memberStatusUpdated: "ORGANIZATION_MEMBER_STATUS_UPDATED",
+  businessAccountCreated: "BUSINESS_ACCOUNT_CREATED",
+  businessAccountUpdated: "BUSINESS_ACCOUNT_UPDATED",
+  pricingTierCreated: "BUSINESS_PRICING_TIER_CREATED",
+  pricingTierUpdated: "BUSINESS_PRICING_TIER_UPDATED",
+  pricingRuleCreated: "BUSINESS_PRICING_RULE_CREATED",
+  pricingRuleUpdated: "BUSINESS_PRICING_RULE_UPDATED",
+  pricingRuleRemoved: "BUSINESS_PRICING_RULE_REMOVED",
+  contractPriceCreated: "CONTRACT_PRICE_CREATED",
+  contractPriceUpdated: "CONTRACT_PRICE_UPDATED",
 } as const;
 
 type BusinessAuditAction =
@@ -19,11 +28,17 @@ type BusinessAuditAction =
 type AuditInput = {
   tx: Prisma.TransactionClient;
   request?: Request | null;
-  organizationId: string;
+  organizationId?: string | null;
   memberId?: string | null;
   actorUserId: string;
   action: BusinessAuditAction;
-  entityType: "OrganizationInvitation" | "OrganizationMember";
+  entityType:
+    | "OrganizationInvitation"
+    | "OrganizationMember"
+    | "BusinessAccount"
+    | "BusinessPricingTier"
+    | "BusinessPricingRule"
+    | "ContractPrice";
   entityId: string;
   before?: unknown;
   after?: unknown;
@@ -48,7 +63,7 @@ function hashRequestIp(request?: Request | null): string | null {
 export async function writeBusinessAudit(input: AuditInput): Promise<void> {
   await input.tx.businessAuditLog.create({
     data: {
-      organizationId: input.organizationId,
+      organizationId: input.organizationId ?? null,
       memberId: input.memberId ?? null,
       actorUserId: input.actorUserId,
       action: input.action,
