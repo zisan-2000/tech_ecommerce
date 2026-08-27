@@ -837,6 +837,18 @@ export const SYSTEM_PERMISSIONS = [
     key: "partner.agreement.approve",
     description: "Approve pending partner agreement versions.",
   },
+  {
+    key: "partner.lead.view",
+    description: "Read registered partner leads and lifecycle evidence.",
+  },
+  {
+    key: "partner.lead.manage",
+    description: "Validate and resolve registered partner leads.",
+  },
+  {
+    key: "partner.lead.assign",
+    description: "Assign accepted partner leads and record outcomes.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];

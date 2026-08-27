@@ -44,6 +44,8 @@ model User {
   shipmentCostLogsCreated                   ShipmentCostLog[]
   addresses                                 UserAddress[]
   organizationMemberships                   OrganizationMember[]
+  assignedPartnerLeads                      PartnerLead[]                          @relation("PartnerLeadsAssigned")
+  partnerAttributions                       PartnerAttribution[]                   @relation("PartnerAttributionCustomer")
   assignedUserRoles                         UserRole[]                             @relation("AssignedUserRoles")
   userRoles                                 UserRole[]                             @relation("UserRoles")
   assignedWarehouseMemberships              WarehouseMembership[]                  @relation("AssignedWarehouseMemberships")
@@ -649,6 +651,8 @@ model Order {
   organization            Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   salesQuotationVersion   SalesQuotationVersion? @relation(fields: [salesQuotationVersionId], references: [id], onDelete: SetNull)
   customerPurchaseOrder   CustomerPurchaseOrder?
+  partnerAttribution      PartnerAttribution?
+  partnerLeadWon          PartnerLead?           @relation("PartnerLeadWonOrder")
 
   @@index([organizationId, order_date])
   @@index([salesChannel, order_date])
@@ -4982,6 +4986,46 @@ enum PartnerAttributionModel {
   LEAD_OWNER
 }
 
+enum PartnerAssetType {
+  REFERRAL_LINK
+  REFERRAL_CODE
+  PROMO_CODE
+}
+
+enum PartnerAssetStatus {
+  ACTIVE
+  DISABLED
+  EXPIRED
+}
+
+enum PartnerAttributionSource {
+  REFERRAL_LINK
+  REFERRAL_CODE
+  PROMO_CODE
+  REGISTERED_LEAD
+  MANUAL
+}
+
+enum PartnerAttributionStatus {
+  ACTIVE
+  CONVERTED
+  EXPIRED
+  REJECTED
+}
+
+enum PartnerLeadStatus {
+  SUBMITTED
+  VALIDATING
+  ACCEPTED
+  DUPLICATE
+  ASSIGNED
+  IN_PROGRESS
+  WON
+  LOST
+  EXPIRED
+  REJECTED
+}
+
 enum CreditLedgerEntryType {
   CREDIT_DRAW
   REPAYMENT
@@ -5490,18 +5534,21 @@ model CustomerPurchaseOrder {
 }
 
 model PartnerProfile {
-  id               String             @id @default(cuid())
-  organizationId   String             @unique
-  partnerCode      String             @unique @db.VarChar(32)
-  status           PartnerStatus      @default(APPLIED)
+  id               String               @id @default(cuid())
+  organizationId   String               @unique
+  partnerCode      String               @unique @db.VarChar(32)
+  status           PartnerStatus        @default(APPLIED)
   accountManagerId String?
   approvedAt       DateTime?
   suspendedAt      DateTime?
   rejectionReason  String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  organization     Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   agreements       PartnerAgreement[]
+  assets           PartnerAsset[]
+  attributions     PartnerAttribution[]
+  leads            PartnerLead[]
 
   @@index([status])
   @@index([accountManagerId])
@@ -5541,9 +5588,89 @@ model PartnerAgreementVersion {
   approvedAt            DateTime?
   createdAt             DateTime                      @default(now())
   agreement             PartnerAgreement              @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  attributions          PartnerAttribution[]
 
   @@unique([agreementId, versionNumber])
   @@index([agreementId, status])
+}
+
+model PartnerAsset {
+  id               String               @id @default(cuid())
+  partnerProfileId String
+  type             PartnerAssetType
+  status           PartnerAssetStatus   @default(ACTIVE)
+  code             String               @unique @db.VarChar(64)
+  destinationPath  String?
+  campaignName     String?
+  startsAt         DateTime?
+  endsAt           DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  partnerProfile   PartnerProfile       @relation(fields: [partnerProfileId], references: [id], onDelete: Cascade)
+  attributions     PartnerAttribution[]
+
+  @@index([partnerProfileId, status])
+}
+
+model PartnerAttribution {
+  id                 String                   @id @default(cuid())
+  partnerProfileId   String
+  agreementVersionId String?
+  assetId            String?
+  source             PartnerAttributionSource
+  status             PartnerAttributionStatus @default(ACTIVE)
+  visitorId          String?
+  sessionId          String?
+  customerUserId     String?
+  orderId            Int?                     @unique
+  ipHash             String?
+  deviceHash         String?
+  capturedAt         DateTime                 @default(now())
+  expiresAt          DateTime
+  convertedAt        DateTime?
+  rejectedAt         DateTime?
+  rejectionReason    String?
+  partnerProfile     PartnerProfile           @relation(fields: [partnerProfileId], references: [id], onDelete: Restrict)
+  agreementVersion   PartnerAgreementVersion? @relation(fields: [agreementVersionId], references: [id], onDelete: SetNull)
+  asset              PartnerAsset?            @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  customerUser       User?                    @relation("PartnerAttributionCustomer", fields: [customerUserId], references: [id], onDelete: Restrict)
+  order              Order?                   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([partnerProfileId, status])
+  @@index([visitorId, capturedAt])
+  @@index([customerUserId])
+  @@index([expiresAt])
+}
+
+model PartnerLead {
+  id                 String            @id @default(cuid())
+  partnerProfileId   String
+  leadNumber         String            @unique
+  status             PartnerLeadStatus @default(SUBMITTED)
+  companyName        String
+  contactName        String
+  contactEmail       String?
+  contactPhone       String?
+  requirement        String?
+  estimatedValue     Decimal?          @db.Decimal(14, 2)
+  currency           String            @default("BDT") @db.VarChar(3)
+  assignedToUserId   String?
+  ownershipExpiresAt DateTime?
+  wonOrderId         Int?              @unique
+  duplicateOfId      String?
+  rejectionReason    String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  partnerProfile     PartnerProfile    @relation(fields: [partnerProfileId], references: [id], onDelete: Restrict)
+  assignedToUser     User?             @relation("PartnerLeadsAssigned", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  wonOrder           Order?            @relation("PartnerLeadWonOrder", fields: [wonOrderId], references: [id], onDelete: SetNull)
+  duplicateOf        PartnerLead?      @relation("PartnerLeadDuplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates         PartnerLead[]     @relation("PartnerLeadDuplicates")
+
+  @@index([partnerProfileId, status])
+  @@index([contactEmail])
+  @@index([contactPhone])
+  @@index([companyName])
 }
 
 model BusinessAuditLog {

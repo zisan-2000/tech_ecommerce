@@ -58,6 +58,20 @@ export const BUSINESS_AUDIT_ACTIONS = {
   partnerAgreementApproved: "PARTNER_AGREEMENT_APPROVED",
   partnerAgreementSuspended: "PARTNER_AGREEMENT_SUSPENDED",
   partnerAgreementTerminated: "PARTNER_AGREEMENT_TERMINATED",
+  partnerAssetCreated: "PARTNER_ASSET_CREATED",
+  partnerAssetUpdated: "PARTNER_ASSET_UPDATED",
+  partnerAssetDisabled: "PARTNER_ASSET_DISABLED",
+  partnerAttributionCaptured: "PARTNER_ATTRIBUTION_CAPTURED",
+  partnerAttributionConverted: "PARTNER_ATTRIBUTION_CONVERTED",
+  partnerAttributionExpired: "PARTNER_ATTRIBUTION_EXPIRED",
+  partnerAttributionRejected: "PARTNER_ATTRIBUTION_REJECTED",
+  partnerLeadCreated: "PARTNER_LEAD_CREATED",
+  partnerLeadAccepted: "PARTNER_LEAD_ACCEPTED",
+  partnerLeadMarkedDuplicate: "PARTNER_LEAD_MARKED_DUPLICATE",
+  partnerLeadAssigned: "PARTNER_LEAD_ASSIGNED",
+  partnerLeadWon: "PARTNER_LEAD_WON",
+  partnerLeadLost: "PARTNER_LEAD_LOST",
+  partnerLeadRejected: "PARTNER_LEAD_REJECTED",
 } as const;
 
 type BusinessAuditAction =
@@ -68,7 +82,7 @@ type AuditInput = {
   request?: Request | null;
   organizationId?: string | null;
   memberId?: string | null;
-  actorUserId: string;
+  actorUserId: string | null;
   action: BusinessAuditAction;
   entityType:
     | "OrganizationInvitation"
@@ -87,7 +101,10 @@ type AuditInput = {
     | "Order"
     | "PartnerProfile"
     | "PartnerAgreement"
-    | "PartnerAgreementVersion";
+    | "PartnerAgreementVersion"
+    | "PartnerAsset"
+    | "PartnerAttribution"
+    | "PartnerLead";
   entityId: string;
   before?: unknown;
   after?: unknown;

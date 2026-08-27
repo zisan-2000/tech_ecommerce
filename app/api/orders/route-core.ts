@@ -32,6 +32,12 @@ import {
 import type { PcBuilderCheckoutBuild } from "@/lib/pc-builder-checkout";
 import { pcBuildSelectionId } from "@/lib/pc-builder-grouping";
 import { computeWarehouseAvailableStock } from "@/lib/warehouse-stock";
+import {
+  clearPartnerAttributionCookieOptions,
+  parsePartnerAttributionCookie,
+  PARTNER_ATTRIBUTION_COOKIE,
+} from "@/lib/business-network/partner-attribution-cookie";
+import { convertPartnerAttributionForOrder } from "@/lib/business-network/partner-referral";
 
 type OrderPostOptions = {
   pcBuilderBuilds?: PcBuilderCheckoutBuild[];
@@ -180,6 +186,8 @@ export async function POST(request: NextRequest, options: OrderPostOptions = {})
     if (!rateLimit.allowed) return NextResponse.json({ error: "Too many checkout attempts. Please try again later." }, { status: 429, headers: { "Retry-After": String(rateLimit.retryAfter) } });
     const session = await getServerSession(authOptions);
     const userId = (session?.user as any)?.id as string | undefined;
+    const partnerAttributionCookieValue = request.cookies.get(PARTNER_ATTRIBUTION_COOKIE)?.value;
+    const partnerAttributionClaim = parsePartnerAttributionCookie(partnerAttributionCookieValue);
     const body = await request.json();
     const { name, email, phone_number, alt_phone_number, country, district, area, address_details, payment_method, items, transactionId, image, couponId, couponCode } = body;
     const paymentMethod = String(payment_method || "");
@@ -238,13 +246,24 @@ export async function POST(request: NextRequest, options: OrderPostOptions = {})
       if (options.pcBuilderBuilds?.length) {
         await persistPcBuilderOrderGrouping(tx, o, options.pcBuilderBuilds);
       }
+      await convertPartnerAttributionForOrder({
+        tx,
+        claim: partnerAttributionClaim,
+        orderId: o.id,
+        customerUserId: userId ?? null,
+        request,
+      });
       if (couponResult && discount_total > 0) await claimCouponUsage(tx, couponResult.coupon);
       return o;
     });
     revalidateStorefrontCatalog();
     await logActivity({ action: "place_order", entity: "order", entityId: created.id, userId: userId ?? null, request, metadata: { message: `Order #${created.id} placed by ${created.name}` }, after: { orderId: created.id, customerName: created.name, customerEmail: created.email ?? null, paymentMethod: created.payment_method, status: created.status, paymentStatus: created.paymentStatus, grandTotal: Number(created.grand_total), itemCount: created.orderItems.length, items: created.orderItems.map((item: any) => ({ productId: item.productId, productName: item.product?.name ?? null, variantId: item.variantId ?? null, quantity: item.quantity, price: Number(item.price) })) } });
     const customerOrder = redactCustomerOrder(created);
-    return NextResponse.json(isSSLCOMMERZ ? { ...customerOrder, paymentInitToken: createPaymentInitToken(created.id) } : customerOrder, { status: 201 });
+    const response = NextResponse.json(isSSLCOMMERZ ? { ...customerOrder, paymentInitToken: createPaymentInitToken(created.id) } : customerOrder, { status: 201 });
+    if (partnerAttributionCookieValue) {
+      response.cookies.set(PARTNER_ATTRIBUTION_COOKIE, "", clearPartnerAttributionCookieOptions);
+    }
+    return response;
   } catch (error: any) {
     console.error("Error creating order:", error);
     if (error instanceof CouponValidationError) return NextResponse.json({ error: error.message }, { status: 400 });
