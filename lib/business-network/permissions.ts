@@ -70,6 +70,7 @@ export const ORGANIZATION_ROLE_PERMISSIONS = {
     "quotation.read",
     "customer_po.read",
     "customer_po.create",
+    "customer_po.cancel",
     "order.read",
     "order.create",
     "invoice.read",

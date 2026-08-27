@@ -42,6 +42,11 @@ export const BUSINESS_AUDIT_ACTIONS = {
   salesQuotationRejected: "SALES_QUOTATION_REJECTED",
   salesQuotationExpired: "SALES_QUOTATION_EXPIRED",
   salesQuotationCancelled: "SALES_QUOTATION_CANCELLED",
+  customerPurchaseOrderCreated: "CUSTOMER_PURCHASE_ORDER_CREATED",
+  customerPurchaseOrderCancelled: "CUSTOMER_PURCHASE_ORDER_CANCELLED",
+  customerPurchaseOrderVerified: "CUSTOMER_PURCHASE_ORDER_VERIFIED",
+  customerPurchaseOrderRejected: "CUSTOMER_PURCHASE_ORDER_REJECTED",
+  customerPurchaseOrderConverted: "CUSTOMER_PURCHASE_ORDER_CONVERTED",
 } as const;
 
 type BusinessAuditAction =
@@ -66,7 +71,9 @@ type AuditInput = {
     | "SalesRfq"
     | "SalesRfqAttachment"
     | "SalesQuotation"
-    | "SalesQuotationVersion";
+    | "SalesQuotationVersion"
+    | "CustomerPurchaseOrder"
+    | "Order";
   entityId: string;
   before?: unknown;
   after?: unknown;

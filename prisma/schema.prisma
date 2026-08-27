@@ -606,42 +606,52 @@ model VatRate {
 }
 
 model Order {
-  id                    Int                    @id @default(autoincrement())
-  userId                String?
-  name                  String
-  email                 String?
-  phone_number          String
-  alt_phone_number      String?
-  country               String
-  district              String
-  area                  String
-  address_details       String
-  image                 String?
-  payment_method        String
-  order_date            DateTime               @default(now())
-  total                 Decimal                @db.Decimal(10, 2)
-  shipping_cost         Decimal                @db.Decimal(10, 2)
-  grand_total           Decimal                @db.Decimal(10, 2)
-  currency              String                 @default("BDT") @db.VarChar(3)
-  Vat_total             Decimal?               @db.Decimal(10, 2)
-  discount_total        Decimal?               @db.Decimal(10, 2)
-  status                OrderStatus            @default(PENDING)
-  paymentStatus         PaymentStatus          @default(UNPAID)
-  transactionId         String?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  couponId              String?
-  taxSnapshot           Json?
-  deliveryProofs        DeliveryProof[]
-  inventoryReservations InventoryReservation[]
-  coupon                Coupon?                @relation(fields: [couponId], references: [id])
-  user                  User?                  @relation(fields: [userId], references: [id])
-  orderItems            OrderItem[]
-  payments              Payment[]
-  refunds               Refund[]
-  shipments             Shipment?
-  deliveryAssignments   DeliveryAssignment[]
-  creditLedgerEntries   CreditLedgerEntry[]
+  id                      Int                    @id @default(autoincrement())
+  userId                  String?
+  name                    String
+  email                   String?
+  phone_number            String
+  alt_phone_number        String?
+  country                 String
+  district                String
+  area                    String
+  address_details         String
+  image                   String?
+  payment_method          String
+  order_date              DateTime               @default(now())
+  total                   Decimal                @db.Decimal(14, 2)
+  shipping_cost           Decimal                @db.Decimal(14, 2)
+  grand_total             Decimal                @db.Decimal(14, 2)
+  currency                String                 @default("BDT") @db.VarChar(3)
+  Vat_total               Decimal?               @db.Decimal(14, 2)
+  discount_total          Decimal?               @db.Decimal(14, 2)
+  status                  OrderStatus            @default(PENDING)
+  paymentStatus           PaymentStatus          @default(UNPAID)
+  transactionId           String?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  couponId                String?
+  taxSnapshot             Json?
+  organizationId          String?
+  salesChannel            SalesChannel           @default(RETAIL)
+  salesQuotationVersionId String?
+  commercialContext       Json?
+  deliveryProofs          DeliveryProof[]
+  inventoryReservations   InventoryReservation[]
+  coupon                  Coupon?                @relation(fields: [couponId], references: [id])
+  user                    User?                  @relation(fields: [userId], references: [id])
+  orderItems              OrderItem[]
+  payments                Payment[]
+  refunds                 Refund[]
+  shipments               Shipment?
+  deliveryAssignments     DeliveryAssignment[]
+  creditLedgerEntries     CreditLedgerEntry[]
+  organization            Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  salesQuotationVersion   SalesQuotationVersion? @relation(fields: [salesQuotationVersionId], references: [id], onDelete: SetNull)
+  customerPurchaseOrder   CustomerPurchaseOrder?
+
+  @@index([organizationId, order_date])
+  @@index([salesChannel, order_date])
 }
 
 model Payment {
@@ -660,25 +670,28 @@ model Payment {
 }
 
 model OrderItem {
-  id                Int               @id @default(autoincrement())
-  orderId           Int
-  productId         Int
-  variantId         Int?
-  quantity          Int               @default(1)
-  price             Decimal           @db.Decimal(10, 2)
-  currency          String            @default("BDT") @db.VarChar(3)
-  VatAmount         Decimal?          @db.Decimal(10, 2)
-  discountAmount    Decimal?          @db.Decimal(10, 2)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  costPriceSnapshot Decimal?          @db.Decimal(10, 2)
-  digitalDeliveries DigitalDelivery[]
-  order             Order             @relation(fields: [orderId], references: [id])
-  product           Product           @relation(fields: [productId], references: [id])
-  variant           ProductVariant?   @relation(fields: [variantId], references: [id])
-  refunds           Refund[]
-  serviceBooking    ServiceBooking?   @relation("OrderItemServiceBooking")
-  shipmentItems     ShipmentItem[]
+  id                       Int                  @id @default(autoincrement())
+  orderId                  Int
+  productId                Int
+  variantId                Int?
+  quantity                 Int                  @default(1)
+  price                    Decimal              @db.Decimal(14, 2)
+  currency                 String               @default("BDT") @db.VarChar(3)
+  VatAmount                Decimal?             @db.Decimal(14, 2)
+  discountAmount           Decimal?             @db.Decimal(14, 2)
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  costPriceSnapshot        Decimal?             @db.Decimal(14, 2)
+  priceSource              BusinessPriceSource?
+  publicUnitPriceSnapshot  Decimal?             @db.Decimal(14, 2)
+  businessDiscountSnapshot Decimal?             @db.Decimal(14, 2)
+  digitalDeliveries        DigitalDelivery[]
+  order                    Order                @relation(fields: [orderId], references: [id])
+  product                  Product              @relation(fields: [productId], references: [id])
+  variant                  ProductVariant?      @relation(fields: [variantId], references: [id])
+  refunds                  Refund[]
+  serviceBooking           ServiceBooking?      @relation("OrderItemServiceBooking")
+  shipmentItems            ShipmentItem[]
 }
 
 model ServiceSlot {
@@ -4921,6 +4934,22 @@ enum BusinessPriceSource {
   QUOTATION
 }
 
+enum SalesChannel {
+  RETAIL
+  CORPORATE
+  RESELLER
+  DEALER
+}
+
+enum CustomerPurchaseOrderStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  CONVERTED
+  CANCELLED
+}
+
 enum CreditLedgerEntryType {
   CREDIT_DRAW
   REPAYMENT
@@ -4965,36 +4994,38 @@ enum SalesQuotationVersionStatus {
 }
 
 model Organization {
-  id              String                   @id @default(cuid())
-  code            String                   @unique @db.VarChar(32)
-  legalName       String
-  displayName     String?
-  companyType     OrganizationCompanyType
-  status          OrganizationStatus       @default(DRAFT)
-  email           String?
-  phone           String?
-  website         String?
-  tradeLicenseNo  String?
-  tin             String?
-  bin             String?
-  registrationNo  String?
-  country         String                   @default("BD") @db.VarChar(2)
-  currency        String                   @default("BDT") @db.VarChar(3)
-  verifiedAt      DateTime?
-  verifiedById    String?
-  rejectionReason String?
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
-  capabilities    OrganizationCapability[]
-  members         OrganizationMember[]
-  invitations     OrganizationInvitation[]
-  addresses       OrganizationAddress[]
-  branches        OrganizationBranch[]
-  documents       OrganizationDocument[]
-  auditLogs       BusinessAuditLog[]
-  businessAccount BusinessAccount?
-  salesRfqs       SalesRfq[]
-  salesQuotations SalesQuotation[]
+  id                     String                   @id @default(cuid())
+  code                   String                   @unique @db.VarChar(32)
+  legalName              String
+  displayName            String?
+  companyType            OrganizationCompanyType
+  status                 OrganizationStatus       @default(DRAFT)
+  email                  String?
+  phone                  String?
+  website                String?
+  tradeLicenseNo         String?
+  tin                    String?
+  bin                    String?
+  registrationNo         String?
+  country                String                   @default("BD") @db.VarChar(2)
+  currency               String                   @default("BDT") @db.VarChar(3)
+  verifiedAt             DateTime?
+  verifiedById           String?
+  rejectionReason        String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  capabilities           OrganizationCapability[]
+  members                OrganizationMember[]
+  invitations            OrganizationInvitation[]
+  addresses              OrganizationAddress[]
+  branches               OrganizationBranch[]
+  documents              OrganizationDocument[]
+  auditLogs              BusinessAuditLog[]
+  businessAccount        BusinessAccount?
+  salesRfqs              SalesRfq[]
+  salesQuotations        SalesQuotation[]
+  customerPurchaseOrders CustomerPurchaseOrder[]
+  orders                 Order[]
 
   @@index([status])
   @@index([legalName])
@@ -5323,24 +5354,25 @@ model SalesRfqAttachment {
 }
 
 model SalesQuotation {
-  id              String                  @id @default(cuid())
-  quotationNumber String                  @unique
-  organizationId  String
-  salesRfqId      String?
-  status          SalesQuotationStatus    @default(DRAFT)
-  validUntil      DateTime?
-  createdById     String?
-  approvedById    String?
-  approvedAt      DateTime?
-  sentAt          DateTime?
-  viewedAt        DateTime?
-  acceptedAt      DateTime?
-  rejectedAt      DateTime?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
-  organization    Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  salesRfq        SalesRfq?               @relation(fields: [salesRfqId], references: [id], onDelete: SetNull)
-  versions        SalesQuotationVersion[]
+  id                     String                  @id @default(cuid())
+  quotationNumber        String                  @unique
+  organizationId         String
+  salesRfqId             String?
+  status                 SalesQuotationStatus    @default(DRAFT)
+  validUntil             DateTime?
+  createdById            String?
+  approvedById           String?
+  approvedAt             DateTime?
+  sentAt                 DateTime?
+  viewedAt               DateTime?
+  acceptedAt             DateTime?
+  rejectedAt             DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  organization           Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  salesRfq               SalesRfq?               @relation(fields: [salesRfqId], references: [id], onDelete: SetNull)
+  versions               SalesQuotationVersion[]
+  customerPurchaseOrders CustomerPurchaseOrder[]
 
   @@index([organizationId, status])
   @@index([salesRfqId])
@@ -5369,6 +5401,7 @@ model SalesQuotationVersion {
   createdAt     DateTime                    @default(now())
   quotation     SalesQuotation              @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   items         SalesQuotationItem[]
+  orders        Order[]
 
   @@unique([quotationId, versionNumber])
   @@index([quotationId, isCurrent])
@@ -5393,6 +5426,34 @@ model SalesQuotationItem {
   @@index([quotationVersionId])
   @@index([productId])
   @@index([variantId])
+}
+
+model CustomerPurchaseOrder {
+  id                  String                      @id @default(cuid())
+  organizationId      String
+  quotationId         String?
+  customerPoNumber    String
+  status              CustomerPurchaseOrderStatus @default(SUBMITTED)
+  fileUrl             String
+  poDate              DateTime?
+  expectedDeliveryAt  DateTime?
+  totalAmount         Decimal?                    @db.Decimal(14, 2)
+  currency            String                      @default("BDT") @db.VarChar(3)
+  submittedByMemberId String?
+  reviewedById        String?
+  reviewedAt          DateTime?
+  rejectionReason     String?
+  orderId             Int?                        @unique
+  convertedAt         DateTime?
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+  organization        Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  quotation           SalesQuotation?             @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  order               Order?                      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, customerPoNumber])
+  @@index([organizationId, status])
+  @@index([quotationId])
 }
 
 model BusinessAuditLog {

@@ -797,6 +797,18 @@ export const SYSTEM_PERMISSIONS = [
     key: "business.quotation.send",
     description: "Issue approved corporate sales quotations to customers.",
   },
+  {
+    key: "business.customer_po.view",
+    description: "Read customer purchase orders and linked corporate orders.",
+  },
+  {
+    key: "business.customer_po.verify",
+    description: "Review, verify, and reject customer purchase orders.",
+  },
+  {
+    key: "business.customer_po.convert",
+    description: "Atomically convert verified customer purchase orders into orders.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];
