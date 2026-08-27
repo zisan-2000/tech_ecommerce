@@ -4950,6 +4950,38 @@ enum CustomerPurchaseOrderStatus {
   CANCELLED
 }
 
+enum PartnerStatus {
+  APPLIED
+  UNDER_REVIEW
+  ACTIVE
+  SUSPENDED
+  REJECTED
+  REVOKED
+}
+
+enum PartnerAgreementStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  TERMINATED
+}
+
+enum PartnerAgreementVersionStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  SUPERSEDED
+  REJECTED
+}
+
+enum PartnerAttributionModel {
+  FIRST_CLICK
+  LAST_CLICK
+  LEAD_OWNER
+}
+
 enum CreditLedgerEntryType {
   CREDIT_DRAW
   REPAYMENT
@@ -5026,6 +5058,7 @@ model Organization {
   salesQuotations        SalesQuotation[]
   customerPurchaseOrders CustomerPurchaseOrder[]
   orders                 Order[]
+  partnerProfile         PartnerProfile?
 
   @@index([status])
   @@index([legalName])
@@ -5454,6 +5487,63 @@ model CustomerPurchaseOrder {
   @@unique([organizationId, customerPoNumber])
   @@index([organizationId, status])
   @@index([quotationId])
+}
+
+model PartnerProfile {
+  id               String             @id @default(cuid())
+  organizationId   String             @unique
+  partnerCode      String             @unique @db.VarChar(32)
+  status           PartnerStatus      @default(APPLIED)
+  accountManagerId String?
+  approvedAt       DateTime?
+  suspendedAt      DateTime?
+  rejectionReason  String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agreements       PartnerAgreement[]
+
+  @@index([status])
+  @@index([accountManagerId])
+}
+
+model PartnerAgreement {
+  id               String                    @id @default(cuid())
+  agreementNumber  String                    @unique
+  partnerProfileId String
+  status           PartnerAgreementStatus    @default(DRAFT)
+  startsAt         DateTime
+  endsAt           DateTime?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  partnerProfile   PartnerProfile            @relation(fields: [partnerProfileId], references: [id], onDelete: Restrict)
+  versions         PartnerAgreementVersion[]
+
+  @@index([partnerProfileId, status])
+  @@index([startsAt, endsAt])
+}
+
+model PartnerAgreementVersion {
+  id                    String                        @id @default(cuid())
+  agreementId           String
+  versionNumber         Int
+  status                PartnerAgreementVersionStatus @default(DRAFT)
+  commissionPlanId      String?
+  attributionModel      PartnerAttributionModel       @default(LAST_CLICK)
+  attributionWindowDays Int                           @default(30)
+  allowSelfReferral     Boolean                       @default(false)
+  minimumSettlement     Decimal                       @default(0) @db.Decimal(14, 2)
+  currency              String                        @default("BDT") @db.VarChar(3)
+  territoryRules        Json?
+  categoryRules         Json?
+  commercialTerms       Json?
+  approvedById          String?
+  approvedAt            DateTime?
+  createdAt             DateTime                      @default(now())
+  agreement             PartnerAgreement              @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  @@unique([agreementId, versionNumber])
+  @@index([agreementId, status])
 }
 
 model BusinessAuditLog {

@@ -47,6 +47,17 @@ export const BUSINESS_AUDIT_ACTIONS = {
   customerPurchaseOrderVerified: "CUSTOMER_PURCHASE_ORDER_VERIFIED",
   customerPurchaseOrderRejected: "CUSTOMER_PURCHASE_ORDER_REJECTED",
   customerPurchaseOrderConverted: "CUSTOMER_PURCHASE_ORDER_CONVERTED",
+  partnerProfileApplied: "PARTNER_PROFILE_APPLIED",
+  partnerProfileApproved: "PARTNER_PROFILE_APPROVED",
+  partnerProfileRejected: "PARTNER_PROFILE_REJECTED",
+  partnerProfileSuspended: "PARTNER_PROFILE_SUSPENDED",
+  partnerProfileReactivated: "PARTNER_PROFILE_REACTIVATED",
+  partnerAgreementCreated: "PARTNER_AGREEMENT_CREATED",
+  partnerAgreementVersionCreated: "PARTNER_AGREEMENT_VERSION_CREATED",
+  partnerAgreementSubmitted: "PARTNER_AGREEMENT_SUBMITTED",
+  partnerAgreementApproved: "PARTNER_AGREEMENT_APPROVED",
+  partnerAgreementSuspended: "PARTNER_AGREEMENT_SUSPENDED",
+  partnerAgreementTerminated: "PARTNER_AGREEMENT_TERMINATED",
 } as const;
 
 type BusinessAuditAction =
@@ -73,7 +84,10 @@ type AuditInput = {
     | "SalesQuotation"
     | "SalesQuotationVersion"
     | "CustomerPurchaseOrder"
-    | "Order";
+    | "Order"
+    | "PartnerProfile"
+    | "PartnerAgreement"
+    | "PartnerAgreementVersion";
   entityId: string;
   before?: unknown;
   after?: unknown;

@@ -809,6 +809,34 @@ export const SYSTEM_PERMISSIONS = [
     key: "business.customer_po.convert",
     description: "Atomically convert verified customer purchase orders into orders.",
   },
+  {
+    key: "partner.profile.view",
+    description: "Read partner profiles and organization eligibility.",
+  },
+  {
+    key: "partner.profile.manage",
+    description: "Manage partner profile ownership and review workflow.",
+  },
+  {
+    key: "partner.profile.approve",
+    description: "Approve or reject reviewed partner applications.",
+  },
+  {
+    key: "partner.profile.suspend",
+    description: "Suspend or reactivate active partner profiles.",
+  },
+  {
+    key: "partner.agreement.view",
+    description: "Read partner agreements and immutable version history.",
+  },
+  {
+    key: "partner.agreement.manage",
+    description: "Create, version, submit, suspend, and terminate partner agreements.",
+  },
+  {
+    key: "partner.agreement.approve",
+    description: "Approve pending partner agreement versions.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];
