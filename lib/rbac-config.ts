@@ -865,6 +865,30 @@ export const SYSTEM_PERMISSIONS = [
     key: "partner.commission.approve",
     description: "Approve held commission earnings after the return window.",
   },
+  {
+    key: "partner.settlement.view",
+    description: "Read partner settlement runs, immutable line snapshots, and payment evidence.",
+  },
+  {
+    key: "partner.settlement.create",
+    description: "Create and submit partner settlement runs from approved commission entries.",
+  },
+  {
+    key: "partner.settlement.approve",
+    description: "Approve submitted partner settlements for payout processing.",
+  },
+  {
+    key: "partner.settlement.pay",
+    description: "Process partner payouts and record final payment reconciliation evidence.",
+  },
+  {
+    key: "partner.payout_account.view",
+    description: "Read masked partner payout account and verification details.",
+  },
+  {
+    key: "partner.payout_account.verify",
+    description: "Verify or reject encrypted partner payout accounts.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];

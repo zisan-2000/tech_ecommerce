@@ -37,6 +37,7 @@ import {
   type UpdateCommissionRuleInput,
 } from "./commission-schemas";
 import { runSerializableTransaction } from "./transaction";
+import { cancelOpenSettlementForCommissionEntry } from "./settlement";
 
 type DatabaseClient = Prisma.TransactionClient | typeof db;
 
@@ -639,6 +640,13 @@ async function reverseEntryInTransaction(input: {
   }
   const existing = await input.tx.commissionEntry.findFirst({ where: { sourceEntryId: input.entry.id, type: CommissionEntryType.REVERSAL }, include: entryInclude });
   if (existing) return existing;
+  await cancelOpenSettlementForCommissionEntry({
+    tx: input.tx,
+    commissionEntryId: input.entry.id,
+    reason: `Settlement released because commission was reversed: ${input.reason}`,
+    actorUserId: input.actorUserId,
+    request: input.request,
+  });
   assertCommissionEntryTransition(input.entry.status, CommissionStatus.REVERSED);
   const now = new Date();
   const matured = input.entry.status === CommissionStatus.APPROVED

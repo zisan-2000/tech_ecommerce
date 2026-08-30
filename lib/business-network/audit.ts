@@ -83,6 +83,18 @@ export const BUSINESS_AUDIT_ACTIONS = {
   commissionCancelled: "COMMISSION_CANCELLED",
   commissionReversed: "COMMISSION_REVERSED",
   commissionAdjusted: "COMMISSION_ADJUSTED",
+  partnerSettlementCreated: "PARTNER_SETTLEMENT_CREATED",
+  partnerSettlementSubmitted: "PARTNER_SETTLEMENT_SUBMITTED",
+  partnerSettlementApproved: "PARTNER_SETTLEMENT_APPROVED",
+  partnerSettlementProcessing: "PARTNER_SETTLEMENT_PROCESSING",
+  partnerSettlementFailed: "PARTNER_SETTLEMENT_FAILED",
+  partnerSettlementPaid: "PARTNER_SETTLEMENT_PAID",
+  partnerSettlementCancelled: "PARTNER_SETTLEMENT_CANCELLED",
+  partnerPayoutAccountCreated: "PARTNER_PAYOUT_ACCOUNT_CREATED",
+  partnerPayoutAccountUpdated: "PARTNER_PAYOUT_ACCOUNT_UPDATED",
+  partnerPayoutAccountDisabled: "PARTNER_PAYOUT_ACCOUNT_DISABLED",
+  partnerPayoutAccountVerified: "PARTNER_PAYOUT_ACCOUNT_VERIFIED",
+  partnerPayoutAccountRejected: "PARTNER_PAYOUT_ACCOUNT_REJECTED",
 } as const;
 
 type BusinessAuditAction =
@@ -118,7 +130,9 @@ type AuditInput = {
     | "PartnerLead"
     | "CommissionPlan"
     | "CommissionRule"
-    | "CommissionEntry";
+    | "CommissionEntry"
+    | "PartnerSettlement"
+    | "PartnerPayoutAccount";
   entityId: string;
   before?: unknown;
   after?: unknown;

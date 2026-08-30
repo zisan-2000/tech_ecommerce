@@ -47,6 +47,8 @@ model User {
   assignedPartnerLeads                      PartnerLead[]                          @relation("PartnerLeadsAssigned")
   partnerAttributions                       PartnerAttribution[]                   @relation("PartnerAttributionCustomer")
   commissionEntriesCreated                  CommissionEntry[]                      @relation("CommissionEntriesCreated")
+  partnerSettlementsApproved                PartnerSettlement[]                    @relation("PartnerSettlementsApproved")
+  partnerPayoutAccountsVerified             PartnerPayoutAccount[]                 @relation("PartnerPayoutAccountsVerified")
   assignedUserRoles                         UserRole[]                             @relation("AssignedUserRoles")
   userRoles                                 UserRole[]                             @relation("UserRoles")
   assignedWarehouseMemberships              WarehouseMembership[]                  @relation("AssignedWarehouseMemberships")
@@ -5074,6 +5076,28 @@ enum CommissionStatus {
   REVERSED
 }
 
+enum PartnerSettlementStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum PartnerPayoutAccountType {
+  BANK
+  MOBILE_WALLET
+}
+
+enum PartnerPayoutAccountStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  REJECTED
+  DISABLED
+}
+
 enum CreditLedgerEntryType {
   CREDIT_DRAW
   REPAYMENT
@@ -5582,22 +5606,24 @@ model CustomerPurchaseOrder {
 }
 
 model PartnerProfile {
-  id                String               @id @default(cuid())
-  organizationId    String               @unique
-  partnerCode       String               @unique @db.VarChar(32)
-  status            PartnerStatus        @default(APPLIED)
+  id                String                 @id @default(cuid())
+  organizationId    String                 @unique
+  partnerCode       String                 @unique @db.VarChar(32)
+  status            PartnerStatus          @default(APPLIED)
   accountManagerId  String?
   approvedAt        DateTime?
   suspendedAt       DateTime?
   rejectionReason   String?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   agreements        PartnerAgreement[]
   assets            PartnerAsset[]
   attributions      PartnerAttribution[]
   leads             PartnerLead[]
   commissionEntries CommissionEntry[]
+  settlements       PartnerSettlement[]
+  payoutAccounts    PartnerPayoutAccount[]
 
   @@index([status])
   @@index([accountManagerId])
@@ -5808,6 +5834,7 @@ model CommissionEntry {
   sourceEntry        CommissionEntry?         @relation("CommissionEntryReversals", fields: [sourceEntryId], references: [id], onDelete: Restrict)
   corrections        CommissionEntry[]        @relation("CommissionEntryReversals")
   createdBy          User?                    @relation("CommissionEntriesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  settlementLine     PartnerSettlementLine?
 
   @@index([partnerProfileId, status])
   @@index([orderId])
@@ -5815,6 +5842,77 @@ model CommissionEntry {
   @@index([partnerLeadId])
   @@index([sourceEntryId])
   @@index([createdAt])
+}
+
+model PartnerSettlement {
+  id                 String                  @id @default(cuid())
+  settlementNumber   String                  @unique @db.VarChar(32)
+  partnerProfileId   String
+  status             PartnerSettlementStatus @default(DRAFT)
+  periodStart        DateTime
+  periodEnd          DateTime
+  grossCommission    Decimal                 @default(0) @db.Decimal(14, 2)
+  adjustments        Decimal                 @default(0) @db.Decimal(14, 2)
+  netPayable         Decimal                 @default(0) @db.Decimal(14, 2)
+  currency           String                  @default("BDT") @db.VarChar(3)
+  payoutAccountId    String?
+  submittedAt        DateTime?
+  approvedAt         DateTime?
+  approvedById       String?
+  processingAt       DateTime?
+  failedAt           DateTime?
+  failureReason      String?
+  paidAt             DateTime?
+  paymentReference   String?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  partnerProfile     PartnerProfile          @relation(fields: [partnerProfileId], references: [id], onDelete: Restrict)
+  payoutAccount      PartnerPayoutAccount?   @relation(fields: [payoutAccountId], references: [id], onDelete: SetNull)
+  approvedBy         User?                   @relation("PartnerSettlementsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  lines              PartnerSettlementLine[]
+
+  @@index([partnerProfileId, status])
+  @@index([periodStart, periodEnd])
+  @@index([payoutAccountId, status])
+}
+
+model PartnerSettlementLine {
+  id                String            @id @default(cuid())
+  settlementId      String
+  commissionEntryId String            @unique
+  amount            Decimal           @db.Decimal(14, 2)
+  createdAt         DateTime          @default(now())
+  settlement        PartnerSettlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  commissionEntry   CommissionEntry   @relation(fields: [commissionEntryId], references: [id], onDelete: Restrict)
+
+  @@index([settlementId])
+}
+
+model PartnerPayoutAccount {
+  id                     String                     @id @default(cuid())
+  partnerProfileId       String
+  type                   PartnerPayoutAccountType
+  status                 PartnerPayoutAccountStatus @default(PENDING_VERIFICATION)
+  accountName            String
+  bankName               String?
+  branchName             String?
+  routingNumber          String?
+  providerName           String?
+  accountNumberEncrypted String
+  accountNumberLast4     String?                    @db.VarChar(4)
+  isDefault              Boolean                    @default(false)
+  verifiedAt             DateTime?
+  verifiedById           String?
+  rejectionReason        String?
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  partnerProfile         PartnerProfile             @relation(fields: [partnerProfileId], references: [id], onDelete: Cascade)
+  verifiedBy             User?                      @relation("PartnerPayoutAccountsVerified", fields: [verifiedById], references: [id], onDelete: SetNull)
+  settlements            PartnerSettlement[]
+
+  @@index([partnerProfileId, status])
 }
 
 model BusinessAuditLog {

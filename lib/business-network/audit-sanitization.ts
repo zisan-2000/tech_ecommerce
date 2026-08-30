@@ -1,4 +1,4 @@
-const SECRET_KEY_PATTERN = /(?:token|secret|password|authorization|cookie)/i;
+const SECRET_KEY_PATTERN = /(?:token|secret|password|authorization|cookie|encrypted|accountnumber(?!last4)|routingnumber)/i;
 
 export function sanitizeBusinessAuditValue(value: unknown): unknown {
   if (value === null || value === undefined) return null;
