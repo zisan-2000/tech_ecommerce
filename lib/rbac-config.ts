@@ -849,6 +849,22 @@ export const SYSTEM_PERMISSIONS = [
     key: "partner.lead.assign",
     description: "Assign accepted partner leads and record outcomes.",
   },
+  {
+    key: "partner.commission.view",
+    description: "Read commission plans, calculation evidence, and ledger balances.",
+  },
+  {
+    key: "partner.commission.calculate",
+    description: "Run deterministic commission calculations for eligible business events.",
+  },
+  {
+    key: "partner.commission.adjust",
+    description: "Create append-only commission adjustment and reversal entries.",
+  },
+  {
+    key: "partner.commission.approve",
+    description: "Approve held commission earnings after the return window.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];

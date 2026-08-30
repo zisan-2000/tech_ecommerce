@@ -13,6 +13,8 @@ import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
+import { OrderStatus } from "@/generated/prisma";
+import { syncCommissionEntriesForOrderStatus } from "@/lib/business-network/commission";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -564,6 +566,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           await tx.order.update({
             where: { id: existingShipment.orderId },
             data: { status: nextOrderStatus },
+          });
+          await syncCommissionEntriesForOrderStatus({
+            tx,
+            orderId: existingShipment.orderId,
+            orderStatus: nextOrderStatus as OrderStatus,
+            actorUserId: access.userId,
+            request,
           });
         }
       }

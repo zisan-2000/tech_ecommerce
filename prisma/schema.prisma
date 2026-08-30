@@ -46,6 +46,7 @@ model User {
   organizationMemberships                   OrganizationMember[]
   assignedPartnerLeads                      PartnerLead[]                          @relation("PartnerLeadsAssigned")
   partnerAttributions                       PartnerAttribution[]                   @relation("PartnerAttributionCustomer")
+  commissionEntriesCreated                  CommissionEntry[]                      @relation("CommissionEntriesCreated")
   assignedUserRoles                         UserRole[]                             @relation("AssignedUserRoles")
   userRoles                                 UserRole[]                             @relation("UserRoles")
   assignedWarehouseMemberships              WarehouseMembership[]                  @relation("AssignedWarehouseMemberships")
@@ -653,6 +654,7 @@ model Order {
   customerPurchaseOrder   CustomerPurchaseOrder?
   partnerAttribution      PartnerAttribution?
   partnerLeadWon          PartnerLead?           @relation("PartnerLeadWonOrder")
+  commissionEntries       CommissionEntry[]
 
   @@index([organizationId, order_date])
   @@index([salesChannel, order_date])
@@ -696,6 +698,7 @@ model OrderItem {
   refunds                  Refund[]
   serviceBooking           ServiceBooking?      @relation("OrderItemServiceBooking")
   shipmentItems            ShipmentItem[]
+  commissionEntries        CommissionEntry[]
 }
 
 model ServiceSlot {
@@ -5026,6 +5029,51 @@ enum PartnerLeadStatus {
   REJECTED
 }
 
+enum CommissionPlanStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum CommissionScopeType {
+  GLOBAL
+  PRODUCT
+  VARIANT
+  CATEGORY
+  BRAND
+  PRODUCT_TYPE
+  LEAD
+}
+
+enum CommissionCalculationType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum CommissionBasis {
+  GROSS_ITEM
+  NET_ITEM
+  ORDER_NET
+  LEAD_VALUE
+}
+
+enum CommissionEntryType {
+  EARNING
+  REVERSAL
+  ADJUSTMENT
+}
+
+enum CommissionStatus {
+  PENDING
+  HOLD
+  APPROVED
+  PAYABLE
+  PAID
+  CANCELLED
+  REVERSED
+}
+
 enum CreditLedgerEntryType {
   CREDIT_DRAW
   REPAYMENT
@@ -5534,21 +5582,22 @@ model CustomerPurchaseOrder {
 }
 
 model PartnerProfile {
-  id               String               @id @default(cuid())
-  organizationId   String               @unique
-  partnerCode      String               @unique @db.VarChar(32)
-  status           PartnerStatus        @default(APPLIED)
-  accountManagerId String?
-  approvedAt       DateTime?
-  suspendedAt      DateTime?
-  rejectionReason  String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  organization     Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  agreements       PartnerAgreement[]
-  assets           PartnerAsset[]
-  attributions     PartnerAttribution[]
-  leads            PartnerLead[]
+  id                String               @id @default(cuid())
+  organizationId    String               @unique
+  partnerCode       String               @unique @db.VarChar(32)
+  status            PartnerStatus        @default(APPLIED)
+  accountManagerId  String?
+  approvedAt        DateTime?
+  suspendedAt       DateTime?
+  rejectionReason   String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agreements        PartnerAgreement[]
+  assets            PartnerAsset[]
+  attributions      PartnerAttribution[]
+  leads             PartnerLead[]
+  commissionEntries CommissionEntry[]
 
   @@index([status])
   @@index([accountManagerId])
@@ -5589,6 +5638,8 @@ model PartnerAgreementVersion {
   createdAt             DateTime                      @default(now())
   agreement             PartnerAgreement              @relation(fields: [agreementId], references: [id], onDelete: Cascade)
   attributions          PartnerAttribution[]
+  commissionPlan        CommissionPlan?               @relation(fields: [commissionPlanId], references: [id], onDelete: Restrict)
+  commissionEntries     CommissionEntry[]
 
   @@unique([agreementId, versionNumber])
   @@index([agreementId, status])
@@ -5666,11 +5717,104 @@ model PartnerLead {
   wonOrder           Order?            @relation("PartnerLeadWonOrder", fields: [wonOrderId], references: [id], onDelete: SetNull)
   duplicateOf        PartnerLead?      @relation("PartnerLeadDuplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
   duplicates         PartnerLead[]     @relation("PartnerLeadDuplicates")
+  commissionEntries  CommissionEntry[]
 
   @@index([partnerProfileId, status])
   @@index([contactEmail])
   @@index([contactPhone])
   @@index([companyName])
+}
+
+model CommissionPlan {
+  id                String                    @id @default(cuid())
+  code              String                    @unique
+  name              String
+  description       String?
+  status            CommissionPlanStatus      @default(DRAFT)
+  currency          String                    @default("BDT") @db.VarChar(3)
+  startsAt          DateTime?
+  endsAt            DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  rules             CommissionRule[]
+  agreementVersions PartnerAgreementVersion[]
+
+  @@index([status, startsAt, endsAt])
+}
+
+model CommissionRule {
+  id               String                    @id @default(cuid())
+  commissionPlanId String
+  name             String
+  scopeType        CommissionScopeType
+  targetKey        String
+  productId        Int?
+  variantId        Int?
+  categoryId       Int?
+  brandId          Int?
+  productType      ProductType?
+  calculationType  CommissionCalculationType
+  basis            CommissionBasis           @default(NET_ITEM)
+  rate             Decimal?                  @db.Decimal(8, 4)
+  fixedAmount      Decimal?                  @db.Decimal(14, 2)
+  minOrderAmount   Decimal?                  @db.Decimal(14, 2)
+  minQuantity      Int?
+  maxCommission    Decimal?                  @db.Decimal(14, 2)
+  priority         Int                       @default(100)
+  isActive         Boolean                   @default(true)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  commissionPlan   CommissionPlan            @relation(fields: [commissionPlanId], references: [id], onDelete: Cascade)
+  entries          CommissionEntry[]
+
+  @@index([commissionPlanId, isActive, priority])
+  @@index([commissionPlanId, targetKey, minQuantity])
+  @@index([targetKey])
+  @@index([productId])
+  @@index([variantId])
+  @@index([categoryId])
+  @@index([brandId])
+}
+
+model CommissionEntry {
+  id                 String                   @id @default(cuid())
+  partnerProfileId   String
+  agreementVersionId String?
+  commissionRuleId   String?
+  type               CommissionEntryType
+  status             CommissionStatus         @default(PENDING)
+  orderId            Int?
+  orderItemId        Int?
+  partnerLeadId      String?
+  grossBasisAmount   Decimal                  @default(0) @db.Decimal(14, 2)
+  netBasisAmount     Decimal                  @default(0) @db.Decimal(14, 2)
+  rate               Decimal?                 @db.Decimal(8, 4)
+  amount             Decimal                  @db.Decimal(14, 2)
+  currency           String                   @default("BDT") @db.VarChar(3)
+  sourceEntryId      String?
+  holdUntil          DateTime?
+  approvedAt         DateTime?
+  payableAt          DateTime?
+  paidAt             DateTime?
+  reason             String?
+  createdById        String?
+  createdAt          DateTime                 @default(now())
+  partnerProfile     PartnerProfile           @relation(fields: [partnerProfileId], references: [id], onDelete: Restrict)
+  agreementVersion   PartnerAgreementVersion? @relation(fields: [agreementVersionId], references: [id], onDelete: SetNull)
+  commissionRule     CommissionRule?          @relation(fields: [commissionRuleId], references: [id], onDelete: SetNull)
+  order              Order?                   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderItem          OrderItem?               @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  partnerLead        PartnerLead?             @relation(fields: [partnerLeadId], references: [id], onDelete: SetNull)
+  sourceEntry        CommissionEntry?         @relation("CommissionEntryReversals", fields: [sourceEntryId], references: [id], onDelete: Restrict)
+  corrections        CommissionEntry[]        @relation("CommissionEntryReversals")
+  createdBy          User?                    @relation("CommissionEntriesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([partnerProfileId, status])
+  @@index([orderId])
+  @@index([orderItemId])
+  @@index([partnerLeadId])
+  @@index([sourceEntryId])
+  @@index([createdAt])
 }
 
 model BusinessAuditLog {

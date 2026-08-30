@@ -5,6 +5,7 @@ import {
   PartnerAgreementStatus,
   PartnerAgreementVersionStatus,
   PartnerStatus,
+  CommissionPlanStatus,
   Prisma,
 } from "@/generated/prisma";
 import { db } from "@/lib/db";
@@ -372,18 +373,11 @@ export const reactivatePartnerProfile = (input: Omit<Parameters<typeof updatePar
   updatePartnerWorkflow({ ...input, action: "reactivate" });
 
 function versionData(data: CreateVersionInput, versionNumber: number) {
-  if (data.commissionPlanId) {
-    throw new BusinessNetworkError(
-      409,
-      "COMMISSION_PLAN_MILESTONE_REQUIRED",
-      "Commission plans become assignable in M10; leave commissionPlanId empty in M8.",
-    );
-  }
   const json = (value: Record<string, unknown> | null | undefined) =>
     value == null ? Prisma.DbNull : value as Prisma.InputJsonValue;
   return {
     versionNumber,
-    commissionPlanId: null,
+    commissionPlanId: data.commissionPlanId ?? null,
     attributionModel: data.attributionModel,
     attributionWindowDays: data.attributionWindowDays,
     allowSelfReferral: data.allowSelfReferral,
@@ -393,6 +387,35 @@ function versionData(data: CreateVersionInput, versionNumber: number) {
     categoryRules: json(data.categoryRules),
     commercialTerms: json(data.commercialTerms),
   };
+}
+
+async function assertAssignableCommissionPlan(
+  tx: Prisma.TransactionClient,
+  commissionPlanId: string | null | undefined,
+  currency: string,
+  requireActive = false,
+) {
+  if (!commissionPlanId) {
+    if (requireActive) {
+      throw new BusinessNetworkError(409, "COMMISSION_PLAN_REQUIRED", "An active commission plan is required before agreement approval.");
+    }
+    return;
+  }
+  const plan = await tx.commissionPlan.findUnique({
+    where: { id: commissionPlanId },
+    select: { id: true, status: true, currency: true, startsAt: true, endsAt: true, _count: { select: { rules: { where: { isActive: true } } } } },
+  });
+  if (!plan) throw new BusinessNetworkError(404, "COMMISSION_PLAN_NOT_FOUND", "Commission plan not found.");
+  if (plan.currency !== currency) {
+    throw new BusinessNetworkError(422, "COMMISSION_PLAN_CURRENCY_MISMATCH", "Commission plan currency must match the agreement currency.");
+  }
+  if (plan.status === CommissionPlanStatus.ARCHIVED || (requireActive && plan.status !== CommissionPlanStatus.ACTIVE)) {
+    throw new BusinessNetworkError(409, "COMMISSION_PLAN_NOT_ACTIVE", "The selected commission plan is not active.");
+  }
+  const now = new Date();
+  if (requireActive && (plan._count.rules < 1 || (plan.startsAt && plan.startsAt > now) || (plan.endsAt && plan.endsAt <= now))) {
+    throw new BusinessNetworkError(409, "COMMISSION_PLAN_NOT_EFFECTIVE", "The selected commission plan is not currently effective.");
+  }
 }
 
 export async function createPartnerAgreement(input: {
@@ -417,6 +440,7 @@ export async function createPartnerAgreement(input: {
         "Agreement currency must match the partner organization currency.",
       );
     }
+    await assertAssignableCommissionPlan(tx, input.data.version.commissionPlanId, input.data.version.currency);
     const value = await nextSequence(tx, "PartnerAgreementNumber_seq");
     const agreement = await tx.partnerAgreement.create({
       data: {
@@ -470,6 +494,7 @@ export async function createPartnerAgreementVersion(input: {
     if (input.data.currency !== before.partnerProfile.organization.currency) {
       throw new BusinessNetworkError(422, "PARTNER_AGREEMENT_CURRENCY_MISMATCH", "Agreement currency must match the partner organization currency.");
     }
+    await assertAssignableCommissionPlan(tx, input.data.commissionPlanId, input.data.currency);
     const nextNumber = Math.max(...before.versions.map((version) => version.versionNumber)) + 1;
     await tx.partnerAgreementVersion.create({
       data: { agreementId: before.id, ...versionData(input.data, nextNumber) },
@@ -572,6 +597,7 @@ async function updateAgreementWorkflow(input: {
       if (before.endsAt && before.endsAt <= now) {
         throw new BusinessNetworkError(409, "PARTNER_AGREEMENT_EXPIRED", "An expired agreement cannot be approved.");
       }
+      await assertAssignableCommissionPlan(tx, latest.commissionPlanId, latest.currency, true);
       assertPartnerAgreementVersionTransition(latest.status, PartnerAgreementVersionStatus.ACTIVE);
       const previousActive = before.versions.find((version) => version.status === PartnerAgreementVersionStatus.ACTIVE);
       if (previousActive) {

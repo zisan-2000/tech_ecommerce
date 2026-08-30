@@ -1,6 +1,8 @@
 import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { OrderStatus } from "@/generated/prisma";
+import { syncCommissionEntriesForOrderStatus } from "@/lib/business-network/commission";
 import {
   commitOrderInventoryReservations,
   releaseOrderInventoryReservations,
@@ -226,6 +228,12 @@ export async function processSslcommerzCallback(
       await tx.order.update({
         where: { id: payment.orderId! },
         data: { status: kind === "cancel" ? "CANCELLED" : "FAILED" },
+      });
+      await syncCommissionEntriesForOrderStatus({
+        tx,
+        orderId: payment.orderId!,
+        orderStatus: kind === "cancel" ? OrderStatus.CANCELLED : OrderStatus.FAILED,
+        request,
       });
       if (order.couponId && Number(order.discount_total || 0) > 0) {
         await tx.coupon.updateMany({

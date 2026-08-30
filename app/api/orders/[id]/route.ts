@@ -7,6 +7,8 @@ import { getAccessContext } from "@/lib/rbac";
 import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
+import { OrderStatus } from "@/generated/prisma";
+import { syncCommissionEntriesForOrderStatus } from "@/lib/business-network/commission";
 import {
   orderProductSelect,
   orderUserSelect,
@@ -125,6 +127,7 @@ export async function PATCH(
     if (!access.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const actorUserId = access.userId;
     if (!access.has("orders.update")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -290,10 +293,20 @@ export async function PATCH(
         }
       }
 
-      return tx.order.update({
+      const updatedOrder = await tx.order.update({
         where: { id: orderId },
         data,
       });
+      if (nextStatus && nextStatus !== existingOrder.status) {
+        await syncCommissionEntriesForOrderStatus({
+          tx,
+          orderId,
+          orderStatus: nextStatus as OrderStatus,
+          actorUserId,
+          request,
+        });
+      }
+      return updatedOrder;
     });
 
     revalidateStorefrontCatalog();

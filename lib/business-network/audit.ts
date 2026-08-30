@@ -72,6 +72,17 @@ export const BUSINESS_AUDIT_ACTIONS = {
   partnerLeadWon: "PARTNER_LEAD_WON",
   partnerLeadLost: "PARTNER_LEAD_LOST",
   partnerLeadRejected: "PARTNER_LEAD_REJECTED",
+  commissionPlanCreated: "COMMISSION_PLAN_CREATED",
+  commissionPlanUpdated: "COMMISSION_PLAN_UPDATED",
+  commissionRuleCreated: "COMMISSION_RULE_CREATED",
+  commissionRuleUpdated: "COMMISSION_RULE_UPDATED",
+  commissionRuleRemoved: "COMMISSION_RULE_REMOVED",
+  commissionCalculated: "COMMISSION_CALCULATED",
+  commissionHeld: "COMMISSION_HELD",
+  commissionApproved: "COMMISSION_APPROVED",
+  commissionCancelled: "COMMISSION_CANCELLED",
+  commissionReversed: "COMMISSION_REVERSED",
+  commissionAdjusted: "COMMISSION_ADJUSTED",
 } as const;
 
 type BusinessAuditAction =
@@ -104,7 +115,10 @@ type AuditInput = {
     | "PartnerAgreementVersion"
     | "PartnerAsset"
     | "PartnerAttribution"
-    | "PartnerLead";
+    | "PartnerLead"
+    | "CommissionPlan"
+    | "CommissionRule"
+    | "CommissionEntry";
   entityId: string;
   before?: unknown;
   after?: unknown;

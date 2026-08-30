@@ -7,6 +7,7 @@ import type { OrderStatus, ShipmentStatus } from "@/generated/prisma";
 import type { AccessContext } from "@/lib/rbac";
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
+import { syncCommissionEntriesForOrderStatus } from "@/lib/business-network/commission";
 
 export const DELIVERY_ASSIGNMENT_MANAGE_PERMISSIONS = [
   "delivery-men.manage",
@@ -592,6 +593,12 @@ async function syncShipmentAndOrderForAssignmentStatus(
       data: {
         status: nextOrderStatus,
       },
+    });
+    await syncCommissionEntriesForOrderStatus({
+      tx: client as Prisma.TransactionClient,
+      orderId: input.order.id,
+      orderStatus: nextOrderStatus,
+      actorUserId: input.deliveryManUserId,
     });
   }
 }

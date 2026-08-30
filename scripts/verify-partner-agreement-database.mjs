@@ -20,7 +20,7 @@ const constraints = [
   "PartnerAgreementVersion_settlement_check",
   "PartnerAgreementVersion_currency_check",
   "PartnerAgreementVersion_lifecycle_check",
-  "PartnerAgreementVersion_commission_plan_m8_check",
+  "PartnerAgreementVersion_commissionPlanId_fkey",
   "PartnerAgreementVersion_territory_rules_check",
   "PartnerAgreementVersion_category_rules_check",
   "PartnerAgreementVersion_commercial_terms_check",

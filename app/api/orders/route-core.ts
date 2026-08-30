@@ -38,6 +38,7 @@ import {
   PARTNER_ATTRIBUTION_COOKIE,
 } from "@/lib/business-network/partner-attribution-cookie";
 import { convertPartnerAttributionForOrder } from "@/lib/business-network/partner-referral";
+import { calculateOrderCommissions } from "@/lib/business-network/commission";
 
 type OrderPostOptions = {
   pcBuilderBuilds?: PcBuilderCheckoutBuild[];
@@ -246,13 +247,21 @@ export async function POST(request: NextRequest, options: OrderPostOptions = {})
       if (options.pcBuilderBuilds?.length) {
         await persistPcBuilderOrderGrouping(tx, o, options.pcBuilderBuilds);
       }
-      await convertPartnerAttributionForOrder({
+      const attributionResult = await convertPartnerAttributionForOrder({
         tx,
         claim: partnerAttributionClaim,
         orderId: o.id,
         customerUserId: userId ?? null,
         request,
       });
+      if (attributionResult === "converted") {
+        await calculateOrderCommissions({
+          tx,
+          orderId: o.id,
+          actorUserId: userId ?? null,
+          request,
+        });
+      }
       if (couponResult && discount_total > 0) await claimCouponUsage(tx, couponResult.coupon);
       return o;
     });

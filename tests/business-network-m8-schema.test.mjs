@@ -87,7 +87,7 @@ test("M8 service is transactional, capability-aware, audited, and versions witho
   assert.match(source, /runSerializableTransaction\(async \(tx\) =>/);
   assert.match(source, /PARTNER_CAPABILITIES/);
   assert.match(source, /PartnerAgreementVersionStatus\.SUPERSEDED/);
-  assert.match(source, /COMMISSION_PLAN_MILESTONE_REQUIRED/);
+  assert.match(source, /assertAssignableCommissionPlan/);
   assert.match(source, /nextval\('\"PartnerProfileCode_seq\"'\)/);
   assert.match(source, /nextval\('\"PartnerAgreementNumber_seq\"'\)/);
   assert.match(source, /writeBusinessAudit\(\{/);

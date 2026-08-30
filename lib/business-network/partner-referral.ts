@@ -19,6 +19,7 @@ import { BUSINESS_AUDIT_ACTIONS, writeBusinessAudit } from "./audit";
 import type { AttributionCookieClaim } from "./partner-attribution-cookie";
 import { hashPartnerAttributionFingerprint } from "./partner-attribution-cookie";
 import { BusinessNetworkError } from "./business-error";
+import { calculateLeadCommission } from "./commission";
 import {
   assertPartnerAssetDates,
   assertPartnerAttributionTransition,
@@ -817,6 +818,14 @@ export async function updatePartnerLeadWorkflow(input: {
       before,
       after: updated,
     });
+    if (input.action === "won") {
+      await calculateLeadCommission({
+        tx,
+        partnerLeadId: updated.id,
+        actorUserId: input.actorUserId,
+        request: input.request,
+      });
+    }
     return serializeLead(updated);
   });
 }

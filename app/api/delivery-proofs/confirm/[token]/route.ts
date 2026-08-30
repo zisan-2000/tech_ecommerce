@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { isDeliveryConfirmationStatus } from "@/lib/delivery-proof";
 import { appendShipmentStatusLog } from "@/lib/report-history";
+import { OrderStatus } from "@/generated/prisma";
+import { syncCommissionEntriesForOrderStatus } from "@/lib/business-network/commission";
 
 function getClientIp(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -202,6 +204,13 @@ export async function POST(
         await tx.order.update({
           where: { id: shipment.orderId },
           data: { status: "DELIVERED" },
+        });
+        await syncCommissionEntriesForOrderStatus({
+          tx,
+          orderId: shipment.orderId,
+          orderStatus: OrderStatus.DELIVERED,
+          actorUserId: userId,
+          request,
         });
       }
 
