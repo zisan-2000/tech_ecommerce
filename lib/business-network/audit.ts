@@ -7,6 +7,15 @@ import { sanitizeBusinessAuditValue } from "./audit-sanitization";
 
 export const BUSINESS_AUDIT_ACTIONS = {
   organizationApplicationCreated: "ORGANIZATION_APPLICATION_CREATED",
+  organizationCreated: "ORGANIZATION_CREATED",
+  organizationUpdated: "ORGANIZATION_UPDATED",
+  organizationVerified: "ORGANIZATION_VERIFIED",
+  organizationRejected: "ORGANIZATION_REJECTED",
+  organizationSuspended: "ORGANIZATION_SUSPENDED",
+  organizationActivated: "ORGANIZATION_ACTIVATED",
+  organizationCapabilityUpdated: "ORGANIZATION_CAPABILITY_UPDATED",
+  organizationDocumentVerified: "ORGANIZATION_DOCUMENT_VERIFIED",
+  organizationDocumentRejected: "ORGANIZATION_DOCUMENT_REJECTED",
   invitationCreated: "ORGANIZATION_INVITATION_CREATED",
   invitationRevoked: "ORGANIZATION_INVITATION_REVOKED",
   invitationAccepted: "ORGANIZATION_INVITATION_ACCEPTED",

@@ -472,6 +472,63 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
+    name: "Business Network",
+    icon: Users2,
+    subSections: [
+      {
+        label: "Workspace",
+        items: [
+          { name: "Business Home", href: "/admin/business-network", requiredPermissions: ["business.account.view", "partner.profile.view"] },
+          { name: "Organizations", href: "/admin/business-network/organizations", requiredPermissions: ["business.account.view", "business.account.manage"] },
+          { name: "Business Accounts", href: "/admin/business-network/accounts", requiredPermissions: ["business.account.view", "business.account.manage"] },
+          { name: "Business Orders", href: "/admin/business-network/orders", requiredPermissions: ["business.customer_po.view"] },
+        ],
+      },
+      {
+        label: "Corporate Sales",
+        items: [
+          { name: "Sales RFQs", href: "/admin/business-network/rfqs", requiredPermissions: ["business.rfq.view", "business.rfq.manage"] },
+          { name: "Quotations", href: "/admin/business-network/quotations", requiredPermissions: ["business.quotation.view", "business.quotation.create"] },
+          { name: "Customer POs", href: "/admin/business-network/customer-pos", requiredPermissions: ["business.customer_po.view", "business.customer_po.verify"] },
+          { name: "Corporate Credit", href: "/admin/business-network/credit", requiredPermissions: ["business.credit.view", "business.credit.manage"] },
+        ],
+      },
+      {
+        label: "Pricing",
+        items: [
+          { name: "Pricing Tiers", href: "/admin/business-network/pricing/tiers", requiredPermissions: ["business.pricing.view", "business.pricing.manage"] },
+          { name: "Contract Prices", href: "/admin/business-network/pricing/contracts", requiredPermissions: ["business.pricing.view", "business.pricing.manage"] },
+        ],
+      },
+      {
+        label: "Partners",
+        items: [
+          { name: "Partner Profiles", href: "/admin/business-network/partners", requiredPermissions: ["partner.profile.view", "partner.profile.manage"] },
+          { name: "Agreements", href: "/admin/business-network/agreements", requiredPermissions: ["partner.agreement.view", "partner.agreement.manage"] },
+          { name: "Registered Leads", href: "/admin/business-network/leads", requiredPermissions: ["partner.lead.view", "partner.lead.manage"] },
+        ],
+      },
+      {
+        label: "Finance",
+        items: [
+          { name: "Commission Plans", href: "/admin/business-network/commission/plans", requiredPermissions: ["partner.commission.view", "partner.commission.calculate"] },
+          { name: "Commission Ledger", href: "/admin/business-network/commission/ledger", requiredPermissions: ["partner.commission.view"] },
+          { name: "Settlements", href: "/admin/business-network/settlements", requiredPermissions: ["partner.settlement.view", "partner.settlement.create"] },
+          { name: "Payout Accounts", href: "/admin/business-network/payout-accounts", requiredPermissions: ["partner.payout_account.view", "partner.payout_account.verify"] },
+        ],
+      },
+      {
+        label: "Governance",
+        items: [
+          { name: "Risk Review", href: "/admin/business-network/risk", requiredPermissions: ["business.account.view", "partner.profile.view"] },
+          { name: "Dispute Evidence", href: "/admin/business-network/disputes", requiredPermissions: ["business.account.view", "partner.profile.view"] },
+          { name: "Audit Log", href: "/admin/business-network/audit", requiredPermissions: ["business.account.view", "partner.profile.view"] },
+          { name: "Business Reports", href: "/admin/business-network/reports", requiredPermissions: ["business.account.view", "partner.commission.view"] },
+        ],
+      },
+    ],
+  },
+  {
     name: "Investors",
     icon: Landmark,
     requiredGlobalPermissions: [
