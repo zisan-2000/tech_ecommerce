@@ -6,6 +6,7 @@ export const BUSINESS_NETWORK_PERMISSIONS = [
   "business.customer_po.view", "partner.profile.view", "partner.agreement.view",
   "partner.lead.view", "partner.commission.view", "partner.settlement.view",
   "partner.payout_account.view",
+  "business.audit.view", "business.report.view",
 ] as const;
 
 export const businessNetworkNavigation = [
@@ -16,7 +17,7 @@ export const businessNetworkNavigation = [
   { label: "Partners", href: "/admin/business-network/partners", permissions: ["partner.profile.view", "partner.agreement.view"] },
   { label: "Commission", href: "/admin/business-network/commission/ledger", permissions: ["partner.commission.view"] },
   { label: "Settlements", href: "/admin/business-network/settlements", permissions: ["partner.settlement.view"] },
-  { label: "Governance", href: "/admin/business-network/risk", permissions: ["business.account.view", "partner.profile.view"] },
+  { label: "Governance", href: "/admin/business-network/risk", permissions: ["business.audit.view", "business.report.view"] },
 ] as const;
 
 const reasonField = [{ name: "reason", label: "Reason", type: "textarea" as const, required: true }];
@@ -280,10 +281,10 @@ export const businessResources: Record<string, BusinessResourceConfig> = {
   },
   audit: {
     key: "audit", title: "Business Audit Log", description: "Tamper-resistant operational evidence for every business-network lifecycle decision.",
-    endpoint: "/api/admin/business-network/audit", permission: "business.account.view",
+    endpoint: "/api/admin/business-network/audit", permission: "business.audit.view",
     columns: [
       { label: "Time", path: "createdAt", format: "date" }, { label: "Action", path: "action", format: "status" }, { label: "Entity", path: "entityType" },
-      { label: "Entity ID", path: "entityId" }, { label: "Organization", path: "organization.legalName" }, { label: "Actor", path: "actorUserId" },
+      { label: "Entity ID", path: "entityId" }, { label: "Organization", path: "organization.legalName" }, { label: "Integrity", path: "integrityHash" },
     ],
   },
 };

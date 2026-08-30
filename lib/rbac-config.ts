@@ -889,6 +889,14 @@ export const SYSTEM_PERMISSIONS = [
     key: "partner.payout_account.verify",
     description: "Verify or reject encrypted partner payout accounts.",
   },
+  {
+    key: "business.audit.view",
+    description: "Read immutable business audit and fraud-review evidence.",
+  },
+  {
+    key: "business.report.view",
+    description: "Read business-network operational and financial reports.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];

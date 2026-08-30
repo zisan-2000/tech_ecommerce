@@ -520,10 +520,10 @@ const menuItems: MenuItem[] = [
       {
         label: "Governance",
         items: [
-          { name: "Risk Review", href: "/admin/business-network/risk", requiredPermissions: ["business.account.view", "partner.profile.view"] },
-          { name: "Dispute Evidence", href: "/admin/business-network/disputes", requiredPermissions: ["business.account.view", "partner.profile.view"] },
-          { name: "Audit Log", href: "/admin/business-network/audit", requiredPermissions: ["business.account.view", "partner.profile.view"] },
-          { name: "Business Reports", href: "/admin/business-network/reports", requiredPermissions: ["business.account.view", "partner.commission.view"] },
+          { name: "Risk Review", href: "/admin/business-network/risk", requiredPermissions: ["business.audit.view"] },
+          { name: "Dispute Evidence", href: "/admin/business-network/disputes", requiredPermissions: ["business.audit.view"] },
+          { name: "Audit Log", href: "/admin/business-network/audit", requiredPermissions: ["business.audit.view"] },
+          { name: "Business Reports", href: "/admin/business-network/reports", requiredPermissions: ["business.report.view"] },
         ],
       },
     ],

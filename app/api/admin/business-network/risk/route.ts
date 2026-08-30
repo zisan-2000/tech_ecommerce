@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireAnyBusinessNetworkAdminPermission } from "@/lib/business-network/admin-authorization";
-import { getBusinessGovernance } from "@/lib/business-network/admin-insights";
+import { listBusinessRiskCases } from "@/lib/business-network/fraud";
 import { businessApiErrorResponse } from "@/lib/business-network/errors";
-export async function GET() { try { await requireAnyBusinessNetworkAdminPermission(["business.account.view", "partner.profile.view"]); return NextResponse.json(await getBusinessGovernance("risk"), { headers: { "Cache-Control": "private, no-store" } }); } catch (error) { return businessApiErrorResponse(error); } }
+export async function GET(request: Request) { try { await requireAnyBusinessNetworkAdminPermission(["business.audit.view"]); return NextResponse.json(await listBusinessRiskCases(new URL(request.url)), { headers: { "Cache-Control": "private, no-store" } }); } catch (error) { return businessApiErrorResponse(error); } }

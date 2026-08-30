@@ -117,14 +117,15 @@ export async function listBusinessAuditLogs(url: URL) {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       select: {
         id: true, action: true, entityType: true, entityId: true,
-        organizationId: true, actorUserId: true, ipHash: true, userAgent: true, createdAt: true,
+        organizationId: true, actorUserId: true, ipHash: true, userAgent: true,
+        integrityHash: true, integrityVersion: true, createdAt: true,
         organization: { select: { code: true, legalName: true } },
       },
     }),
     db.businessAuditLog.count({ where }),
   ]);
   return {
-    items: items.map((item) => ({ ...item, id: item.id.toString(), ipHash: item.ipHash ? `${item.ipHash.slice(0, 12)}…` : null })),
+    items: items.map((item) => ({ ...item, id: item.id.toString(), ipHash: item.ipHash ? `${item.ipHash.slice(0, 12)}…` : null, integrityHash: `${item.integrityHash.slice(0, 12)}…` })),
     pagination: { page: input.page, limit: input.limit, total, pages: Math.ceil(total / input.limit) },
   };
 }

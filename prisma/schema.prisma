@@ -49,6 +49,9 @@ model User {
   commissionEntriesCreated                  CommissionEntry[]                      @relation("CommissionEntriesCreated")
   partnerSettlementsApproved                PartnerSettlement[]                    @relation("PartnerSettlementsApproved")
   partnerPayoutAccountsVerified             PartnerPayoutAccount[]                 @relation("PartnerPayoutAccountsVerified")
+  businessNotifications                     BusinessNotification[]                 @relation("BusinessNotificationRecipients")
+  businessRiskCasesAssigned                 BusinessRiskCase[]                     @relation("BusinessRiskCasesAssigned")
+  businessRiskCasesReviewed                 BusinessRiskCase[]                     @relation("BusinessRiskCasesReviewed")
   assignedUserRoles                         UserRole[]                             @relation("AssignedUserRoles")
   userRoles                                 UserRole[]                             @relation("UserRoles")
   assignedWarehouseMemberships              WarehouseMembership[]                  @relation("AssignedWarehouseMemberships")
@@ -657,6 +660,7 @@ model Order {
   partnerAttribution      PartnerAttribution?
   partnerLeadWon          PartnerLead?           @relation("PartnerLeadWonOrder")
   commissionEntries       CommissionEntry[]
+  businessRiskCases       BusinessRiskCase[]
 
   @@index([organizationId, order_date])
   @@index([salesChannel, order_date])
@@ -5141,40 +5145,101 @@ enum SalesQuotationVersionStatus {
   EXPIRED
 }
 
+enum BusinessFraudRuleType {
+  SELF_REFERRAL
+  DUPLICATE_LEAD
+  REPEATED_CANCELLED_REFERRALS
+  REPEATED_REFUND_REFERRALS
+  SAME_ORGANIZATION
+  SAME_USER
+  SAME_PHONE
+  SAME_EMAIL
+  SUSPICIOUS_IP
+  SUSPICIOUS_DEVICE
+  UNUSUAL_CONVERSION_RATE
+  COMMISSION_SPIKE
+}
+
+enum BusinessRiskSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum BusinessRiskCaseStatus {
+  OPEN
+  UNDER_REVIEW
+  CONFIRMED
+  FALSE_POSITIVE
+  RESOLVED
+}
+
+enum BusinessNotificationCategory {
+  ORGANIZATION
+  SALES
+  FINANCE
+  PARTNERSHIP
+  SECURITY
+  SYSTEM
+}
+
+enum BusinessNotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum BusinessNotificationChannel {
+  EMAIL
+}
+
+enum BusinessNotificationDeliveryStatus {
+  QUEUED
+  PROCESSING
+  DELIVERED
+  FAILED
+  SKIPPED
+}
+
 model Organization {
-  id                     String                   @id @default(cuid())
-  code                   String                   @unique @db.VarChar(32)
-  legalName              String
-  displayName            String?
-  companyType            OrganizationCompanyType
-  status                 OrganizationStatus       @default(DRAFT)
-  email                  String?
-  phone                  String?
-  website                String?
-  tradeLicenseNo         String?
-  tin                    String?
-  bin                    String?
-  registrationNo         String?
-  country                String                   @default("BD") @db.VarChar(2)
-  currency               String                   @default("BDT") @db.VarChar(3)
-  verifiedAt             DateTime?
-  verifiedById           String?
-  rejectionReason        String?
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  capabilities           OrganizationCapability[]
-  members                OrganizationMember[]
-  invitations            OrganizationInvitation[]
-  addresses              OrganizationAddress[]
-  branches               OrganizationBranch[]
-  documents              OrganizationDocument[]
-  auditLogs              BusinessAuditLog[]
-  businessAccount        BusinessAccount?
-  salesRfqs              SalesRfq[]
-  salesQuotations        SalesQuotation[]
-  customerPurchaseOrders CustomerPurchaseOrder[]
-  orders                 Order[]
-  partnerProfile         PartnerProfile?
+  id                      String                           @id @default(cuid())
+  code                    String                           @unique @db.VarChar(32)
+  legalName               String
+  displayName             String?
+  companyType             OrganizationCompanyType
+  status                  OrganizationStatus               @default(DRAFT)
+  email                   String?
+  phone                   String?
+  website                 String?
+  tradeLicenseNo          String?
+  tin                     String?
+  bin                     String?
+  registrationNo          String?
+  country                 String                           @default("BD") @db.VarChar(2)
+  currency                String                           @default("BDT") @db.VarChar(3)
+  verifiedAt              DateTime?
+  verifiedById            String?
+  rejectionReason         String?
+  createdAt               DateTime                         @default(now())
+  updatedAt               DateTime                         @updatedAt
+  capabilities            OrganizationCapability[]
+  members                 OrganizationMember[]
+  invitations             OrganizationInvitation[]
+  addresses               OrganizationAddress[]
+  branches                OrganizationBranch[]
+  documents               OrganizationDocument[]
+  auditLogs               BusinessAuditLog[]
+  businessAccount         BusinessAccount?
+  salesRfqs               SalesRfq[]
+  salesQuotations         SalesQuotation[]
+  customerPurchaseOrders  CustomerPurchaseOrder[]
+  orders                  Order[]
+  partnerProfile          PartnerProfile?
+  businessRiskCases       BusinessRiskCase[]
+  notifications           BusinessNotification[]
+  notificationPreferences BusinessNotificationPreference[]
 
   @@index([status])
   @@index([legalName])
@@ -5201,22 +5266,24 @@ model OrganizationCapability {
 }
 
 model OrganizationMember {
-  id             String                        @id @default(cuid())
-  organizationId String
-  userId         String
-  status         OrganizationMemberStatus      @default(ACTIVE)
-  title          String?
-  department     String?
-  phone          String?
-  isPrimary      Boolean                       @default(false)
-  joinedAt       DateTime                      @default(now())
-  createdAt      DateTime                      @default(now())
-  updatedAt      DateTime                      @updatedAt
-  organization   Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  roles          OrganizationMemberRoleGrant[]
-  auditLogs      BusinessAuditLog[]
-  rfqsRequested  SalesRfq[]
+  id                     String                          @id @default(cuid())
+  organizationId         String
+  userId                 String
+  status                 OrganizationMemberStatus        @default(ACTIVE)
+  title                  String?
+  department             String?
+  phone                  String?
+  isPrimary              Boolean                         @default(false)
+  joinedAt               DateTime                        @default(now())
+  createdAt              DateTime                        @default(now())
+  updatedAt              DateTime                        @updatedAt
+  organization           Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user                   User                            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roles                  OrganizationMemberRoleGrant[]
+  auditLogs              BusinessAuditLog[]
+  rfqsRequested          SalesRfq[]
+  notifications          BusinessNotification[]
+  notificationPreference BusinessNotificationPreference?
 
   @@unique([organizationId, userId])
   @@index([userId])
@@ -5624,6 +5691,7 @@ model PartnerProfile {
   commissionEntries CommissionEntry[]
   settlements       PartnerSettlement[]
   payoutAccounts    PartnerPayoutAccount[]
+  businessRiskCases BusinessRiskCase[]
 
   @@index([status])
   @@index([accountManagerId])
@@ -5712,6 +5780,7 @@ model PartnerAttribution {
   asset              PartnerAsset?            @relation(fields: [assetId], references: [id], onDelete: SetNull)
   customerUser       User?                    @relation("PartnerAttributionCustomer", fields: [customerUserId], references: [id], onDelete: Restrict)
   order              Order?                   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  businessRiskCases  BusinessRiskCase[]
 
   @@index([partnerProfileId, status])
   @@index([visitorId, capturedAt])
@@ -5720,30 +5789,31 @@ model PartnerAttribution {
 }
 
 model PartnerLead {
-  id                 String            @id @default(cuid())
+  id                 String             @id @default(cuid())
   partnerProfileId   String
-  leadNumber         String            @unique
-  status             PartnerLeadStatus @default(SUBMITTED)
+  leadNumber         String             @unique
+  status             PartnerLeadStatus  @default(SUBMITTED)
   companyName        String
   contactName        String
   contactEmail       String?
   contactPhone       String?
   requirement        String?
-  estimatedValue     Decimal?          @db.Decimal(14, 2)
-  currency           String            @default("BDT") @db.VarChar(3)
+  estimatedValue     Decimal?           @db.Decimal(14, 2)
+  currency           String             @default("BDT") @db.VarChar(3)
   assignedToUserId   String?
   ownershipExpiresAt DateTime?
-  wonOrderId         Int?              @unique
+  wonOrderId         Int?               @unique
   duplicateOfId      String?
   rejectionReason    String?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  partnerProfile     PartnerProfile    @relation(fields: [partnerProfileId], references: [id], onDelete: Restrict)
-  assignedToUser     User?             @relation("PartnerLeadsAssigned", fields: [assignedToUserId], references: [id], onDelete: SetNull)
-  wonOrder           Order?            @relation("PartnerLeadWonOrder", fields: [wonOrderId], references: [id], onDelete: SetNull)
-  duplicateOf        PartnerLead?      @relation("PartnerLeadDuplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
-  duplicates         PartnerLead[]     @relation("PartnerLeadDuplicates")
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  partnerProfile     PartnerProfile     @relation(fields: [partnerProfileId], references: [id], onDelete: Restrict)
+  assignedToUser     User?              @relation("PartnerLeadsAssigned", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  wonOrder           Order?             @relation("PartnerLeadWonOrder", fields: [wonOrderId], references: [id], onDelete: SetNull)
+  duplicateOf        PartnerLead?       @relation("PartnerLeadDuplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates         PartnerLead[]      @relation("PartnerLeadDuplicates")
   commissionEntries  CommissionEntry[]
+  businessRiskCases  BusinessRiskCase[]
 
   @@index([partnerProfileId, status])
   @@index([contactEmail])
@@ -5835,6 +5905,7 @@ model CommissionEntry {
   corrections        CommissionEntry[]        @relation("CommissionEntryReversals")
   createdBy          User?                    @relation("CommissionEntriesCreated", fields: [createdById], references: [id], onDelete: SetNull)
   settlementLine     PartnerSettlementLine?
+  businessRiskCases  BusinessRiskCase[]
 
   @@index([partnerProfileId, status])
   @@index([orderId])
@@ -5916,22 +5987,148 @@ model PartnerPayoutAccount {
 }
 
 model BusinessAuditLog {
-  id             BigInt              @id @default(autoincrement())
-  organizationId String?
-  memberId       String?
-  actorUserId    String?
-  action         String
-  entityType     String
-  entityId       String
-  before         Json?
-  after          Json?
-  ipHash         String?
-  userAgent      String?
-  createdAt      DateTime            @default(now())
-  organization   Organization?       @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  member         OrganizationMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  id               BigInt              @id @default(autoincrement())
+  organizationId   String?
+  memberId         String?
+  actorUserId      String?
+  action           String
+  entityType       String
+  entityId         String
+  before           Json?
+  after            Json?
+  ipHash           String?
+  userAgent        String?
+  integrityNonce   String              @unique @db.VarChar(80)
+  integrityHash    String              @unique @db.VarChar(64)
+  integrityVersion Int                 @default(1)
+  createdAt        DateTime            @default(now())
+  organization     Organization?       @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  member           OrganizationMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt])
   @@index([entityType, entityId])
   @@index([actorUserId, createdAt])
+}
+
+model BusinessFraudRule {
+  id            String                @id @default(cuid())
+  code          String                @unique @db.VarChar(64)
+  type          BusinessFraudRuleType
+  name          String
+  description   String?
+  severity      BusinessRiskSeverity
+  riskScore     Int                   @default(50)
+  configuration Json?
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  cases         BusinessRiskCase[]
+
+  @@index([type, isActive])
+  @@index([severity, isActive])
+}
+
+model BusinessRiskCase {
+  id                String                 @id @default(cuid())
+  caseNumber        String                 @unique @db.VarChar(32)
+  ruleId            String
+  fingerprint       String                 @unique @db.VarChar(64)
+  organizationId    String?
+  partnerProfileId  String?
+  attributionId     String?
+  partnerLeadId     String?
+  commissionEntryId String?
+  orderId           Int?
+  severity          BusinessRiskSeverity
+  status            BusinessRiskCaseStatus @default(OPEN)
+  riskScore         Int
+  title             String
+  summary           String
+  evidence          Json
+  assignedToUserId  String?
+  reviewedByUserId  String?
+  resolutionNote    String?
+  detectedAt        DateTime               @default(now())
+  reviewedAt        DateTime?
+  resolvedAt        DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  rule              BusinessFraudRule      @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  organization      Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  partnerProfile    PartnerProfile?        @relation(fields: [partnerProfileId], references: [id], onDelete: SetNull)
+  attribution       PartnerAttribution?    @relation(fields: [attributionId], references: [id], onDelete: SetNull)
+  partnerLead       PartnerLead?           @relation(fields: [partnerLeadId], references: [id], onDelete: SetNull)
+  commissionEntry   CommissionEntry?       @relation(fields: [commissionEntryId], references: [id], onDelete: SetNull)
+  order             Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  assignedTo        User?                  @relation("BusinessRiskCasesAssigned", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  reviewedBy        User?                  @relation("BusinessRiskCasesReviewed", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, severity, detectedAt])
+  @@index([organizationId, status])
+  @@index([partnerProfileId, status])
+  @@index([assignedToUserId, status])
+  @@index([orderId])
+}
+
+model BusinessNotification {
+  id              String                         @id @default(cuid())
+  organizationId  String
+  memberId        String
+  recipientUserId String
+  category        BusinessNotificationCategory
+  priority        BusinessNotificationPriority   @default(NORMAL)
+  title           String
+  body            String
+  actionUrl       String?
+  entityType      String?
+  entityId        String?
+  dedupeKey       String                         @unique @db.VarChar(190)
+  readAt          DateTime?
+  archivedAt      DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime                       @default(now())
+  organization    Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  member          OrganizationMember             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  recipient       User                           @relation("BusinessNotificationRecipients", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  deliveries      BusinessNotificationDelivery[]
+
+  @@index([memberId, archivedAt, createdAt])
+  @@index([recipientUserId, readAt, createdAt])
+  @@index([organizationId, category, createdAt])
+}
+
+model BusinessNotificationDelivery {
+  id               String                             @id @default(cuid())
+  notificationId   String
+  channel          BusinessNotificationChannel
+  status           BusinessNotificationDeliveryStatus @default(QUEUED)
+  recipientAddress String
+  attempts         Int                                @default(0)
+  nextAttemptAt    DateTime                           @default(now())
+  deliveredAt      DateTime?
+  lastErrorCode    String?
+  createdAt        DateTime                           @default(now())
+  updatedAt        DateTime                           @updatedAt
+  notification     BusinessNotification               @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, channel])
+  @@index([status, nextAttemptAt])
+}
+
+model BusinessNotificationPreference {
+  id                String             @id @default(cuid())
+  organizationId    String
+  memberId          String             @unique
+  emailEnabled      Boolean            @default(true)
+  organizationEmail Boolean            @default(true)
+  salesEmail        Boolean            @default(true)
+  financeEmail      Boolean            @default(true)
+  partnershipEmail  Boolean            @default(true)
+  securityEmail     Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  member            OrganizationMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
 }

@@ -83,6 +83,7 @@ test("M1 keeps member identity ready for M2 portal RBAC without mixing global RB
   assert.match(businessSchema, /userId\s+String/);
   assert.match(businessSchema, /enum OrganizationPortalRole/);
   assert.match(businessSchema, /OWNER[\s\S]*ADMIN[\s\S]*BUYER[\s\S]*APPROVER[\s\S]*FINANCE/);
-  assert.match(rootSchema, /enum AccessScopeType\s*\{[\s\S]*GLOBAL[\s\S]*WAREHOUSE[\s\S]*\}/);
-  assert.doesNotMatch(rootSchema, /enum AccessScopeType\s*\{[\s\S]*ORGANIZATION/);
+  const accessScopeBody = rootSchema.match(/enum AccessScopeType\s*\{([^}]*)\}/)?.[1] ?? "";
+  assert.match(accessScopeBody, /GLOBAL[\s\S]*WAREHOUSE/);
+  assert.doesNotMatch(accessScopeBody, /\bORGANIZATION\b/);
 });

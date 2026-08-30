@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Building2,
   ChevronDown,
@@ -31,10 +31,12 @@ function PortalSidebar({
   context,
   onNavigate,
   compact,
+  unreadNotifications,
 }: {
   context: PortalContextValue;
   onNavigate?: () => void;
   compact: boolean;
+  unreadNotifications: number;
 }) {
   const pathname = usePathname();
   const { permissions, activeCapabilities } = context.activeMembership;
@@ -76,7 +78,7 @@ function PortalSidebar({
                       title={compact ? item.label : undefined}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "group flex min-h-10 items-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400",
+                        "group relative flex min-h-10 items-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400",
                         compact ? "justify-center px-2" : "gap-3 px-3",
                         active
                           ? "bg-blue-600 text-white shadow-sm"
@@ -85,6 +87,7 @@ function PortalSidebar({
                     >
                       <Icon className="size-[18px] shrink-0" aria-hidden="true" />
                       {!compact && <span className="truncate">{item.label}</span>}
+                      {item.href === "/business/notifications" && unreadNotifications > 0 && <span className={cn("grid min-w-5 place-items-center rounded-full bg-blue-500 px-1.5 text-[10px] font-bold leading-5 text-white", compact ? "absolute right-1 top-1" : "ml-auto")}>{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>}
                     </Link>
                   );
                 })}
@@ -128,12 +131,29 @@ export default function PortalShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [compact, setCompact] = useState(false);
   const [switching, startSwitch] = useTransition();
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const active = context.activeMembership;
   const orgName = active.organization.displayName || active.organization.legalName;
   const initials = useMemo(
     () => orgName.split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase(),
     [orgName],
   );
+
+  useEffect(() => {
+    let activeRequest = true;
+    const loadUnread = async () => {
+      try {
+        const response = await fetch("/api/business/notifications?state=unread&limit=1", { cache: "no-store" });
+        const payload = await response.json().catch(() => null);
+        if (activeRequest && response.ok) setUnreadNotifications(Number(payload?.unread || 0));
+      } catch { /* The navigation remains usable while notification status is unavailable. */ }
+    };
+    const handleChange = () => { void loadUnread(); };
+    void loadUnread();
+    const interval = window.setInterval(loadUnread, 60_000);
+    window.addEventListener("business-notifications-changed", handleChange);
+    return () => { activeRequest = false; window.clearInterval(interval); window.removeEventListener("business-notifications-changed", handleChange); };
+  }, [active.organization.id]);
 
   function switchOrganization(organizationId: string) {
     if (organizationId === active.organization.id) return;
@@ -151,7 +171,7 @@ export default function PortalShell({
     <PortalContextProvider value={context}>
       <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
         <div className={cn("fixed inset-y-0 left-0 z-40 hidden lg:block", compact ? "w-[76px]" : "w-72")}>
-          <PortalSidebar context={context} compact={compact} />
+          <PortalSidebar context={context} compact={compact} unreadNotifications={unreadNotifications} />
         </div>
         {mobileOpen && (
           <>
@@ -160,7 +180,7 @@ export default function PortalShell({
               <button onClick={() => setMobileOpen(false)} className="absolute right-3 top-3 z-10 rounded-lg p-2 text-slate-300 hover:bg-white/10" aria-label="Close navigation">
                 <X className="size-5" />
               </button>
-              <PortalSidebar context={context} compact={false} onNavigate={() => setMobileOpen(false)} />
+              <PortalSidebar context={context} compact={false} unreadNotifications={unreadNotifications} onNavigate={() => setMobileOpen(false)} />
             </div>
           </>
         )}
@@ -213,4 +233,3 @@ export default function PortalShell({
     </PortalContextProvider>
   );
 }
-

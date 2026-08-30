@@ -1,9 +1,10 @@
 import "server-only";
 
-import { createHmac } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma";
 import { getClientIp } from "@/lib/request-security";
 import { sanitizeBusinessAuditValue } from "./audit-sanitization";
+import { publishNotificationForBusinessAudit } from "./notification-core";
 
 export const BUSINESS_AUDIT_ACTIONS = {
   organizationApplicationCreated: "ORGANIZATION_APPLICATION_CREATED",
@@ -105,6 +106,14 @@ export const BUSINESS_AUDIT_ACTIONS = {
   partnerPayoutAccountDisabled: "PARTNER_PAYOUT_ACCOUNT_DISABLED",
   partnerPayoutAccountVerified: "PARTNER_PAYOUT_ACCOUNT_VERIFIED",
   partnerPayoutAccountRejected: "PARTNER_PAYOUT_ACCOUNT_REJECTED",
+  riskCaseDetected: "BUSINESS_RISK_CASE_DETECTED",
+  riskCaseReviewStarted: "BUSINESS_RISK_CASE_REVIEW_STARTED",
+  riskCaseConfirmed: "BUSINESS_RISK_CASE_CONFIRMED",
+  riskCaseFalsePositive: "BUSINESS_RISK_CASE_FALSE_POSITIVE",
+  riskCaseResolved: "BUSINESS_RISK_CASE_RESOLVED",
+  notificationRead: "BUSINESS_NOTIFICATION_READ",
+  notificationsReadAll: "BUSINESS_NOTIFICATIONS_READ_ALL",
+  notificationPreferencesUpdated: "BUSINESS_NOTIFICATION_PREFERENCES_UPDATED",
 } as const;
 
 type BusinessAuditAction =
@@ -143,7 +152,10 @@ type AuditInput = {
     | "CommissionRule"
     | "CommissionEntry"
     | "PartnerSettlement"
-    | "PartnerPayoutAccount";
+    | "PartnerPayoutAccount"
+    | "BusinessRiskCase"
+    | "BusinessNotification"
+    | "BusinessNotificationPreference";
   entityId: string;
   before?: unknown;
   after?: unknown;
@@ -165,7 +177,44 @@ function hashRequestIp(request?: Request | null): string | null {
   return createHmac("sha256", key).update(ip, "utf8").digest("hex");
 }
 
+function stableJson(value: unknown): string {
+  if (value === undefined) return "null";
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`).join(",")}}`;
+}
+
+function createIntegrityHash(value: unknown): { nonce: string; hash: string } {
+  const nonce = randomUUID();
+  const secret =
+    process.env.BUSINESS_AUDIT_INTEGRITY_SECRET ||
+    process.env.BUSINESS_AUDIT_IP_SECRET ||
+    process.env.NEXTAUTH_SECRET ||
+    "development-business-audit-integrity-key";
+  const hash = createHmac("sha256", secret)
+    .update(`${nonce}:${stableJson(value)}`, "utf8")
+    .digest("hex");
+  return { nonce, hash };
+}
+
 export async function writeBusinessAudit(input: AuditInput): Promise<void> {
+  const before = asJsonInput(input.before);
+  const after = asJsonInput(input.after);
+  const ipHash = hashRequestIp(input.request);
+  const userAgent = input.request?.headers.get("user-agent")?.trim().slice(0, 512) || null;
+  const integrity = createIntegrityHash({
+    organizationId: input.organizationId ?? null,
+    memberId: input.memberId ?? null,
+    actorUserId: input.actorUserId,
+    action: input.action,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    before: before ?? null,
+    after: after ?? null,
+    ipHash,
+    userAgent,
+  });
   await input.tx.businessAuditLog.create({
     data: {
       organizationId: input.organizationId ?? null,
@@ -174,10 +223,21 @@ export async function writeBusinessAudit(input: AuditInput): Promise<void> {
       action: input.action,
       entityType: input.entityType,
       entityId: input.entityId,
-      before: asJsonInput(input.before),
-      after: asJsonInput(input.after),
-      ipHash: hashRequestIp(input.request),
-      userAgent: input.request?.headers.get("user-agent")?.trim().slice(0, 512) || null,
+      before,
+      after,
+      ipHash,
+      userAgent,
+      integrityNonce: integrity.nonce,
+      integrityHash: integrity.hash,
+      integrityVersion: 1,
     },
+  });
+  await publishNotificationForBusinessAudit({
+    tx: input.tx,
+    organizationId: input.organizationId ?? null,
+    action: input.action,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    eventKey: `audit:${input.action}:${input.entityId}:${integrity.nonce}`,
   });
 }
