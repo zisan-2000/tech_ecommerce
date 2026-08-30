@@ -1,2 +1,5 @@
-import { BusinessInsights } from "@/components/admin/business-network/Insights";
-export default function Page() { return <BusinessInsights kind="reports" />; }
+import { BusinessReports } from "@/components/admin/business-network/BusinessReports";
+
+export default function Page() {
+  return <BusinessReports />;
+}
