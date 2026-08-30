@@ -6,6 +6,7 @@ import { getClientIp } from "@/lib/request-security";
 import { sanitizeBusinessAuditValue } from "./audit-sanitization";
 
 export const BUSINESS_AUDIT_ACTIONS = {
+  organizationApplicationCreated: "ORGANIZATION_APPLICATION_CREATED",
   invitationCreated: "ORGANIZATION_INVITATION_CREATED",
   invitationRevoked: "ORGANIZATION_INVITATION_REVOKED",
   invitationAccepted: "ORGANIZATION_INVITATION_ACCEPTED",
@@ -108,6 +109,7 @@ type AuditInput = {
   actorUserId: string | null;
   action: BusinessAuditAction;
   entityType:
+    | "Organization"
     | "OrganizationInvitation"
     | "OrganizationMember"
     | "BusinessAccount"

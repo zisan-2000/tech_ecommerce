@@ -28,6 +28,7 @@
     "test:business-network-m9": "tsx --test tests/business-network-m9-schema.test.mjs tests/business-network-partner-referral.test.ts",
     "test:business-network-m10": "tsx --test tests/business-network-m10-schema.test.mjs tests/business-network-commission.test.ts",
     "test:business-network-m11": "tsx --test tests/business-network-m11-schema.test.mjs tests/business-network-settlement.test.ts",
+    "test:business-network-m12": "tsx --test tests/business-network-m12-portal.test.mjs tests/business-network-m12-navigation.test.ts",
     "test:product-security": "tsx --test --test-name-pattern=\"storefront product projection|upload validation rejects|protected uploads\" tests/phase0-security.test.mjs",
     "test:products": "npm run test:product-security && npm run test:phase1 && npm run test:phase2 && npm run test:flash-sale && npm run test:storefront-cleanup && npm run test:header-navigation && npm run test:pc-builder && npm run test:search",
     "test:phases": "npm run test:phase0 && npm run test:phase1 && npm run test:phase2",
