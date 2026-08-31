@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader, StatusBadge, Surface, formatDate } from "./PortalPrimitives";
+import { useBusinessPortal } from "./PortalContext";
 
 type MemberRoleGrant = {
   role: string;
@@ -67,6 +68,8 @@ function RoleList({ roles }: { roles: MemberRoleGrant[] }) {
 }
 
 export default function BusinessMembersPage() {
+  const portal = useBusinessPortal();
+  const canInvite = portal.activeMembership.permissions.includes("organization.members.invite");
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [invitations, setInvitations] = useState<OrganizationInvitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,7 +108,7 @@ export default function BusinessMembersPage() {
         eyebrow="Organization"
         title="Members & roles"
         description="Control active members, assigned portal roles, and outstanding invitations for this organization."
-        action={{ label: "Invite member", href: "/business/organization/members/invite" }}
+        action={canInvite ? { label: "Invite member", href: "/business/organization/members/invite" } : undefined}
       />
 
       {error && (
