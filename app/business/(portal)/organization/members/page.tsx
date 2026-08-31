@@ -1,2 +1,5 @@
-import BusinessResourcePage from "@/components/business-portal/BusinessResourcePage";
-export default function Page() { return <BusinessResourcePage resource="members" />; }
+import BusinessMembersPage from "@/components/business-portal/BusinessMembersPage";
+
+export default function Page() {
+  return <BusinessMembersPage />;
+}
