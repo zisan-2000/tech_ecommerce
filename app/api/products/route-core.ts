@@ -29,6 +29,15 @@ const createVariantSku = (slug: string, index: number) =>
     .toString(36)
     .slice(2, 5)}`.toUpperCase();
 
+function normalizeCartReminderMinutes(value: unknown) {
+  if (value === undefined || value === null || value === "") return null;
+  const minutes = Number(value);
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 525600) {
+    return undefined;
+  }
+  return minutes;
+}
+
 async function getVariantColorImageMap(variantIds: number[]) {
   const uniqueIds = Array.from(new Set(variantIds.filter(Number.isFinite)));
   if (uniqueIds.length === 0) return new Map<number, string | null>();
@@ -425,6 +434,15 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    const cartReminderMinutes = normalizeCartReminderMinutes(
+      body.cartReminderMinutes,
+    );
+    if (cartReminderMinutes === undefined) {
+      return NextResponse.json(
+        { error: "Cart reminder must be between 1 minute and 1 year" },
+        { status: 400 },
+      );
+    }
 
     const product = await prisma.$transaction(async (tx) => {
       const created = await tx.product.create({
@@ -466,6 +484,7 @@ export async function POST(req: Request) {
 
           available: body.available ?? true,
           featured: body.featured ?? false,
+          cartReminderMinutes,
 
           image: body.image || null,
           gallery: body.gallery || [],

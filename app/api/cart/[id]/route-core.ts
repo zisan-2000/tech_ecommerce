@@ -81,7 +81,7 @@ export async function PATCH(
 
     const updated = await prisma.cartItem.update({
       where: { id: cartItemId },
-      data: { quantity },
+      data: { quantity, lastReminderAt: null },
     });
 
     return NextResponse.json(updated);

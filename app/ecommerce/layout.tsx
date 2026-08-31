@@ -2,6 +2,7 @@ import { cache, Suspense, type ReactNode } from "react";
 import Header from "@/components/ecommarce/header";
 import Footer from "@/components/ecommarce/footer";
 import FloatingCartButton from "@/components/ecommarce/FloatingCartButton";
+import CustomerNotificationPoller from "@/components/ecommarce/CustomerNotificationPoller";
 import { getStorefrontCatalogFacets } from "@/lib/storefront-catalog";
 
 const getNavigation = cache(getStorefrontCatalogFacets);
@@ -36,6 +37,7 @@ export default function EcommerceLayout({ children }: { children: ReactNode }) {
           <StorefrontHeader />
         </Suspense>
         <div className="flex-1">{children}</div>
+        <CustomerNotificationPoller />
         <FloatingCartButton />
         <Suspense
           fallback={<div className="h-72 border-t bg-card" aria-hidden />}
