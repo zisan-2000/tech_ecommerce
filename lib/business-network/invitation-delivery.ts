@@ -75,7 +75,7 @@ export function assertInvitationDeliveryReady(): void {
 export async function deliverOrganizationInvitation(
   input: InvitationDeliveryInput,
 ): Promise<InvitationDeliveryResult> {
-  const inviteUrl = `${getBaseUrl()}/api/business/invitations/${encodeURIComponent(input.token)}`;
+  const inviteUrl = `${getBaseUrl()}/business/invitations/${encodeURIComponent(input.token)}`;
   const configuration = getDeliveryConfiguration();
   if (!configuration) {
     if (process.env.NODE_ENV === "production") {
