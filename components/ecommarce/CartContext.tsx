@@ -365,6 +365,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      if (!fromPcBuilder) {
+        try {
+          const response = await fetch("/api/cart", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              productId: product.id,
+              variantId: variant?.id ?? null,
+              quantity: add,
+            }),
+          });
+          if (!response.ok && response.status !== 401) {
+            const data = await response.json().catch(() => null);
+            console.error(
+              "Failed to persist cart row:",
+              data?.error || response.status,
+            );
+          }
+        } catch (error) {
+          console.error("Failed to sync cart row:", error);
+        }
+      }
+
       setCartItems((prevItems) => {
         if (fromPcBuilder) {
           if (pcBuildId) {

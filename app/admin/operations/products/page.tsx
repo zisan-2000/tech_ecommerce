@@ -27,6 +27,7 @@ interface Product {
   available: boolean;
   updatedAt: string;
   featured?: boolean;
+  cartReminderMinutes?: number | null;
   flashSaleEnabled?: boolean;
   flashSalePrice?: number | null;
   flashSaleStartsAt?: string | null;
@@ -70,6 +71,22 @@ interface ProductsPageCache {
 
 let productsPageCache: ProductsPageCache | null = null;
 
+async function fetchJsonArray<T>(url: string, label: string): Promise<T[]> {
+  const response = await fetch(url, { cache: "no-store" });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(
+      payload && typeof payload === "object" && "error" in payload
+        ? String((payload as { error?: unknown }).error)
+        : `Failed to load ${label}`,
+    );
+  }
+  if (!Array.isArray(payload)) {
+    throw new Error(`${label} response was not a list`);
+  }
+  return payload as T[];
+}
+
 function invalidateStorefrontProductCache() {
   clearCachedFetch("GET:/api/products");
   if (typeof window !== "undefined") {
@@ -109,11 +126,11 @@ export default function ProductsPage() {
     setLoading(true);
     try {
       const [p, c, b, vat, da] = await Promise.all([
-        fetch("/api/products").then((r) => r.json()),
-        fetch("/api/categories").then((r) => r.json()),
-        fetch("/api/brands").then((r) => r.json()),
-        fetch("/api/vat-classes").then((r) => r.json()),
-        fetch("/api/digital-assets").then((r) => r.json()),
+        fetchJsonArray<Product>("/api/products", "products"),
+        fetchJsonArray<Category>("/api/categories", "categories"),
+        fetchJsonArray<Brand>("/api/brands", "brands"),
+        fetchJsonArray<VatClass>("/api/vat-classes", "VAT classes"),
+        fetchJsonArray<DigitalAsset>("/api/digital-assets", "digital assets"),
       ]);
 
       productsPageCache = {
@@ -131,6 +148,12 @@ export default function ProductsPage() {
       setDigitalAssets(da);
     } catch (error) {
       console.error("Error loading products:", error);
+      setProducts([]);
+      setCategories([]);
+      setBrands([]);
+      setVatClasses([]);
+      setDigitalAssets([]);
+      productsPageCache = null;
     } finally {
       setLoading(false);
     }

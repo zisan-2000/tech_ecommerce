@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { applyFlashSalePricingToProduct } from '@/lib/flash-sale';
 import { computeWarehouseAvailableStock } from '@/lib/warehouse-stock';
+import { evaluateCartReminderNotifications } from '@/lib/cart-reminder-notifications';
 
 async function findStandardCartItem(
   userId: string,
@@ -39,6 +40,8 @@ export async function GET() {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    await evaluateCartReminderNotifications({ userId });
 
     const items = await prisma.cartItem.findMany({
       where: {
@@ -281,6 +284,7 @@ export async function POST(request: NextRequest) {
           where: { id: existing.id },
           data: {
             quantity: nextQuantity,
+            lastReminderAt: null,
           },
         });
       } else {
@@ -358,10 +362,11 @@ export async function POST(request: NextRequest) {
 
       cartItem = await prisma.cartItem.update({
         where: { id: existing.id },
-        data: {
-          quantity: nextQuantity,
-        },
-      });
+          data: {
+            quantity: nextQuantity,
+            lastReminderAt: null,
+          },
+        });
     } else {
       cartItem = await prisma.cartItem.create({
         data: {

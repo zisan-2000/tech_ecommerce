@@ -343,6 +343,7 @@ model Product {
   flashSaleStartsAt       DateTime?
   flashSaleEndsAt         DateTime?
   flashSaleSortOrder      Int                               @default(0)
+  cartReminderMinutes     Int?
   currency                String                            @default("USD") @db.VarChar(3)
   weight                  Float?
   dimensions              Json?
@@ -770,19 +771,23 @@ model ProductQuestion {
 }
 
 model CartItem {
-  id        Int             @id @default(autoincrement())
-  userId    String
-  productId Int
-  quantity  Int             @default(1)
-  variantId Int?
-  lineKey   String          @default("standard") @db.VarChar(80)
-  product   Product         @relation(fields: [productId], references: [id])
-  user      User            @relation(fields: [userId], references: [id])
-  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+  id             Int             @id @default(autoincrement())
+  userId         String
+  productId      Int
+  quantity       Int             @default(1)
+  variantId      Int?
+  lineKey        String          @default("standard") @db.VarChar(80)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  lastReminderAt DateTime?
+  product        Product         @relation(fields: [productId], references: [id])
+  user           User            @relation(fields: [userId], references: [id])
+  variant        ProductVariant? @relation(fields: [variantId], references: [id])
 
   @@unique([userId, productId, variantId, lineKey])
   @@index([variantId])
   @@index([userId, lineKey])
+  @@index([updatedAt, lastReminderAt])
 }
 
 model Wishlist {
@@ -4752,6 +4757,7 @@ enum InvestorInternalNotificationStatus {
 
 enum CustomerNotificationType {
   PRICE_DROP
+  CART_REMINDER
 }
 
 enum CustomerNotificationStatus {

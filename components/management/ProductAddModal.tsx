@@ -50,6 +50,8 @@ interface ProductForm {
   brandId: string;
   available: boolean;
   featured: boolean;
+  cartReminderHours: string;
+  cartReminderMinutes: string;
   image: string;
   gallery: string[];
   videoUrl: string;
@@ -114,6 +116,8 @@ const emptyForm: ProductForm = {
   brandId: "",
   available: true,
   featured: false,
+  cartReminderHours: "",
+  cartReminderMinutes: "",
   image: "",
   gallery: [],
   videoUrl: "",
@@ -337,6 +341,7 @@ export default function ProductAddModal({
     const optionNameOrder = optionFormsWithAttributeIds.map((option) => clean(option.name)).filter(Boolean);
     const isVariantProduct = variants.some((variant: any) => Object.keys(variant?.options ?? {}).length > 0);
     const dimensions = editing.dimensions ?? null;
+    const cartReminderMinutes = Number(editing.cartReminderMinutes ?? 0);
     const mappedRows = variants
       .filter((variant: any) => (isVariantProduct ? Object.keys(variant?.options ?? {}).length > 0 : true))
       .map((variant: any, index: number) => {
@@ -398,6 +403,10 @@ export default function ProductAddModal({
       brandId: editing.brandId?.toString?.() ?? "",
       available: editing.available ?? true,
       featured: editing.featured ?? false,
+      cartReminderHours:
+        cartReminderMinutes > 0 ? String(Math.floor(cartReminderMinutes / 60)) : "",
+      cartReminderMinutes:
+        cartReminderMinutes > 0 ? String(cartReminderMinutes % 60) : "",
       image: editing.image ?? "",
       gallery: editing.gallery ?? [],
       videoUrl: editing.videoUrl ?? "",
@@ -752,6 +761,26 @@ export default function ProductAddModal({
       toast.error("Emergency stock threshold must be 0 or more");
       return;
     }
+    const reminderHours = form.cartReminderHours.trim()
+      ? Number(form.cartReminderHours)
+      : 0;
+    const reminderMinutes = form.cartReminderMinutes.trim()
+      ? Number(form.cartReminderMinutes)
+      : 0;
+    if (
+      !Number.isInteger(reminderHours) ||
+      !Number.isInteger(reminderMinutes) ||
+      reminderHours < 0 ||
+      reminderMinutes < 0 ||
+      reminderMinutes > 59
+    ) {
+      toast.error("Cart reminder must use valid hours and minutes");
+      return;
+    }
+    const cartReminderMinutes =
+      reminderHours === 0 && reminderMinutes === 0
+        ? null
+        : reminderHours * 60 + reminderMinutes;
 
     setLoading(true);
     try {
@@ -776,6 +805,7 @@ export default function ProductAddModal({
         serviceLocation: form.serviceLocation || null,
         serviceOnlineLink: form.serviceOnlineLink || null,
         featured: form.featured,
+        cartReminderMinutes,
         image: form.image || null,
         gallery: form.gallery || [],
         videoUrl: form.videoUrl || null,
@@ -1263,6 +1293,44 @@ export default function ProductAddModal({
                 <label className="flex items-center gap-2"><input type="checkbox" checked={form.available} onChange={(e) => setForm((prev) => ({ ...prev, available: e.target.checked }))} /><Label>Available</Label></label>
               )}
               <label className="flex items-center gap-2"><input type="checkbox" checked={form.featured} onChange={(e) => setForm((prev) => ({ ...prev, featured: e.target.checked }))} /><Label>Featured</Label></label>
+            </div>
+            <div className="rounded-xl border bg-muted/30 p-4">
+              <h4 className="font-medium">Cart reminder notification</h4>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Notify a user if this product stays in their cart without checkout.
+                Leave both fields empty or 0 to disable.
+              </p>
+              <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <Label>After hours</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={form.cartReminderHours}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        cartReminderHours: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>After minutes</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={form.cartReminderMinutes}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        cartReminderMinutes: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
             </div>
           </section>
 

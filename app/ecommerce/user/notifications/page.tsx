@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, CheckCheck, Home } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -30,9 +30,9 @@ export default function CustomerNotificationsPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const response = await fetch("/api/customer-notifications?limit=50", {
         cache: "no-store",
       });
@@ -45,13 +45,18 @@ export default function CustomerNotificationsPage() {
       setItems(Array.isArray(payload.items) ? payload.items : []);
       setUnreadCount(Number(payload.unreadCount) || 0);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadNotifications();
-  }, []);
+    const intervalId = window.setInterval(
+      () => void loadNotifications(false),
+      30_000,
+    );
+    return () => window.clearInterval(intervalId);
+  }, [loadNotifications]);
 
   const markAllRead = async () => {
     const response = await fetch("/api/customer-notifications", {

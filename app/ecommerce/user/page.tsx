@@ -114,6 +114,8 @@ export default function UserDashboardPage() {
     };
 
     void loadNotificationCount();
+    const intervalId = window.setInterval(loadNotificationCount, 30_000);
+    return () => window.clearInterval(intervalId);
   }, [status]);
 
   const userName =

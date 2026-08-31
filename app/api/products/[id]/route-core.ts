@@ -153,6 +153,16 @@ type VariantPayload = {
   active: boolean;
 };
 
+function normalizeCartReminderMinutes(value: unknown, fallback: number | null) {
+  if (value === undefined) return fallback;
+  if (value === null || value === "") return null;
+  const minutes = Number(value);
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 525600) {
+    return undefined;
+  }
+  return minutes;
+}
+
 /* =========================
    GET SINGLE PRODUCT
 ========================= */
@@ -293,6 +303,16 @@ export async function PUT(
       body.lowStockThreshold !== undefined
         ? normalizeLowStockThreshold(body.lowStockThreshold)
         : existing.lowStockThreshold;
+    const nextCartReminderMinutes = normalizeCartReminderMinutes(
+      body.cartReminderMinutes,
+      existing.cartReminderMinutes,
+    );
+    if (nextCartReminderMinutes === undefined) {
+      return NextResponse.json(
+        { error: "Cart reminder must be between 1 minute and 1 year" },
+        { status: 400 },
+      );
+    }
     if (body.stock !== undefined && effectiveType !== "PHYSICAL") {
       return NextResponse.json(
         { error: "Stock is only available for PHYSICAL products" },
@@ -493,6 +513,7 @@ export async function PUT(
           serviceOnlineLink: body.serviceOnlineLink ?? existing.serviceOnlineLink,
           available: existing.available,
           featured: body.featured !== undefined ? body.featured : existing.featured,
+          cartReminderMinutes: nextCartReminderMinutes,
           image: body.image ?? existing.image,
           gallery: body.gallery ?? existing.gallery,
           videoUrl: body.videoUrl ?? existing.videoUrl,

@@ -6,6 +6,7 @@ import {
   ensureWishlistPriceDropAlertsForUser,
   evaluatePriceDropAlertsForUser,
 } from "@/lib/price-drop-alerts";
+import { evaluateCartReminderNotifications } from "@/lib/cart-reminder-notifications";
 
 async function getUserId() {
   const session = await getServerSession(authOptions);
@@ -24,7 +25,10 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit")) || 10));
     const backfilledWishlistAlerts =
       await ensureWishlistPriceDropAlertsForUser(userId);
-    const evaluation = await evaluatePriceDropAlertsForUser(userId);
+    const [priceDropEvaluation, cartReminderEvaluation] = await Promise.all([
+      evaluatePriceDropAlertsForUser(userId),
+      evaluateCartReminderNotifications({ userId }),
+    ]);
 
     const [rows, unreadCount] = await Promise.all([
       prisma.customerNotification.findMany({
@@ -48,9 +52,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       unreadCount,
       priceDropEvaluation: {
-        ...evaluation,
+        ...priceDropEvaluation,
         backfilledWishlistAlerts,
       },
+      cartReminderEvaluation,
       items: rows.map((row) => ({
         id: row.id,
         type: row.type,

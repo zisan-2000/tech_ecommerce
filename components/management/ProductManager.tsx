@@ -138,9 +138,11 @@ export default function ProductManager({
     setSortBy("name-asc");
   };
 
+  const productList = Array.isArray(products) ? products : [];
+
   const filtered = useMemo(() => {
-    let result = products?.filter((p: any) =>
-      p.name.toLowerCase().includes(search.toLowerCase()),
+    let result = productList.filter((p: any) =>
+      String(p.name ?? "").toLowerCase().includes(search.toLowerCase()),
     );
 
     if (categoryFilter) {
@@ -254,7 +256,7 @@ export default function ProductManager({
 
     return result;
   }, [
-    products,
+    productList,
     search,
     categoryFilter,
     productTypeFilter,
