@@ -18,6 +18,20 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Testing
 
+Business Network M1–M15-এর complete automated regression চালাতে:
+
+```bash
+npm run test:business-network-m1-to-m15
+```
+
+Schema, migrations, database contracts, lint, typecheck এবং production build-সহ full release gate চালাতে:
+
+```bash
+npm run verify:business-network-release
+```
+
+Role-based portal/admin manual flow, milestone-wise expected results, evidence checklist এবং release blockers-এর জন্য [Business Network M1–M15 full test flow](docs/business-network-m1-to-m15-test-flow.md) অনুসরণ করুন।
+
 Product module (admin panelসহ) আলাদাভাবে test করতে:
 
 ```bash

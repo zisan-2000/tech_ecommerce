@@ -7,6 +7,7 @@ import type { Prisma } from "@/generated/prisma";
 import { requireAuthenticatedBusinessUser } from "@/lib/business-network/context";
 import { BUSINESS_AUDIT_ACTIONS, writeBusinessAudit } from "@/lib/business-network/audit";
 import { BusinessNetworkError } from "@/lib/business-network/business-error";
+import { assertOrganizationIdentifiersAvailable } from "@/lib/business-network/organization-identifiers";
 import { runSerializableTransaction } from "@/lib/business-network/transaction";
 
 export const businessApplicationSchema = z.object({
@@ -27,6 +28,7 @@ export async function createBusinessApplication(input: { data: z.infer<typeof bu
   return runSerializableTransaction(async (tx) => {
     const membershipCount = await tx.organizationMember.count({ where: { userId: user.id, status: { not: "REMOVED" } } });
     if (membershipCount >= 20) throw new BusinessNetworkError(409, "ORGANIZATION_LIMIT_REACHED", "The organization membership limit has been reached.");
+    await assertOrganizationIdentifiersAvailable(tx, input.data);
     const code = `ORG-${randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase()}`;
     const organization = await tx.organization.create({
       data: {
@@ -50,4 +52,3 @@ export async function createBusinessApplication(input: { data: z.infer<typeof bu
     return { id: organization.id, code: organization.code, status: organization.status };
   });
 }
-

@@ -117,3 +117,29 @@ test("M13 create screens submit structured organization and quotation payloads",
   assert.match(quotation, /\/api\/admin\/business-network\/quotations/);
   assert.doesNotMatch(quotation, /JSON\.parse\(.*textarea/s);
 });
+
+test("M13 organization actions only appear for lifecycle-valid statuses", async () => {
+  const { isBusinessActionAvailable } = await import(
+    "../components/admin/business-network/types.ts"
+  );
+  const configSource = await read("components/admin/business-network/config.ts");
+  const detailSource = await read("components/admin/business-network/ResourceDetail.tsx");
+
+  const verify = { label: "Verify", slug: "verify", permission: "manage", allowedStatuses: ["PENDING_VERIFICATION"] };
+  const activate = { label: "Activate", slug: "activate", permission: "manage", allowedStatuses: ["SUSPENDED"] };
+  const suspend = { label: "Suspend", slug: "suspend", permission: "manage", allowedStatuses: ["ACTIVE"] };
+  const reject = { label: "Reject", slug: "reject", permission: "manage", allowedStatuses: ["PENDING_VERIFICATION"] };
+
+  assert.equal(isBusinessActionAvailable(verify, "PENDING_VERIFICATION"), true);
+  assert.equal(isBusinessActionAvailable(reject, "PENDING_VERIFICATION"), true);
+  assert.equal(isBusinessActionAvailable(suspend, "ACTIVE"), true);
+  assert.equal(isBusinessActionAvailable(activate, "SUSPENDED"), true);
+  assert.equal(isBusinessActionAvailable(verify, "ACTIVE"), false);
+  assert.equal(isBusinessActionAvailable(activate, "ACTIVE"), false);
+  assert.equal(isBusinessActionAvailable(suspend, "SUSPENDED"), false);
+  assert.equal(isBusinessActionAvailable(reject, "SUSPENDED"), false);
+
+  assert.match(configSource, /ORGANIZATION_STATUS_TRANSITIONS\.verify\.allowed/);
+  assert.match(configSource, /ORGANIZATION_STATUS_TRANSITIONS\.activate\.allowed/);
+  assert.match(detailSource, /isBusinessActionAvailable\(action, data\?\.status\)/);
+});

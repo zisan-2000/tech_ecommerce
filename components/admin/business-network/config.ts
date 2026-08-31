@@ -1,4 +1,5 @@
 import type { BusinessResourceConfig } from "./types";
+import { ORGANIZATION_STATUS_TRANSITIONS } from "@/lib/business-network/organization-lifecycle";
 
 export const BUSINESS_NETWORK_PERMISSIONS = [
   "business.account.view", "business.account.manage", "business.pricing.view",
@@ -34,10 +35,10 @@ export const businessResources: Record<string, BusinessResourceConfig> = {
     ],
     detailRoot: "organization",
     actions: [
-      { label: "Verify", slug: "verify", permission: "business.account.manage" },
-      { label: "Activate", slug: "activate", permission: "business.account.manage" },
-      { label: "Suspend", slug: "suspend", permission: "business.account.manage", tone: "danger", fields: reasonField },
-      { label: "Reject", slug: "reject", permission: "business.account.manage", tone: "danger", fields: reasonField },
+      { label: "Verify", slug: "verify", permission: "business.account.manage", allowedStatuses: ORGANIZATION_STATUS_TRANSITIONS.verify.allowed },
+      { label: "Activate", slug: "activate", permission: "business.account.manage", allowedStatuses: ORGANIZATION_STATUS_TRANSITIONS.activate.allowed },
+      { label: "Suspend", slug: "suspend", permission: "business.account.manage", tone: "danger", fields: reasonField, allowedStatuses: ORGANIZATION_STATUS_TRANSITIONS.suspend.allowed },
+      { label: "Reject", slug: "reject", permission: "business.account.manage", tone: "danger", fields: reasonField, allowedStatuses: ORGANIZATION_STATUS_TRANSITIONS.reject.allowed },
     ],
     editForm: { label: "Organization", permission: "business.account.manage", fields: [
       { name: "legalName", label: "Legal name", required: true }, { name: "displayName", label: "Display name" }, { name: "companyType", label: "Company type", type: "select", required: true, options: ["PROPRIETORSHIP", "PARTNERSHIP", "LIMITED_COMPANY", "PUBLIC_LIMITED", "NGO", "GOVERNMENT", "EDUCATIONAL_INSTITUTION", "OTHER"] },

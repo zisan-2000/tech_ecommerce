@@ -10,6 +10,12 @@ import {
 import { db } from "@/lib/db";
 import { BUSINESS_AUDIT_ACTIONS, writeBusinessAudit } from "./audit";
 import { BusinessNetworkError } from "./business-error";
+import { assertOrganizationIdentifiersAvailable } from "./organization-identifiers";
+import {
+  getOrganizationVerificationMetadata,
+  ORGANIZATION_STATUS_TRANSITIONS,
+  type OrganizationTransition,
+} from "./organization-lifecycle";
 import { runSerializableTransaction } from "./transaction";
 import type { z } from "zod";
 import type {
@@ -90,6 +96,7 @@ export async function createAdminOrganization(
       const owner = await tx.user.findUnique({ where: { id: input.data.ownerUserId }, select: { id: true } });
       if (!owner) throw new BusinessNetworkError(422, "OWNER_NOT_FOUND", "The selected owner user was not found.");
     }
+    await assertOrganizationIdentifiersAvailable(tx, input.data);
     const organization = await tx.organization.create({
       data: {
         code: input.data.code || newOrganizationCode(),
@@ -124,6 +131,21 @@ export async function updateAdminOrganization(
   return runSerializableTransaction(async (tx) => {
     const before = await tx.organization.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessNetworkError(404, "ORGANIZATION_NOT_FOUND", "Organization was not found.");
+    if (
+      input.data.tradeLicenseNo !== undefined
+      || input.data.tin !== undefined
+      || input.data.bin !== undefined
+    ) {
+      await assertOrganizationIdentifiersAvailable(
+        tx,
+        {
+          tradeLicenseNo: input.data.tradeLicenseNo === undefined ? before.tradeLicenseNo : input.data.tradeLicenseNo,
+          tin: input.data.tin === undefined ? before.tin : input.data.tin,
+          bin: input.data.bin === undefined ? before.bin : input.data.bin,
+        },
+        before.id,
+      );
+    }
     const organization = await tx.organization.update({ where: { id: input.id }, data: input.data, include: organizationInclude });
     await writeBusinessAudit({ tx, request: input.request, organizationId: organization.id, actorUserId: input.actorUserId, action: BUSINESS_AUDIT_ACTIONS.organizationUpdated, entityType: "Organization", entityId: organization.id, before, after: organization });
     return organization;
@@ -131,13 +153,13 @@ export async function updateAdminOrganization(
 }
 
 const statusActions = {
-  verify: { allowed: [OrganizationStatus.PENDING_VERIFICATION], next: OrganizationStatus.ACTIVE, action: BUSINESS_AUDIT_ACTIONS.organizationVerified },
-  reject: { allowed: [OrganizationStatus.PENDING_VERIFICATION], next: OrganizationStatus.REJECTED, action: BUSINESS_AUDIT_ACTIONS.organizationRejected },
-  suspend: { allowed: [OrganizationStatus.ACTIVE], next: OrganizationStatus.SUSPENDED, action: BUSINESS_AUDIT_ACTIONS.organizationSuspended },
-  activate: { allowed: [OrganizationStatus.SUSPENDED], next: OrganizationStatus.ACTIVE, action: BUSINESS_AUDIT_ACTIONS.organizationActivated },
+  verify: { ...ORGANIZATION_STATUS_TRANSITIONS.verify, action: BUSINESS_AUDIT_ACTIONS.organizationVerified },
+  reject: { ...ORGANIZATION_STATUS_TRANSITIONS.reject, action: BUSINESS_AUDIT_ACTIONS.organizationRejected },
+  suspend: { ...ORGANIZATION_STATUS_TRANSITIONS.suspend, action: BUSINESS_AUDIT_ACTIONS.organizationSuspended },
+  activate: { ...ORGANIZATION_STATUS_TRANSITIONS.activate, action: BUSINESS_AUDIT_ACTIONS.organizationActivated },
 } as const;
 
-export async function transitionAdminOrganization(input: { id: string; transition: keyof typeof statusActions; reason?: string | null } & ActorInput) {
+export async function transitionAdminOrganization(input: { id: string; transition: OrganizationTransition; reason?: string | null } & ActorInput) {
   return runSerializableTransaction(async (tx) => {
     const before = await tx.organization.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessNetworkError(404, "ORGANIZATION_NOT_FOUND", "Organization was not found.");
@@ -145,13 +167,17 @@ export async function transitionAdminOrganization(input: { id: string; transitio
     if (!(rule.allowed as readonly OrganizationStatus[]).includes(before.status)) {
       throw new BusinessNetworkError(409, "INVALID_ORGANIZATION_TRANSITION", `The ${input.transition} action is not allowed while the organization is ${before.status}.`);
     }
+    const verificationMetadata = getOrganizationVerificationMetadata(
+      before,
+      input.transition,
+      input.actorUserId,
+    );
     const organization = await tx.organization.update({
       where: { id: input.id },
       data: {
         status: rule.next,
         rejectionReason: input.transition === "reject" ? input.reason || null : null,
-        verifiedAt: rule.next === OrganizationStatus.ACTIVE ? new Date() : before.verifiedAt,
-        verifiedById: rule.next === OrganizationStatus.ACTIVE ? input.actorUserId : before.verifiedById,
+        ...verificationMetadata,
       },
       include: organizationInclude,
     });

@@ -22,7 +22,13 @@ export type BusinessAction = {
   fields?: ActionField[];
   body?: Record<string, unknown>;
   method?: "POST" | "PATCH" | "DELETE";
+  allowedStatuses?: readonly string[];
 };
+
+export function isBusinessActionAvailable(action: BusinessAction, currentStatus: unknown) {
+  if (!action.allowedStatuses?.length) return true;
+  return typeof currentStatus === "string" && action.allowedStatuses.includes(currentStatus);
+}
 
 export type BusinessResourceConfig = {
   key: string;

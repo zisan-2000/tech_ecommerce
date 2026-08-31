@@ -10,10 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { BusinessAction } from "./types";
+import { isBusinessActionAvailable, type BusinessAction } from "./types";
 
-export function BusinessRowActions({ endpoint, id, actions, permissions, onComplete }: { endpoint: string; id: string; actions: BusinessAction[]; permissions: Set<string>; onComplete: () => void }) {
-  const visibleActions = actions.filter((action) => permissions.has(action.permission));
+export function BusinessRowActions({ endpoint, id, actions, permissions, currentStatus, onComplete }: { endpoint: string; id: string; actions: BusinessAction[]; permissions: Set<string>; currentStatus?: unknown; onComplete: () => void }) {
+  const visibleActions = actions.filter((action) => permissions.has(action.permission) && isBusinessActionAvailable(action, currentStatus));
   const [active, setActive] = useState<BusinessAction | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
