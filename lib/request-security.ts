@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { Redis } from "@upstash/redis";
+
 type RateLimitBucket = {
   count: number;
   resetAt: number;
@@ -46,10 +49,12 @@ function getRedis() {
 
 export async function rateLimitRequest(
   request: Request,
-  options: { scope: string; limit: number; windowMs: number },
+  options: { scope: string; limit: number; windowMs: number; identifier?: string },
 ) {
   const now = Date.now();
-  const key = `${options.scope}:${getClientIp(request)}`;
+  const identity = options.identifier?.trim() || getClientIp(request);
+  const identityHash = createHash("sha256").update(identity, "utf8").digest("hex");
+  const key = `${options.scope}:${identityHash}`;
   const redisClient = getRedis();
 
   if (redisClient) {
@@ -94,5 +99,3 @@ export async function rateLimitRequest(
     retryAfter: 0,
   };
 }
-import { Redis } from "@upstash/redis";
-

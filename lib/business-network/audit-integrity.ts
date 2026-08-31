@@ -3,6 +3,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { BusinessNetworkError } from "./errors";
+import { resolveBusinessSecuritySecret } from "./security-secrets";
 
 function stableJson(value: unknown): string {
   if (value === undefined) return "null";
@@ -13,7 +14,10 @@ function stableJson(value: unknown): string {
 }
 
 function expectedHash(nonce: string, payload: unknown) {
-  const secret = process.env.BUSINESS_AUDIT_INTEGRITY_SECRET || process.env.BUSINESS_AUDIT_IP_SECRET || process.env.NEXTAUTH_SECRET || "development-business-audit-integrity-key";
+  const secret = resolveBusinessSecuritySecret(
+    ["BUSINESS_AUDIT_INTEGRITY_SECRET", "BUSINESS_AUDIT_IP_SECRET", "NEXTAUTH_SECRET"],
+    "development-business-audit-integrity-key",
+  );
   return createHmac("sha256", secret).update(`${nonce}:${stableJson(payload)}`, "utf8").digest("hex");
 }
 
@@ -59,4 +63,3 @@ export async function verifyBusinessAuditLogIntegrity(id: bigint) {
   const valid = actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
   return { id: row.id.toString(), status: valid ? "VERIFIED" as const : "TAMPERED" as const, valid, integrityVersion: row.integrityVersion, createdAt: row.createdAt };
 }
-

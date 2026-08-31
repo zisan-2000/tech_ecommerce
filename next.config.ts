@@ -124,6 +124,36 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: "/api/business/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store" },
+          { key: "Vary", value: "Cookie" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, nosnippet" },
+        ],
+      },
+      {
+        source: "/api/admin/business-network/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store" },
+          { key: "Vary", value: "Cookie" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, nosnippet" },
+        ],
+      },
+      {
+        source: "/api/cron/business-network/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, nosnippet" },
+        ],
+      },
+      {
+        source: "/api/public/partner/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, nosnippet" },
+        ],
+      },
+      {
         source: "/upload/:path*",
         headers: [
           {

@@ -4,6 +4,7 @@ import { businessApiErrorResponse } from "@/lib/business-network/errors";
 import { capturePartnerAttribution } from "@/lib/business-network/partner-referral";
 import { capturePartnerAttributionSchema } from "@/lib/business-network/partner-referral-schemas";
 import { BusinessNetworkError } from "@/lib/business-network/business-error";
+import { assertSameOriginBusinessMutation } from "@/lib/business-network/request";
 import { rateLimitRequest } from "@/lib/request-security";
 
 const MAX_BODY_BYTES = 4 * 1_024;
@@ -29,6 +30,7 @@ async function readPublicJson(request: Request): Promise<unknown> {
 
 export async function POST(request: Request): Promise<Response> {
   try {
+    assertSameOriginBusinessMutation(request);
     const rateLimit = await rateLimitRequest(request, { scope: "partner-attribution-capture", limit: 30, windowMs: 10 * 60_000 });
     if (!rateLimit.allowed) {
       return NextResponse.json(

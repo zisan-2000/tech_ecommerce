@@ -3,6 +3,7 @@ import "server-only";
 import { createHmac, randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma";
 import { getClientIp } from "@/lib/request-security";
+import { resolveBusinessSecuritySecret } from "./security-secrets";
 import { sanitizeBusinessAuditValue } from "./audit-sanitization";
 import { publishNotificationForBusinessAudit } from "./notification-core";
 
@@ -170,10 +171,10 @@ function hashRequestIp(request?: Request | null): string | null {
   if (!request) return null;
   const ip = getClientIp(request);
   if (!ip || ip === "unknown") return null;
-  const key =
-    process.env.BUSINESS_AUDIT_IP_SECRET ||
-    process.env.NEXTAUTH_SECRET ||
-    "development-business-audit-key";
+  const key = resolveBusinessSecuritySecret(
+    ["BUSINESS_AUDIT_IP_SECRET", "NEXTAUTH_SECRET"],
+    "development-business-audit-key",
+  );
   return createHmac("sha256", key).update(ip, "utf8").digest("hex");
 }
 
@@ -187,11 +188,10 @@ function stableJson(value: unknown): string {
 
 function createIntegrityHash(value: unknown): { nonce: string; hash: string } {
   const nonce = randomUUID();
-  const secret =
-    process.env.BUSINESS_AUDIT_INTEGRITY_SECRET ||
-    process.env.BUSINESS_AUDIT_IP_SECRET ||
-    process.env.NEXTAUTH_SECRET ||
-    "development-business-audit-integrity-key";
+  const secret = resolveBusinessSecuritySecret(
+    ["BUSINESS_AUDIT_INTEGRITY_SECRET", "BUSINESS_AUDIT_IP_SECRET", "NEXTAUTH_SECRET"],
+    "development-business-audit-integrity-key",
+  );
   const hash = createHmac("sha256", secret)
     .update(`${nonce}:${stableJson(value)}`, "utf8")
     .digest("hex");

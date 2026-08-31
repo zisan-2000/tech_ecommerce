@@ -1,27 +1,12 @@
 import "server-only";
 
 import { BusinessNetworkError } from "./business-error";
+import { isTrustedBusinessMutationOrigin } from "./request-origin";
 
 const MAX_BUSINESS_JSON_BYTES = 16 * 1024;
 
 export function assertSameOriginBusinessMutation(request: Request): void {
-  const fetchSite = request.headers.get("sec-fetch-site")?.toLowerCase();
-  if (fetchSite === "cross-site") {
-    throw new BusinessNetworkError(
-      403,
-      "CROSS_ORIGIN_REQUEST_REJECTED",
-      "Cross-origin business mutations are not allowed.",
-    );
-  }
-  const origin = request.headers.get("origin");
-  if (!origin) return;
-  let expectedOrigin: string;
-  try {
-    expectedOrigin = new URL(request.url).origin;
-  } catch {
-    throw new BusinessNetworkError(422, "INVALID_REQUEST_URL", "Request URL is invalid.");
-  }
-  if (origin !== expectedOrigin) {
+  if (!isTrustedBusinessMutationOrigin(request)) {
     throw new BusinessNetworkError(
       403,
       "CROSS_ORIGIN_REQUEST_REJECTED",
