@@ -42,6 +42,24 @@ function DetailValue({ item, field }: { item: Record<string, unknown>; field: De
   return <>{value === null || value === undefined || value === "" ? "—" : String(value)}</>;
 }
 
+function LineItemAmount({ resource, line, item }: { resource: DetailKey; line: Record<string, unknown>; item: Record<string, unknown> }) {
+  const currency = String(line.currency ?? getPath(item, "organization.currency") ?? "BDT");
+
+  if (resource === "rfq") {
+    const targetUnitPrice = line.targetUnitPrice;
+    return (
+      <span className="whitespace-nowrap font-semibold tabular-nums">
+        {targetUnitPrice === null || targetUnitPrice === undefined
+          ? "Target —"
+          : `Target ${formatCurrency(targetUnitPrice, currency)}`}
+      </span>
+    );
+  }
+
+  const amount = line.lineTotal ?? line.price ?? line.unitPrice;
+  return <span className="whitespace-nowrap font-semibold tabular-nums">{formatCurrency(amount, currency)}</span>;
+}
+
 export default function BusinessDetailPage({ resource, id }: { resource: DetailKey; id: string }) {
   const config = CONFIG[resource];
   const [item, setItem] = useState<Record<string, unknown> | null>(null);
@@ -108,7 +126,15 @@ export default function BusinessDetailPage({ resource, id }: { resource: DetailK
           {Array.isArray(item.items) && item.items.length > 0 && (
             <Surface>
               <div className="border-b border-border px-5 py-4"><h2 className="font-semibold">Line items</h2></div>
-              <div className="divide-y divide-border">{(item.items as Array<Record<string, unknown>>).map((line, index) => <div key={String(line.id ?? index)} className="grid gap-2 px-5 py-4 text-sm sm:grid-cols-[1fr_auto_auto]"><span className="font-medium">{String(line.productName ?? line.product?.toString() ?? `Item ${index + 1}`)}</span><span className="text-muted-foreground">Qty {String(line.quantity ?? "—")}</span><span className="font-semibold">{formatCurrency(line.lineTotal ?? line.price, String(line.currency ?? "BDT"))}</span></div>)}</div>
+              <div className="divide-y divide-border">
+                {(item.items as Array<Record<string, unknown>>).map((line, index) => (
+                  <div key={String(line.id ?? index)} className="grid gap-2 px-5 py-4 text-sm sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                    <span className="font-medium">{String(line.productName ?? line.product?.toString() ?? `Item ${index + 1}`)}</span>
+                    <span className="whitespace-nowrap text-muted-foreground">Qty {String(line.quantity ?? "—")}</span>
+                    <LineItemAmount resource={resource} line={line} item={item} />
+                  </div>
+                ))}
+              </div>
             </Surface>
           )}
           {typeof item.notes === "string" && item.notes && <Surface className="p-5"><h2 className="font-semibold">Notes</h2><p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{item.notes}</p></Surface>}
