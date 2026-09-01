@@ -28,9 +28,10 @@ export default async function PostLoginPage({
   const safeReturnUrl = sanitizeReturnUrl(requestedReturnUrl);
 
   const session = await getServerSession(authOptions);
-  const userId = typeof session?.user?.id === "string" ? session.user.id : null;
+  const sessionUser = session?.user;
+  const userId = typeof sessionUser?.id === "string" ? sessionUser.id : null;
 
-  if (!userId) {
+  if (!sessionUser || !userId) {
     const signInUrl = safeReturnUrl
       ? `/signin?returnUrl=${encodeURIComponent(safeReturnUrl)}`
       : "/signin";
@@ -43,7 +44,7 @@ export default async function PostLoginPage({
     redirect(safeReturnUrl);
   }
 
-  const defaultRoute = getDashboardRoute(session.user);
+  const defaultRoute = getDashboardRoute(sessionUser);
 
   // Preserve dedicated dashboards for privileged/global account types.
   if (defaultRoute !== USER_DASHBOARD_ROUTE) {
