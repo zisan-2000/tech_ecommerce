@@ -86,13 +86,25 @@ export default function BusinessMembersPage() {
       const membersData = (await membersResponse.json()) as MembersPayload;
       const invitationsData = (await invitationsResponse.json()) as InvitationsPayload;
 
-      if (!membersResponse.ok) throw new Error(membersData.error || "Could not load organization members.");
-      if (!invitationsResponse.ok) throw new Error(invitationsData.error || "Could not load organization invitations.");
+      if (!membersResponse.ok) {
+        throw new Error(membersData.error || "Could not load organization members.");
+      }
+      if (!invitationsResponse.ok) {
+        throw new Error(
+          invitationsData.error || "Could not load organization invitations.",
+        );
+      }
 
       setMembers(Array.isArray(membersData.members) ? membersData.members : []);
-      setInvitations(Array.isArray(invitationsData.invitations) ? invitationsData.invitations : []);
+      setInvitations(
+        Array.isArray(invitationsData.invitations) ? invitationsData.invitations : [],
+      );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not load members and invitations.");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not load members and invitations.",
+      );
     } finally {
       setLoading(false);
     }
@@ -108,7 +120,14 @@ export default function BusinessMembersPage() {
         eyebrow="Organization"
         title="Members & roles"
         description="Control active members, assigned portal roles, and outstanding invitations for this organization."
-        action={canInvite ? { label: "Invite member", href: "/business/organization/members/invite" } : undefined}
+        action={
+          canInvite
+            ? {
+                label: "Invite member",
+                href: "/business/organization/members/invite",
+              }
+            : undefined
+        }
       />
 
       {error && (
@@ -127,10 +146,18 @@ export default function BusinessMembersPage() {
                 : `${members.length} organization member${members.length === 1 ? "" : "s"}`}
             </p>
           </div>
-          <Button type="button" variant="outline" size="icon" onClick={() => void load()} disabled={loading} aria-label="Refresh members and invitations">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => void load()}
+            disabled={loading}
+            aria-label="Refresh members and invitations"
+          >
             <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -145,7 +172,14 @@ export default function BusinessMembersPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {!loading && members.length === 0 ? (
-                <tr><td className="px-5 py-8 text-center text-muted-foreground" colSpan={6}>No organization members were found.</td></tr>
+                <tr>
+                  <td
+                    className="px-5 py-8 text-center text-muted-foreground"
+                    colSpan={6}
+                  >
+                    No organization members were found.
+                  </td>
+                </tr>
               ) : (
                 members.map((member) => (
                   <tr key={member.id} className="align-top">
@@ -162,9 +196,15 @@ export default function BusinessMembersPage() {
                     </td>
                     <td className="px-5 py-4">{member.user.email}</td>
                     <td className="px-5 py-4">{member.title || "—"}</td>
-                    <td className="px-5 py-4"><RoleList roles={member.roles} /></td>
-                    <td className="px-5 py-4"><StatusBadge status={member.status} /></td>
-                    <td className="px-5 py-4">{formatDate(member.joinedAt || member.createdAt)}</td>
+                    <td className="px-5 py-4">
+                      <RoleList roles={member.roles} />
+                    </td>
+                    <td className="px-5 py-4">
+                      <StatusBadge status={member.status} />
+                    </td>
+                    <td className="px-5 py-4">
+                      {formatDate(member.joinedAt || member.createdAt)}
+                    </td>
                   </tr>
                 ))
               )}
@@ -177,9 +217,11 @@ export default function BusinessMembersPage() {
         <div className="border-b border-border px-5 py-4">
           <h2 className="font-semibold">Invitation history</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Pending invitations can still be accepted until they expire. Accepted and revoked invitations remain visible here as organization history.
+            Pending invitations can still be accepted until they expire. Accepted and
+            revoked invitations remain visible here as organization history.
           </p>
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -193,17 +235,32 @@ export default function BusinessMembersPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {!loading && invitations.length === 0 ? (
-                <tr><td className="px-5 py-8 text-center text-muted-foreground" colSpan={5}>No invitations have been created yet.</td></tr>
+                <tr>
+                  <td
+                    className="px-5 py-8 text-center text-muted-foreground"
+                    colSpan={5}
+                  >
+                    No invitations have been created yet.
+                  </td>
+                </tr>
               ) : (
                 invitations.map((invitation) => (
                   <tr key={invitation.id}>
                     <td className="px-5 py-4 font-medium">{invitation.email}</td>
-                    <td className="px-5 py-4">{invitation.role.replaceAll("_", " ")}</td>
-                    <td className="px-5 py-4"><StatusBadge status={invitation.state} /></td>
-                    <td className="px-5 py-4">{formatDate(invitation.createdAt, true)}</td>
-                    <td className="px-5 py-4">{formatDate(invitation.expiresAt, true)}</td>
+                    <td className="px-5 py-4">
+                      {invitation.role.replaceAll("_", " ")}
+                    </td>
+                    <td className="px-5 py-4">
+                      <StatusBadge status={invitation.state} />
+                    </td>
+                    <td className="px-5 py-4">
+                      {formatDate(invitation.createdAt, true)}
+                    </td>
+                    <td className="px-5 py-4">
+                      {formatDate(invitation.expiresAt, true)}
+                    </td>
                   </tr>
-                ))}
+                ))
               )}
             </tbody>
           </table>
