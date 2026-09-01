@@ -29,6 +29,32 @@ export function isPortalAccessibleOrganizationStatus(
   return PORTAL_ACCESSIBLE_STATUSES.includes(status);
 }
 
+/**
+ * Lightweight, deterministic landing-route check for an already-authenticated
+ * user. This intentionally does not depend on the active-organization cookie
+ * or perform another session lookup, so post-login routing cannot fluctuate
+ * because of client/session timing.
+ */
+export async function hasPortalAccessibleBusinessMembership(
+  userId: string,
+): Promise<boolean> {
+  const normalizedUserId = userId.trim();
+  if (!normalizedUserId) return false;
+
+  const membership = await db.organizationMember.findFirst({
+    where: {
+      userId: normalizedUserId,
+      status: "ACTIVE",
+      organization: {
+        status: { in: [...PORTAL_ACCESSIBLE_STATUSES] },
+      },
+    },
+    select: { id: true },
+  });
+
+  return Boolean(membership);
+}
+
 export async function requireAuthenticatedBusinessUser() {
   const session = await getServerSession(authOptions);
   const id = typeof session?.user?.id === "string" ? session.user.id : null;
