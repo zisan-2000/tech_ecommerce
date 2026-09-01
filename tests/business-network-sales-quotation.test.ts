@@ -6,6 +6,7 @@ import {
 } from "../generated/prisma";
 import {
   assertQuotationCanCreateVersion,
+  assertQuotationMakerCheckerSeparation,
   assertQuotationValidUntil,
   assertQuotationVersionCanBeIssued,
   assertSalesQuotationTransition,
@@ -41,6 +42,22 @@ test("invalid and terminal quotation transitions fail closed", () => {
       (error) => error instanceof BusinessNetworkError && error.code === "INVALID_SALES_QUOTATION_STATUS_TRANSITION",
     );
   }
+});
+
+test("quotation maker and checker must be different users", () => {
+  assert.doesNotThrow(() =>
+    assertQuotationMakerCheckerSeparation(["quotation-maker", "version-maker"], "checker-user"),
+  );
+
+  assert.throws(
+    () => assertQuotationMakerCheckerSeparation(["quotation-maker", "version-maker"], "quotation-maker"),
+    (error) => error instanceof BusinessNetworkError && error.code === "QUOTATION_MAKER_CHECKER_VIOLATION",
+  );
+
+  assert.throws(
+    () => assertQuotationMakerCheckerSeparation(["quotation-maker", "version-maker"], "version-maker"),
+    (error) => error instanceof BusinessNetworkError && error.code === "QUOTATION_MAKER_CHECKER_VIOLATION",
+  );
 });
 
 test("only the current draft quotation version can be issued", () => {
