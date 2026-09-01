@@ -11,6 +11,10 @@ export const USER_DASHBOARD_ROUTE = "/ecommerce/user/";
 export const DELIVERY_DASHBOARD_ROUTE = "/admin/operations/delivery";
 export const SUPPLIER_DASHBOARD_ROUTE = "/supplier";
 export const INVESTOR_DASHBOARD_ROUTE = "/investor";
+export const ADMIN_QUOTATIONS_ROUTE = "/admin/business-network/quotations";
+export const ADMIN_RFQS_ROUTE = "/admin/business-network/rfqs";
+export const ADMIN_BUSINESS_NETWORK_ROUTE = "/admin/business-network";
+export const ADMIN_USERS_ROUTE = "/admin/operations/users";
 
 const ADMIN_DELIVERY_ROUTE = "/admin/delivery";
 const ADMIN_OPERATIONS_DELIVERY_ROUTE = "/admin/operations/delivery";
@@ -20,38 +24,98 @@ const LEGACY_DELIVERY_DASHBOARD_ROUTE = "/delivery/dashboard";
 
 const AUTH_ROUTES = ["/signin", "/sign-up"];
 
+function permissionsFor(user?: DashboardUserLike) {
+  return Array.isArray(user?.permissions) ? user.permissions : [];
+}
+
+function hasAnyPermission(
+  user: DashboardUserLike,
+  requiredPermissions: readonly string[],
+) {
+  const permissions = new Set(permissionsFor(user));
+  return requiredPermissions.some((permission) => permissions.has(permission));
+}
+
 function isRoutePrefix(pathname: string, route: string) {
   return pathname === route || pathname.startsWith(`${route}/`);
 }
 
 export function hasAdminDashboardAccess(user?: DashboardUserLike) {
-  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
-  return permissions.includes("admin.panel.access");
+  return permissionsFor(user).includes("admin.panel.access");
 }
 
 export function hasDeliveryDashboardAccess(user?: DashboardUserLike) {
-  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
-  return permissions.includes("delivery.dashboard.access");
+  return permissionsFor(user).includes("delivery.dashboard.access");
 }
 
 export function hasSupplierPortalAccess(user?: DashboardUserLike) {
-  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
-  return permissions.includes("supplier.portal.access");
+  return permissionsFor(user).includes("supplier.portal.access");
 }
 
 export function hasInvestorPortalAccess(user?: DashboardUserLike) {
-  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
-  return permissions.includes("investor.portal.access");
+  return permissionsFor(user).includes("investor.portal.access");
+}
+
+export function getAdminLandingRoute(user?: DashboardUserLike) {
+  if (!hasAdminDashboardAccess(user)) return null;
+
+  if (user?.defaultAdminRoute === "/admin/warehouse") {
+    return "/admin/warehouse";
+  }
+
+  if (hasAnyPermission(user, ["dashboard.read"])) {
+    return "/admin";
+  }
+
+  if (
+    hasAnyPermission(user, [
+      "business.quotation.view",
+      "business.quotation.create",
+      "business.quotation.approve",
+      "business.quotation.send",
+    ])
+  ) {
+    return ADMIN_QUOTATIONS_ROUTE;
+  }
+
+  if (
+    hasAnyPermission(user, [
+      "business.rfq.view",
+      "business.rfq.manage",
+      "business.rfq.assign",
+    ])
+  ) {
+    return ADMIN_RFQS_ROUTE;
+  }
+
+  if (
+    hasAnyPermission(user, [
+      "business.account.view",
+      "business.account.manage",
+      "partner.profile.view",
+      "partner.profile.manage",
+    ])
+  ) {
+    return ADMIN_BUSINESS_NETWORK_ROUTE;
+  }
+
+  if (hasAnyPermission(user, ["users.read", "users.manage"])) {
+    return ADMIN_USERS_ROUTE;
+  }
+
+  // A limited admin should never be sent to the analytics dashboard unless
+  // they actually have dashboard.read. Profile is a safe admin-shell fallback.
+  return ADMIN_PROFILE_ROUTE;
 }
 
 export function getDashboardRoute(user?: DashboardUserLike) {
   if (user?.role === "investor") {
     return INVESTOR_DASHBOARD_ROUTE;
   }
-  if (hasAdminDashboardAccess(user)) {
-    return user?.defaultAdminRoute === "/admin/warehouse"
-      ? "/admin/warehouse"
-      : "/admin";
+
+  const adminLandingRoute = getAdminLandingRoute(user);
+  if (adminLandingRoute) {
+    return adminLandingRoute;
   }
 
   if (hasDeliveryDashboardAccess(user)) {
