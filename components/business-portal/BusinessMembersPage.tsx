@@ -122,7 +122,9 @@ export default function BusinessMembersPage() {
           <div>
             <h2 className="font-semibold">Current members</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              {loading ? "Loading members…" : `${members.length} active or recorded member${members.length === 1 ? "" : "s"}`}
+              {loading
+                ? "Loading members…"
+                : `${members.length} organization member${members.length === 1 ? "" : "s"}`}
             </p>
           </div>
           <Button type="button" variant="outline" size="icon" onClick={() => void load()} disabled={loading} aria-label="Refresh members and invitations">
@@ -149,7 +151,14 @@ export default function BusinessMembersPage() {
                   <tr key={member.id} className="align-top">
                     <td className="px-5 py-4 font-semibold">
                       <div>{member.user.name || member.user.email}</div>
-                      {member.isPrimary && <div className="mt-1 text-xs font-medium text-blue-600 dark:text-blue-400">Primary member</div>}
+                      {member.isPrimary && (
+                        <div
+                          className="mt-1 text-xs font-medium text-blue-600 dark:text-blue-400"
+                          title="This is the user's primary business organization membership."
+                        >
+                          Primary organization
+                        </div>
+                      )}
                     </td>
                     <td className="px-5 py-4">{member.user.email}</td>
                     <td className="px-5 py-4">{member.title || "—"}</td>
@@ -166,9 +175,9 @@ export default function BusinessMembersPage() {
 
       <Surface className="overflow-hidden">
         <div className="border-b border-border px-5 py-4">
-          <h2 className="font-semibold">Invitations</h2>
+          <h2 className="font-semibold">Invitation history</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Pending invitations appear here immediately. A person becomes a member only after accepting with the invited email address.
+            Pending invitations can still be accepted until they expire. Accepted and revoked invitations remain visible here as organization history.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -194,7 +203,7 @@ export default function BusinessMembersPage() {
                     <td className="px-5 py-4">{formatDate(invitation.createdAt, true)}</td>
                     <td className="px-5 py-4">{formatDate(invitation.expiresAt, true)}</td>
                   </tr>
-                ))
+                ))}
               )}
             </tbody>
           </table>
