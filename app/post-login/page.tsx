@@ -6,10 +6,7 @@ import {
   sanitizeReturnUrl,
   USER_DASHBOARD_ROUTE,
 } from "@/lib/dashboard-route";
-import {
-  getBusinessContext,
-  isPortalAccessibleOrganizationStatus,
-} from "@/lib/business-network/context";
+import { hasPortalAccessibleBusinessMembership } from "@/lib/business-network/context";
 
 type PostLoginSearchParams = {
   returnUrl?: string | string[];
@@ -31,7 +28,9 @@ export default async function PostLoginPage({
   const safeReturnUrl = sanitizeReturnUrl(requestedReturnUrl);
 
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = typeof session?.user?.id === "string" ? session.user.id : null;
+
+  if (!userId) {
     const signInUrl = safeReturnUrl
       ? `/signin?returnUrl=${encodeURIComponent(safeReturnUrl)}`
       : "/signin";
@@ -51,21 +50,13 @@ export default async function PostLoginPage({
     redirect(defaultRoute);
   }
 
-  let businessPortalRoute: string | null = null;
-  try {
-    const businessContext = await getBusinessContext();
-    const activeMembership = businessContext.activeMembership;
-    if (
-      activeMembership &&
-      isPortalAccessibleOrganizationStatus(activeMembership.organization.status)
-    ) {
-      businessPortalRoute = "/business";
-    }
-  } catch {
-    // A business-context lookup must never break a successful login.
-    // Users without an available business context fall back to the normal
-    // ecommerce dashboard below.
+  // Ordinary accounts with an active, portal-accessible Business Network
+  // membership always land in the Business Portal. This is a direct database
+  // check keyed by the authenticated user ID, so it does not depend on an
+  // active-organization cookie or a second session lookup.
+  if (await hasPortalAccessibleBusinessMembership(userId)) {
+    redirect("/business");
   }
 
-  redirect(businessPortalRoute || USER_DASHBOARD_ROUTE);
+  redirect(USER_DASHBOARD_ROUTE);
 }
