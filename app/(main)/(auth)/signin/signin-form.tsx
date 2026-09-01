@@ -27,7 +27,8 @@ import { Button } from "../../../../components/ui/button";
 import { signIn, useSession } from "@/lib/auth-client";
 import {
   getDashboardRoute,
-  resolvePostAuthRoute,
+  sanitizeReturnUrl,
+  USER_DASHBOARD_ROUTE,
 } from "@/lib/dashboard-route";
 import { FormError } from "../../../../components/FormError";
 import { useState } from "react";
@@ -37,6 +38,58 @@ import Link from "next/link";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 
 type SignInValues = yup.InferType<typeof signInSchema>;
+
+type SessionUserLike = Parameters<typeof getDashboardRoute>[0];
+
+type BusinessContextPayload = {
+  organizations?: Array<{
+    organization?: {
+      status?: string | null;
+    } | null;
+  }>;
+};
+
+const BUSINESS_PORTAL_STATUSES = new Set([
+  "DRAFT",
+  "PENDING_VERIFICATION",
+  "ACTIVE",
+]);
+
+async function resolveBusinessAwareDefaultRoute(user: SessionUserLike) {
+  const defaultRoute = getDashboardRoute(user);
+
+  // Preserve dedicated admin, delivery, supplier and investor dashboards.
+  // Only ordinary users are upgraded to the Business Portal when they have
+  // an active organization membership.
+  if (defaultRoute !== USER_DASHBOARD_ROUTE) {
+    return defaultRoute;
+  }
+
+  try {
+    const response = await fetch("/api/business/context", {
+      cache: "no-store",
+    });
+    if (!response.ok) return defaultRoute;
+
+    const payload = (await response.json().catch(() => null)) as
+      | BusinessContextPayload
+      | null;
+    const organizations = Array.isArray(payload?.organizations)
+      ? payload.organizations
+      : [];
+
+    const hasAccessibleBusinessMembership = organizations.some((membership) => {
+      const status = membership?.organization?.status;
+      return typeof status === "string" && BUSINESS_PORTAL_STATUSES.has(status);
+    });
+
+    return hasAccessibleBusinessMembership ? "/business" : defaultRoute;
+  } catch {
+    // Authentication should still succeed if business-context discovery is
+    // temporarily unavailable; fall back to the ordinary user dashboard.
+    return defaultRoute;
+  }
+}
 
 const SigninForm = () => {
   const [formError, setFormError] = useState("");
@@ -69,35 +122,45 @@ const SigninForm = () => {
         const sessionData = sessionResponse.ok
           ? await sessionResponse.json().catch(() => null)
           : null;
-        // Check for pending checkout first
+
+        // Checkout continuity has the highest priority after authentication.
         const redirectAfterLogin = sessionStorage.getItem("redirectAfterLogin");
         const pendingCheckout = sessionStorage.getItem("pendingCheckout");
-        
+
         if (redirectAfterLogin === "/ecommerce/checkout" && pendingCheckout) {
           try {
             const cartItems = JSON.parse(pendingCheckout);
+            sessionStorage.removeItem("pendingCheckout");
+            sessionStorage.removeItem("redirectAfterLogin");
+
             if (Array.isArray(cartItems) && cartItems.length > 0) {
-              // Has cart items, go to checkout
-              sessionStorage.removeItem("pendingCheckout");
-              sessionStorage.removeItem("redirectAfterLogin");
               router.replace("/ecommerce/checkout");
               return;
-            } else {
-              // No cart items, go to dashboard
-              sessionStorage.removeItem("pendingCheckout");
-              sessionStorage.removeItem("redirectAfterLogin");
-              router.replace(getDashboardRoute(sessionData?.user ?? null));
-              return;
             }
+
+            const fallbackRoute = await resolveBusinessAwareDefaultRoute(
+              sessionData?.user ?? null,
+            );
+            router.replace(fallbackRoute);
+            return;
           } catch {
-            // Invalid cart data, go to dashboard
             sessionStorage.removeItem("pendingCheckout");
             sessionStorage.removeItem("redirectAfterLogin");
           }
         }
-        
-        const nextRoute = resolvePostAuthRoute(sessionData?.user ?? null, returnUrl);
-        router.replace(nextRoute || getDashboardRoute(null));
+
+        // Explicit safe return URLs (for example a business invitation) must
+        // win over any default dashboard routing.
+        const safeReturnUrl = sanitizeReturnUrl(returnUrl);
+        if (safeReturnUrl) {
+          router.replace(safeReturnUrl);
+          return;
+        }
+
+        const nextRoute = await resolveBusinessAwareDefaultRoute(
+          sessionData?.user ?? null,
+        );
+        router.replace(nextRoute);
         return;
       }
       const message =
@@ -108,7 +171,8 @@ const SigninForm = () => {
     } catch (err: unknown) {
       toast.dismiss(dismiss);
       const message =
-        (err instanceof Error ? err.message : String(err)) || "Something went wrong while signing in.";
+        (err instanceof Error ? err.message : String(err)) ||
+        "Something went wrong while signing in.";
       setFormError(message);
       toast.error(message);
     }
@@ -116,7 +180,6 @@ const SigninForm = () => {
 
   return (
     <Card className="border border-border bg-card text-card-foreground shadow-md max-w-md mx-auto">
-      {/* Top accent bar */}
       <div className="h-1 w-full bg-gradient-to-r from-primary via-ring to-destructive rounded-t-xl" />
 
       <CardHeader className="items-center pb-4 pt-6">
@@ -135,7 +198,6 @@ const SigninForm = () => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormFieldset className="space-y-4">
-              {/* Email field */}
               <FormField
                 control={form.control}
                 name="email"
@@ -161,7 +223,6 @@ const SigninForm = () => {
                 )}
               />
 
-              {/* Password field */}
               <FormField
                 control={form.control}
                 name="password"
@@ -218,7 +279,6 @@ const SigninForm = () => {
           </form>
         </Form>
 
-        {/* Divider */}
         <div className="mt-6 flex items-center gap-3">
           <div className="h-px flex-1 bg-border" />
           <span className="text-xs text-muted-foreground">or</span>
