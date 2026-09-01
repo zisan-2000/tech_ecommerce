@@ -18,7 +18,7 @@ type DetailConfig = {
 
 const CONFIG: Record<DetailKey, DetailConfig> = {
   rfq: { endpoint: (id) => `/api/business/rfqs/${id}`, objectKey: "rfq", titlePath: "subject", eyebrow: "Request for quotation", backHref: "/business/rfqs", fields: [{ label: "RFQ number", path: "rfqNumber" }, { label: "Status", path: "status", type: "status" }, { label: "Requested delivery", path: "requestedDelivery", type: "date" }, { label: "Quotation due", path: "quotationDueAt", type: "date" }, { label: "Submitted", path: "submittedAt", type: "date" }, { label: "Created", path: "createdAt", type: "date" }] },
-  quotation: { endpoint: (id) => `/api/business/quotations/${id}`, objectKey: "quotation", titlePath: "quotationNumber", eyebrow: "Commercial quotation", backHref: "/business/quotations", fields: [{ label: "Quotation number", path: "quotationNumber" }, { label: "RFQ", path: "salesRfq.rfqNumber" }, { label: "Status", path: "status", type: "status" }, { label: "Grand total", path: "versions.0.grandTotal", type: "currency", currencyPath: "versions.0.currency" }, { label: "Valid until", path: "validUntil", type: "date" }, { label: "Sent", path: "sentAt", type: "date" }] },
+  quotation: { endpoint: (id) => `/api/business/quotations/${id}`, objectKey: "quotation", titlePath: "quotationNumber", eyebrow: "Commercial quotation", backHref: "/business/quotations", fields: [{ label: "Quotation number", path: "quotationNumber" }, { label: "RFQ", path: "salesRfq.rfqNumber" }, { label: "Status", path: "status", type: "status" }, { label: "Grand total", path: "versions.0.grandTotal", type: "currency", currencyPath: "versions.0.currency" }, { label: "Valid until", path: "validUntil", type: "date" }, { label: "Sent", path: "sentAt", type: "date" }, { label: "Viewed", path: "viewedAt", type: "date" }] },
   purchaseOrder: { endpoint: (id) => `/api/business/customer-pos/${id}`, objectKey: "customerPurchaseOrder", titlePath: "customerPoNumber", eyebrow: "Purchase order", backHref: "/business/purchase-orders", fields: [{ label: "Customer PO", path: "customerPoNumber" }, { label: "Quotation", path: "quotation.quotationNumber" }, { label: "Status", path: "status", type: "status" }, { label: "Total", path: "totalAmount", type: "currency", currencyPath: "currency" }, { label: "PO date", path: "poDate", type: "date" }, { label: "Expected delivery", path: "expectedDeliveryAt", type: "date" }] },
   order: { endpoint: (id) => `/api/business/orders/${id}`, objectKey: "order", titlePath: "id", eyebrow: "Corporate order", backHref: "/business/orders", fields: [{ label: "Order ID", path: "id" }, { label: "PO number", path: "customerPurchaseOrder.customerPoNumber" }, { label: "Status", path: "status", type: "status" }, { label: "Payment", path: "paymentStatus", type: "status" }, { label: "Grand total", path: "grand_total", type: "currency", currencyPath: "currency" }, { label: "Placed", path: "order_date", type: "date" }] },
   invoice: { endpoint: (id) => `/api/business/invoices/${id}`, objectKey: "invoice", titlePath: "invoiceNumber", eyebrow: "Invoice", backHref: "/business/invoices", fields: [{ label: "Invoice number", path: "invoiceNumber" }, { label: "Order ID", path: "id" }, { label: "Status", path: "invoiceStatus", type: "status" }, { label: "Grand total", path: "grand_total", type: "currency", currencyPath: "currency" }, { label: "Payment method", path: "payment_method" }, { label: "Issued", path: "order_date", type: "date" }] },
@@ -32,6 +32,20 @@ function getPath(item: Record<string, unknown>, path: string): unknown {
     if (value && typeof value === "object") return (value as Record<string, unknown>)[key];
     return undefined;
   }, item);
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function getCurrentQuotationVersion(item: Record<string, unknown> | null) {
+  if (!item || !Array.isArray(item.versions)) return null;
+  const versions = item.versions
+    .map(asRecord)
+    .filter((value): value is Record<string, unknown> => Boolean(value));
+  return versions.find((version) => version.isCurrent === true) ?? versions[0] ?? null;
 }
 
 function DetailValue({ item, field }: { item: Record<string, unknown>; field: DetailConfig["fields"][number] }) {
@@ -60,6 +74,70 @@ function LineItemAmount({ resource, line, item }: { resource: DetailKey; line: R
   return <span className="whitespace-nowrap font-semibold tabular-nums">{formatCurrency(amount, currency)}</span>;
 }
 
+function QuotationCommercialDetails({ item }: { item: Record<string, unknown> }) {
+  const version = getCurrentQuotationVersion(item);
+  if (!version) return null;
+
+  const currency = String(version.currency ?? getPath(item, "organization.currency") ?? "BDT");
+  const rawItems = Array.isArray(version.items) ? version.items : [];
+  const lines = rawItems
+    .map(asRecord)
+    .filter((value): value is Record<string, unknown> => Boolean(value));
+
+  return (
+    <>
+      <Surface>
+        <div className="border-b border-border px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">Quoted items</h2>
+            <span className="text-xs text-muted-foreground">Version {String(version.versionNumber ?? "—")}</span>
+          </div>
+        </div>
+        <div className="divide-y divide-border">
+          {lines.map((line, index) => (
+            <div key={String(line.id ?? index)} className="grid gap-3 px-5 py-4 text-sm md:grid-cols-[minmax(0,1fr)_auto_auto_auto] md:items-center">
+              <div className="min-w-0">
+                <p className="font-medium">{String(line.productName ?? `Item ${index + 1}`)}</p>
+                {line.skuSnapshot ? <p className="mt-1 text-xs text-muted-foreground">SKU: {String(line.skuSnapshot)}</p> : null}
+              </div>
+              <span className="whitespace-nowrap text-muted-foreground">Qty {String(line.quantity ?? "—")}</span>
+              <span className="whitespace-nowrap tabular-nums">Unit {formatCurrency(line.unitPrice, currency)}</span>
+              <span className="whitespace-nowrap font-semibold tabular-nums">{formatCurrency(line.lineTotal, currency)}</span>
+            </div>
+          ))}
+        </div>
+      </Surface>
+
+      <Surface className="p-5 sm:p-6">
+        <h2 className="font-semibold">Commercial terms</h2>
+        <div className="mt-4 grid gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-3">
+          {[
+            ["Subtotal", formatCurrency(version.subtotal, currency)],
+            ["Discount", formatCurrency(version.discountTotal, currency)],
+            ["VAT", formatCurrency(version.vatTotal, currency)],
+            ["Shipping", formatCurrency(version.shippingTotal, currency)],
+            ["Grand total", formatCurrency(version.grandTotal, currency)],
+            ["Payment terms", version.paymentTerms ?? "—"],
+            ["Delivery terms", version.deliveryTerms ?? "—"],
+            ["Warranty terms", version.warrantyTerms ?? "—"],
+          ].map(([label, value]) => (
+            <div key={String(label)}>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{String(label)}</p>
+              <p className="mt-1.5 whitespace-pre-wrap text-sm font-medium">{String(value)}</p>
+            </div>
+          ))}
+        </div>
+        {version.notes ? (
+          <div className="mt-5 border-t border-border pt-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Notes</p>
+            <p className="mt-1.5 whitespace-pre-wrap text-sm text-muted-foreground">{String(version.notes)}</p>
+          </div>
+        ) : null}
+      </Surface>
+    </>
+  );
+}
+
 export default function BusinessDetailPage({ resource, id }: { resource: DetailKey; id: string }) {
   const config = CONFIG[resource];
   const [item, setItem] = useState<Record<string, unknown> | null>(null);
@@ -74,11 +152,28 @@ export default function BusinessDetailPage({ resource, id }: { resource: DetailK
       const response = await fetch(config.endpoint(id), { cache: "no-store", signal });
       const data = await response.json() as Record<string, unknown> & { error?: string };
       if (!response.ok) throw new Error(data.error || "Could not load this record.");
-      setItem(data[config.objectKey] as Record<string, unknown>);
+
+      let record = asRecord(data[config.objectKey]);
+      if (!record) throw new Error("The business service returned an invalid record.");
+
+      // Opening a sent quotation is a business event, not just a page view.
+      // Record it through the dedicated audited mutation before showing actions.
+      if (resource === "quotation" && record.status === "SENT") {
+        const viewResponse = await fetch(`${config.endpoint(id)}/view`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const viewData = await viewResponse.json() as Record<string, unknown> & { error?: string };
+        if (!viewResponse.ok) throw new Error(viewData.error || "Could not record quotation view.");
+        const viewedRecord = asRecord(viewData[config.objectKey]);
+        if (viewedRecord) record = viewedRecord;
+      }
+
+      setItem(record);
     } catch (caught) {
       if ((caught as Error).name !== "AbortError") setError(caught instanceof Error ? caught.message : "Could not load this record.");
     } finally { if (!signal.aborted) setLoading(false); }
-  }, [config, id]);
+  }, [config, id, resource]);
 
   useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load, reload]);
 
@@ -123,7 +218,10 @@ export default function BusinessDetailPage({ resource, id }: { resource: DetailK
             </div>
             {actions.length > 0 && <div className="mt-6 flex flex-wrap gap-3 border-t border-border pt-5">{actions.map((action) => <Button key={action.action} variant={action.positive ? "default" : "outline"} disabled={working} onClick={() => void mutate(action.action)}>{action.positive ? <Check className="size-4" /> : <X className="size-4" />}{action.label}</Button>)}</div>}
           </Surface>
-          {Array.isArray(item.items) && item.items.length > 0 && (
+
+          {resource === "quotation" ? <QuotationCommercialDetails item={item} /> : null}
+
+          {resource !== "quotation" && Array.isArray(item.items) && item.items.length > 0 && (
             <Surface>
               <div className="border-b border-border px-5 py-4"><h2 className="font-semibold">Line items</h2></div>
               <div className="divide-y divide-border">
