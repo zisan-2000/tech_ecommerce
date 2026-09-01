@@ -25,11 +25,7 @@ import { Input } from "../../../../components/ui/input";
 import { Button } from "../../../../components/ui/button";
 
 import { signIn, useSession } from "@/lib/auth-client";
-import {
-  getDashboardRoute,
-  sanitizeReturnUrl,
-  USER_DASHBOARD_ROUTE,
-} from "@/lib/dashboard-route";
+import { sanitizeReturnUrl } from "@/lib/dashboard-route";
 import { FormError } from "../../../../components/FormError";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -39,64 +35,14 @@ import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 
 type SignInValues = yup.InferType<typeof signInSchema>;
 
-type SessionUserLike = Parameters<typeof getDashboardRoute>[0];
-
-type BusinessContextPayload = {
-  organizations?: Array<{
-    organization?: {
-      status?: string | null;
-    } | null;
-  }>;
-};
-
-const BUSINESS_PORTAL_STATUSES = new Set([
-  "DRAFT",
-  "PENDING_VERIFICATION",
-  "ACTIVE",
-]);
-
-async function resolveBusinessAwareDefaultRoute(user: SessionUserLike) {
-  const defaultRoute = getDashboardRoute(user);
-
-  // Preserve dedicated admin, delivery, supplier and investor dashboards.
-  // Only ordinary users are upgraded to the Business Portal when they have
-  // an active organization membership.
-  if (defaultRoute !== USER_DASHBOARD_ROUTE) {
-    return defaultRoute;
-  }
-
-  try {
-    const response = await fetch("/api/business/context", {
-      cache: "no-store",
-    });
-    if (!response.ok) return defaultRoute;
-
-    const payload = (await response.json().catch(() => null)) as
-      | BusinessContextPayload
-      | null;
-    const organizations = Array.isArray(payload?.organizations)
-      ? payload.organizations
-      : [];
-
-    const hasAccessibleBusinessMembership = organizations.some((membership) => {
-      const status = membership?.organization?.status;
-      return typeof status === "string" && BUSINESS_PORTAL_STATUSES.has(status);
-    });
-
-    return hasAccessibleBusinessMembership ? "/business" : defaultRoute;
-  } catch {
-    // Authentication should still succeed if business-context discovery is
-    // temporarily unavailable; fall back to the ordinary user dashboard.
-    return defaultRoute;
-  }
-}
-
 const SigninForm = () => {
   const [formError, setFormError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const search = useSearchParams();
-  const returnUrl = search.get("returnUrl") || search.get("callbackUrl");
+  const returnUrl = sanitizeReturnUrl(
+    search.get("returnUrl") || search.get("callbackUrl"),
+  );
   const { status } = useSession();
 
   const form = useForm<SignInValues>({
@@ -114,14 +60,9 @@ const SigninForm = () => {
         redirect: false,
       });
       toast.dismiss(dismiss);
+
       if (res?.ok) {
         toast.success("Login successful");
-        const sessionResponse = await fetch("/api/auth/session", {
-          cache: "no-store",
-        });
-        const sessionData = sessionResponse.ok
-          ? await sessionResponse.json().catch(() => null)
-          : null;
 
         // Checkout continuity has the highest priority after authentication.
         const redirectAfterLogin = sessionStorage.getItem("redirectAfterLogin");
@@ -134,35 +75,26 @@ const SigninForm = () => {
             sessionStorage.removeItem("redirectAfterLogin");
 
             if (Array.isArray(cartItems) && cartItems.length > 0) {
-              router.replace("/ecommerce/checkout");
+              window.location.assign("/ecommerce/checkout");
               return;
             }
-
-            const fallbackRoute = await resolveBusinessAwareDefaultRoute(
-              sessionData?.user ?? null,
-            );
-            router.replace(fallbackRoute);
-            return;
           } catch {
             sessionStorage.removeItem("pendingCheckout");
             sessionStorage.removeItem("redirectAfterLogin");
           }
         }
 
-        // Explicit safe return URLs (for example a business invitation) must
-        // win over any default dashboard routing.
-        const safeReturnUrl = sanitizeReturnUrl(returnUrl);
-        if (safeReturnUrl) {
-          router.replace(safeReturnUrl);
-          return;
-        }
-
-        const nextRoute = await resolveBusinessAwareDefaultRoute(
-          sessionData?.user ?? null,
-        );
-        router.replace(nextRoute);
+        // Resolve the final dashboard on the server after the auth cookie is
+        // committed. This avoids a client-side session race immediately after
+        // credentials sign-in and lets Business Network membership participate
+        // in the default route decision reliably.
+        const postLoginUrl = returnUrl
+          ? `/post-login?returnUrl=${encodeURIComponent(returnUrl)}`
+          : "/post-login";
+        window.location.assign(postLoginUrl);
         return;
       }
+
       const message =
         res?.error ||
         "Invalid credentials. Please check your email and password.";
