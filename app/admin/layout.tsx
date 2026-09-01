@@ -92,6 +92,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     ? (((session?.user as any).permissions as string[]) ?? [])
     : [];
   const hasAdminPanelAccess = permissionKeys.includes("admin.panel.access");
+  const hasDashboardRead = permissionKeys.includes("dashboard.read");
+  const hasReportsRead = permissionKeys.includes("reports.read");
   const hasDeliveryDashboardAccess = permissionKeys.includes(
     "delivery.dashboard.access",
   );
@@ -110,6 +112,12 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     pathname === "/admin" &&
     dashboardRoute !== "/admin" &&
     hasAdminPanelAccess;
+
+  const limitedOverviewClass = !hasDashboardRead
+    ? hasReportsRead
+      ? "rbac-hide-dashboard-links"
+      : "rbac-hide-overview-section"
+    : "";
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -140,6 +148,17 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-background relative">
+      <style>{`
+        .rbac-hide-dashboard-links a[href="/admin"],
+        .rbac-hide-dashboard-links a[href="/admin/analytics"] {
+          display: none !important;
+        }
+
+        .rbac-hide-overview-section nav > div:first-child {
+          display: none !important;
+        }
+      `}</style>
+
       {openMobile && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-20 lg:hidden transition-opacity duration-300"
@@ -147,11 +166,11 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <div className={`fixed inset-y-0 left-0 transform ${openMobile ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out z-30 lg:hidden`}>
+      <div className={`fixed inset-y-0 left-0 transform ${openMobile ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out z-30 lg:hidden ${limitedOverviewClass}`}>
         <Sidebar isMobile onClose={() => setOpenMobile(false)} />
       </div>
 
-      <div className="hidden lg:block lg:w-60">
+      <div className={`hidden lg:block lg:w-60 ${limitedOverviewClass}`}>
         <Sidebar />
       </div>
 
