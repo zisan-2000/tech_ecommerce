@@ -32,19 +32,25 @@ function displayValue(value: unknown) {
   return String(value);
 }
 
-function isDetailActionAvailable(configKey: string, action: BusinessAction, data: JsonRecord | null) {
+function isDetailActionAvailable(configKey: string, action: BusinessAction, data: JsonRecord | null, actorUserId?: string) {
   if (!isBusinessActionAvailable(action, data?.status)) return false;
   if (configKey !== "quotations") return true;
   if (!data) return false;
 
   const status = typeof data.status === "string" ? data.status : "";
   const isApproved = Boolean(data.approvedAt && data.approvedById);
+  const versions = Array.isArray(data.versions) ? data.versions.filter(isRecord) : [];
+  const currentVersion = versions.find((version) => version.isCurrent === true) ?? versions[0];
+  const isMaker = Boolean(
+    actorUserId &&
+    (data.createdById === actorUserId || currentVersion?.createdById === actorUserId),
+  );
 
   switch (action.slug) {
     case "submit-review":
       return status === "DRAFT";
     case "approve":
-      return status === "INTERNAL_REVIEW" && !isApproved;
+      return status === "INTERNAL_REVIEW" && !isApproved && !isMaker;
     case "send":
       return status === "INTERNAL_REVIEW" && isApproved;
     case "cancel":
@@ -77,6 +83,7 @@ export function BusinessResourceDetail({ config, id, focus }: { config: Business
   const [form, setForm] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const permissions = useMemo(() => new Set(Array.isArray((session?.user as { permissions?: string[] } | undefined)?.permissions) ? (session?.user as { permissions: string[] }).permissions : []), [session]);
+  const actorUserId = (session?.user as { id?: string } | undefined)?.id;
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true); setError(null);
@@ -122,7 +129,7 @@ export function BusinessResourceDetail({ config, id, focus }: { config: Business
   return <section className="space-y-5">
     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div><Button asChild variant="ghost" size="sm" className="-ml-3 mb-2"><Link href={config.detailBasePath || "/admin/business-network"}><ArrowLeft className="mr-2 h-4 w-4" />Back to {config.title}</Link></Button><p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Business Network Record</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">{focus ? titleCase(focus) : config.title}</h1><p className="mt-1 text-sm text-muted-foreground">ID: {id}</p></div>
-      <div className="flex flex-wrap gap-2">{config.editForm && data && permissions.has(config.editForm.permission) ? <EditBusinessResourceDialog endpoint={`${config.endpoint}/${encodeURIComponent(id)}`} label={config.editForm.label} fields={config.editForm.fields} record={data} onComplete={() => void load()} /> : null}{config.actions?.filter((action) => permissions.has(action.permission) && isDetailActionAvailable(config.key, action, data)).map((action) => <Button key={action.slug} variant={action.tone === "danger" ? "destructive" : "outline"} onClick={() => openAction(action)}><ShieldCheck className="mr-2 h-4 w-4" />{action.label}</Button>)}</div>
+      <div className="flex flex-wrap gap-2">{config.editForm && data && permissions.has(config.editForm.permission) ? <EditBusinessResourceDialog endpoint={`${config.endpoint}/${encodeURIComponent(id)}`} label={config.editForm.label} fields={config.editForm.fields} record={data} onComplete={() => void load()} /> : null}{config.actions?.filter((action) => permissions.has(action.permission) && isDetailActionAvailable(config.key, action, data, actorUserId)).map((action) => <Button key={action.slug} variant={action.tone === "danger" ? "destructive" : "outline"} onClick={() => openAction(action)}><ShieldCheck className="mr-2 h-4 w-4" />{action.label}</Button>)}</div>
     </div>
     {config.key === "organizations" ? <nav aria-label="Organization record sections" className="flex flex-wrap gap-2 rounded-xl border bg-card p-2">{[["Overview", ""], ["Members", "/members"], ["Documents", "/documents"], ["Capabilities", "/capabilities"]].map(([label, suffix]) => <Button key={label} asChild size="sm" variant={(focus || "overview") === label.toLowerCase() ? "default" : "ghost"}><Link href={`/admin/business-network/organizations/${encodeURIComponent(id)}${suffix}`}>{label}</Link></Button>)}</nav> : null}
     {error ? <div role="alert" className="flex gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"><AlertCircle className="h-5 w-5" /><div><p className="font-medium">Could not load record</p><p className="text-sm">{error}</p></div></div> : loading ? <div className="space-y-4"><Skeleton className="h-36 w-full" /><Skeleton className="h-72 w-full" /></div> : focus && data ? <OrganizationFocus focus={focus} organizationId={id} records={data[focus]} endpoint={config.endpoint} permissions={permissions} onComplete={() => void load()} /> : focusedData ? <><div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"><CheckCircle2 className="h-4 w-4" />Live record loaded from the protected admin API.</div><ObjectGrid value={focusedData} />{config.key === "tiers" ? <BusinessRulesManager kind="pricing" parentId={id} rules={data?.rules} permissions={permissions} onComplete={() => void load()} /> : config.key === "commission-plans" ? <BusinessRulesManager kind="commission" parentId={id} rules={data?.rules} permissions={permissions} onComplete={() => void load()} /> : null}</> : null}
