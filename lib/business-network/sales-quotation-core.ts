@@ -39,6 +39,33 @@ export function assertSalesQuotationTransition(
   }
 }
 
+export function assertQuotationMakerCheckerSeparation(
+  makerUserIds: Iterable<string | null | undefined>,
+  approverUserId: string | null | undefined,
+): void {
+  if (!approverUserId) {
+    throw new BusinessNetworkError(
+      422,
+      "QUOTATION_APPROVER_REQUIRED",
+      "An authenticated quotation approver is required.",
+    );
+  }
+
+  const makerIds = new Set(
+    Array.from(makerUserIds).filter(
+      (userId): userId is string => typeof userId === "string" && userId.length > 0,
+    ),
+  );
+
+  if (makerIds.has(approverUserId)) {
+    throw new BusinessNetworkError(
+      409,
+      "QUOTATION_MAKER_CHECKER_VIOLATION",
+      "A quotation must be approved by a different authorized user than the user who created the quotation or its current version.",
+    );
+  }
+}
+
 export function assertQuotationVersionCanBeIssued(
   status: SalesQuotationVersionStatus,
   isCurrent: boolean,
