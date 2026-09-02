@@ -659,11 +659,17 @@ export default function SuppliersPage() {
     });
   };
 
-  const createSupplierCategory = async () => {
-    const name = newCategoryName.trim();
+  const createSupplierCategory = async (input?: {
+    name: string;
+    code?: string;
+    description?: string;
+  }) => {
+    const name = (input?.name ?? newCategoryName).trim();
+    const code = (input?.code ?? newCategoryCode).trim();
+    const description = (input?.description ?? newCategoryDescription).trim();
     if (!name) {
       toast.error("Category name is required.");
-      return;
+      return null;
     }
 
     try {
@@ -673,8 +679,8 @@ export default function SuppliersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
-          code: newCategoryCode.trim(),
-          description: newCategoryDescription.trim(),
+          code,
+          description,
         }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -694,26 +700,50 @@ export default function SuppliersPage() {
       setNewCategoryCode("");
       setNewCategoryDescription("");
       toast.success("Supplier category created.");
+      return created;
     } catch (error: any) {
       toast.error(error?.message || "Failed to create supplier category.");
+      return null;
     } finally {
       setCreatingCategory(false);
     }
   };
 
-  const saveSupplier = async () => {
-    if (!form.name.trim()) {
+  const saveSupplier = async (
+    formToSave: SupplierFormState = form,
+    editingIdToSave: number | null = editingId,
+  ) => {
+    const requiredTypes = getRequiredSupplierDocumentTypes(formToSave.companyType);
+    const currentDocuments = requiredTypes.map((type) => {
+      const draft = getDocumentDraft(formToSave.documents, type);
+
+      return {
+        type,
+        fileUrl:
+          draft && !draft.removed
+            ? draft.file
+              ? "__pending__"
+              : draft.fileUrl
+            : "",
+      };
+    });
+    const missingDocumentTypes = getMissingSupplierDocumentTypes(
+      formToSave.companyType,
+      currentDocuments,
+    );
+
+    if (!formToSave.name.trim()) {
       toast.error("Supplier name is required");
-      return;
+      return false;
     }
 
-    if (documentSummary.missing.length > 0) {
+    if (missingDocumentTypes.length > 0) {
       toast.error(
-        `Upload required documents first: ${documentSummary.missing
+        `Upload required documents first: ${missingDocumentTypes
           .map(getSupplierDocumentLabel)
           .join(", ")}`,
       );
-      return;
+      return false;
     }
 
     const uploadedDocuments: SupplierDocumentPayload[] = [];
@@ -721,8 +751,8 @@ export default function SuppliersPage() {
     try {
       setSaving(true);
 
-      for (const type of requiredDocumentTypes) {
-        const draft = getDocumentDraft(form.documents, type);
+      for (const type of requiredTypes) {
+        const draft = getDocumentDraft(formToSave.documents, type);
         if (!draft || draft.removed || !draft.file) continue;
 
         const fileUrl = await uploadFile(draft.file);
@@ -738,10 +768,10 @@ export default function SuppliersPage() {
       const uploadedMap = new Map(
         uploadedDocuments.map((document) => [document.type, document]),
       );
-      const requiredTypeSet = new Set(requiredDocumentTypes);
+      const requiredTypeSet = new Set(requiredTypes);
 
-      const documentsPayload = requiredDocumentTypes.flatMap((type) => {
-        const draft = getDocumentDraft(form.documents, type);
+      const documentsPayload = requiredTypes.flatMap((type) => {
+        const draft = getDocumentDraft(formToSave.documents, type);
         if (!draft || draft.removed) return [];
 
         const uploaded = uploadedMap.get(type);
@@ -761,7 +791,7 @@ export default function SuppliersPage() {
 
       const cleanupAfterSuccess = Array.from(
         new Set(
-          form.documents
+          formToSave.documents
             .filter(
               (document) =>
                 document.fileUrl &&
@@ -773,30 +803,30 @@ export default function SuppliersPage() {
         ),
       );
 
-      const url = editingId
-        ? `/api/scm/suppliers/${editingId}`
+      const url = editingIdToSave
+        ? `/api/scm/suppliers/${editingIdToSave}`
         : "/api/scm/suppliers";
-      const method = editingId ? "PATCH" : "POST";
+      const method = editingIdToSave ? "PATCH" : "POST";
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          code: form.code,
-          name: form.name,
-          companyType: form.companyType,
-          contactName: form.contactName,
-          email: form.email,
-          phone: form.phone,
-          address: form.address,
-          city: form.city,
-          country: form.country,
-          leadTimeDays: form.leadTimeDays || null,
-          paymentTermsDays: form.paymentTermsDays || null,
-          currency: form.currency,
-          taxNumber: form.taxNumber,
-          notes: form.notes,
-          isActive: form.isActive,
-          categoryIds: form.categoryIds
+          code: formToSave.code,
+          name: formToSave.name,
+          companyType: formToSave.companyType,
+          contactName: formToSave.contactName,
+          email: formToSave.email,
+          phone: formToSave.phone,
+          address: formToSave.address,
+          city: formToSave.city,
+          country: formToSave.country,
+          leadTimeDays: formToSave.leadTimeDays || null,
+          paymentTermsDays: formToSave.paymentTermsDays || null,
+          currency: formToSave.currency,
+          taxNumber: formToSave.taxNumber,
+          notes: formToSave.notes,
+          isActive: formToSave.isActive,
+          categoryIds: formToSave.categoryIds
             .map((value) => Number(value))
             .filter((value) => Number.isInteger(value) && value > 0),
           documents: documentsPayload,
@@ -811,14 +841,16 @@ export default function SuppliersPage() {
         cleanupAfterSuccess.map((fileUrl) => deleteLocalUpload(fileUrl)),
       );
 
-      toast.success(editingId ? "Supplier updated" : "Supplier created");
+      toast.success(editingIdToSave ? "Supplier updated" : "Supplier created");
       resetForm();
       await loadSuppliers();
+      return true;
     } catch (error: any) {
       await Promise.allSettled(
         uploadedDocuments.map((document) => deleteLocalUpload(document.fileUrl)),
       );
       toast.error(error?.message || "Failed to save supplier");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -850,15 +882,7 @@ export default function SuppliersPage() {
       notes: supplier.notes || "",
       isActive: supplier.isActive,
       categoryIds: supplier.categories.map((cat: any) => String(cat.id)),
-      documents: supplier.documents.reduce((acc: any, doc: any) => {
-        acc[doc.type] = {
-          fileName: doc.fileName,
-          fileSize: doc.fileSize,
-          mimeType: doc.mimeType,
-          fileUrl: doc.fileUrl,
-        };
-        return acc;
-      }, {}),
+      documents: toDraftDocuments(supplier.documents),
     });
     setModalOpen(true);
   };
@@ -870,30 +894,26 @@ export default function SuppliersPage() {
   };
 
   const handleModalSave = async () => {
-    // Temporarily set the main form to modal form for validation and saving
-    const originalForm = form;
-    const originalEditingId = editingId;
-    
-    setForm(modalForm);
-    setEditingId(modalEditingId);
-    
-    await saveSupplier();
-    
-    // Restore original form state
-    setForm(originalForm);
-    setEditingId(originalEditingId);
-    
-    if (!saving) { // Only close if save was successful
+    const saved = await saveSupplier(modalForm, modalEditingId);
+
+    if (saved) {
       closeModal();
     }
   };
 
   const handleModalDocumentFileChange = (type: SupplierDocumentType, file: File | null) => {
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error("Each supplier document must be 10 MB or smaller.");
+      return;
+    }
+
     setModalForm((prev) => ({
       ...prev,
       documents: upsertDocumentDraft(prev.documents, {
         type,
-        fileUrl: '',
+        fileUrl: getDocumentDraft(prev.documents, type)?.fileUrl || "",
         fileName: file?.name || null,
         fileSize: file?.size || null,
         mimeType: file?.type || null,
@@ -939,21 +959,16 @@ export default function SuppliersPage() {
   };
 
   const handleModalCreateCategory = async (name: string, code: string, description: string) => {
-    // Temporarily set the global state variables for the create function
-    const originalName = newCategoryName;
-    const originalCode = newCategoryCode;
-    const originalDescription = newCategoryDescription;
-    
-    setNewCategoryName(name);
-    setNewCategoryCode(code);
-    setNewCategoryDescription(description);
-    
-    await createSupplierCategory();
-    
-    // Restore original values
-    setNewCategoryName(originalName);
-    setNewCategoryCode(originalCode);
-    setNewCategoryDescription(originalDescription);
+    const created = await createSupplierCategory({ name, code, description });
+    if (!created) return false;
+
+    setModalForm((prev) => ({
+      ...prev,
+      categoryIds: prev.categoryIds.includes(String(created.id))
+        ? prev.categoryIds
+        : [...prev.categoryIds, String(created.id)],
+    }));
+    return true;
   };
 
   const companyMeta = SUPPLIER_COMPANY_TYPE_META[form.companyType];

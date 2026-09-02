@@ -107,7 +107,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const name = toCleanText(body.name, 80);
+    const name =
+      toCleanText(body.name, 80) ||
+      toCleanText(body.categoryName, 80) ||
+      toCleanText(body.title, 80);
     if (!name) {
       return NextResponse.json({ error: "Category name is required." }, { status: 400 });
     }

@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       file,
       bytes: buffer,
       kind: "image-or-pdf",
-      maxBytes: 5 * 1024 * 1024,
+      maxBytes: 10 * 1024 * 1024,
     });
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 });

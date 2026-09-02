@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -33,12 +33,31 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { type SupplierDocumentType } from "@/lib/supplier-documents";
+import {
+  SUPPLIER_COMPANY_TYPE_META,
+  SUPPLIER_COMPANY_TYPES,
+  SUPPLIER_DOCUMENT_SECTIONS,
+  getMissingSupplierDocumentTypes,
+  getRequiredSupplierDocumentTypes,
+  getSupplierDocumentLabel,
+  type SupplierCompanyType,
+  type SupplierDocumentType,
+} from "@/lib/supplier-documents";
+
+type SupplierDocumentDraft = {
+  type: SupplierDocumentType;
+  fileUrl: string;
+  fileName: string | null;
+  mimeType: string | null;
+  fileSize: number | null;
+  file: File | null;
+  removed: boolean;
+};
 
 type SupplierFormState = {
   code: string;
   name: string;
-  companyType: "MANUFACTURER" | "TRADER" | "SERVICE_PROVIDER" | "DISTRIBUTOR" | "IMPORTER" | "EXPORTER";
+  companyType: SupplierCompanyType;
   contactName: string;
   email: string;
   phone: string;
@@ -52,86 +71,7 @@ type SupplierFormState = {
   notes: string;
   isActive: boolean;
   categoryIds: string[];
-  documents: Record<string, { file?: File; fileName?: string; fileSize?: number; mimeType?: string; removed?: boolean }>;
-};
-
-const SUPPLIER_COMPANY_TYPE_META = {
-  MANUFACTURER: {
-    label: "Manufacturer",
-    shortLabel: "MFG",
-    description: "Produces finished goods from raw materials",
-  },
-  TRADER: {
-    label: "Trader",
-    shortLabel: "TRD",
-    description: "Buys and sells finished goods without manufacturing",
-  },
-  SERVICE_PROVIDER: {
-    label: "Service Provider",
-    shortLabel: "SVC",
-    description: "Provides services rather than physical goods",
-  },
-  DISTRIBUTOR: {
-    label: "Distributor",
-    shortLabel: "DST",
-    description: "Acts as intermediary between manufacturer and retailer",
-  },
-  IMPORTER: {
-    label: "Importer",
-    shortLabel: "IMP",
-    description: "Brings goods from foreign countries for domestic sale",
-  },
-  EXPORTER: {
-    label: "Exporter",
-    shortLabel: "EXP",
-    description: "Sells domestic goods to foreign markets",
-  },
-};
-
-const getRequiredSupplierDocumentTypes = (companyType: string): SupplierDocumentType[] => {
-  switch (companyType) {
-    case "MANUFACTURER":
-      return ["TRADE_LICENSE", "VAT_REGISTRATION", "MANUFACTURING_LICENSE", "FACTORY_DOCUMENTATION"] as SupplierDocumentType[];
-    case "TRADER":
-      return ["TRADE_LICENSE", "VAT_REGISTRATION", "BUSINESS_REGISTRATION"] as SupplierDocumentType[];
-    case "SERVICE_PROVIDER":
-      return ["TRADE_LICENSE", "SERVICE_LICENSE", "PROFESSIONAL_CERTIFICATION"] as SupplierDocumentType[];
-    case "DISTRIBUTOR":
-      return ["TRADE_LICENSE", "VAT_REGISTRATION", "DISTRIBUTORSHIP_AGREEMENT"] as SupplierDocumentType[];
-    case "IMPORTER":
-      return ["TRADE_LICENSE", "IMPORT_LICENSE", "VAT_REGISTRATION"] as SupplierDocumentType[];
-    case "EXPORTER":
-      return ["TRADE_LICENSE", "EXPORT_LICENSE", "VAT_REGISTRATION"] as SupplierDocumentType[];
-    default:
-      return [] as SupplierDocumentType[];
-  }
-};
-
-const getSupplierDocumentLabel = (type: string) => {
-  switch (type) {
-    case "TRADE_LICENSE":
-      return "Trade License";
-    case "VAT_REGISTRATION":
-      return "VAT Registration";
-    case "MANUFACTURING_LICENSE":
-      return "Manufacturing License";
-    case "FACTORY_DOCUMENTATION":
-      return "Factory Documentation";
-    case "BUSINESS_REGISTRATION":
-      return "Business Registration";
-    case "SERVICE_LICENSE":
-      return "Service License";
-    case "PROFESSIONAL_CERTIFICATION":
-      return "Professional Certification";
-    case "DISTRIBUTORSHIP_AGREEMENT":
-      return "Distributorship Agreement";
-    case "IMPORT_LICENSE":
-      return "Import License";
-    case "EXPORT_LICENSE":
-      return "Export License";
-    default:
-      return type;
-  }
+  documents: SupplierDocumentDraft[];
 };
 
 type SupplierCategory = {
@@ -154,7 +94,7 @@ type SupplierModalProps = {
   onDocumentFileChange: (type: SupplierDocumentType, file: File | null) => void;
   onDocumentRemove: (type: SupplierDocumentType) => void;
   onToggleCategory: (categoryId: number) => void;
-  onCreateCategory: (name: string, code: string, description: string) => Promise<void>;
+  onCreateCategory: (name: string, code: string, description: string) => Promise<boolean>;
   creatingCategory: boolean;
 };
 
@@ -179,40 +119,40 @@ export default function SupplierModal({
   const [newCategoryDescription, setNewCategoryDescription] = useState("");
 
   const requiredDocumentTypes = getRequiredSupplierDocumentTypes(form.companyType);
-  const companyMeta = SUPPLIER_COMPANY_TYPE_META[form.companyType] || {
-    label: "Unknown",
-    shortLabel: "UNK",
-    description: "Company type not specified",
-  };
+  const companyMeta = SUPPLIER_COMPANY_TYPE_META[form.companyType];
 
+  const getDocumentDraft = (
+    documents: SupplierDocumentDraft[],
+    type: SupplierDocumentType,
+  ) => documents.find((document) => document.type === type);
+
+  const summaryDocuments = requiredDocumentTypes.map((type) => {
+    const draft = getDocumentDraft(form.documents, type);
+    return {
+      type,
+      fileUrl:
+        draft && !draft.removed
+          ? draft.file
+            ? "__pending__"
+            : draft.fileUrl
+          : "",
+    };
+  });
+  const missingDocumentTypes = getMissingSupplierDocumentTypes(
+    form.companyType,
+    summaryDocuments,
+  );
   const documentSummary = {
-    uploaded: requiredDocumentTypes.filter(type => form.documents[type]?.fileName && !form.documents[type]?.removed).length,
+    uploaded: requiredDocumentTypes.length - missingDocumentTypes.length,
     required: requiredDocumentTypes.length,
-    progress: requiredDocumentTypes.length > 0 
-      ? Math.round((requiredDocumentTypes.filter(type => form.documents[type]?.fileName && !form.documents[type]?.removed).length / requiredDocumentTypes.length) * 100)
+    progress: requiredDocumentTypes.length > 0
+      ? Math.round(((requiredDocumentTypes.length - missingDocumentTypes.length) / requiredDocumentTypes.length) * 100)
       : 0,
-    complete: requiredDocumentTypes.every(type => form.documents[type]?.fileName && !form.documents[type]?.removed),
-    missing: requiredDocumentTypes.filter(type => !form.documents[type]?.fileName || form.documents[type]?.removed),
+    complete: missingDocumentTypes.length === 0,
+    missing: missingDocumentTypes,
   };
 
-  const documentSections = [
-    {
-      title: "Legal Documents",
-      description: "Business registration and compliance certificates",
-      types: requiredDocumentTypes.filter(type => 
-        ["TRADE_LICENSE", "VAT_REGISTRATION", "BUSINESS_REGISTRATION"].includes(type)
-      ),
-    },
-    {
-      title: "Operational Documents",
-      description: "Industry-specific licenses and permits",
-      types: requiredDocumentTypes.filter(type => 
-        !["TRADE_LICENSE", "VAT_REGISTRATION", "BUSINESS_REGISTRATION"].includes(type)
-      ),
-    },
-  ];
-
-  const getDocumentDraft = (documents: any, type: SupplierDocumentType) => documents[type];
+  const documentSections = SUPPLIER_DOCUMENT_SECTIONS[form.companyType];
 
   const DocumentUploadCard = ({ 
     type, 
@@ -227,9 +167,9 @@ export default function SupplierModal({
     onFileChange: (type: SupplierDocumentType, file: File | null) => void; 
     onRemove: (type: SupplierDocumentType) => void; 
   }) => {
-    const hasSavedFile = draft?.fileName && !draft?.removed;
-    const hasPendingFile = draft?.file;
-    const isMarkedForRemoval = draft?.removed;
+    const hasSavedFile = Boolean(draft?.fileUrl && !draft?.removed);
+    const hasPendingFile = Boolean(draft?.file);
+    const isMarkedForRemoval = Boolean(draft?.removed);
 
     let statusLabel = "Required";
     let statusClasses = "border-muted/50 bg-muted/30 text-muted-foreground";
@@ -342,9 +282,18 @@ export default function SupplierModal({
     );
   };
 
-  const handleCreateCategory = async () => {
-    if (!newCategoryName.trim()) return;
-    await onCreateCategory(newCategoryName, newCategoryCode, newCategoryDescription);
+  const handleCreateCategory = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const name = String(formData.get("categoryName") || "").trim();
+    const code = String(formData.get("categoryCode") || "").trim();
+    const description = String(formData.get("categoryDescription") || "").trim();
+    if (!name) return;
+
+    const created = await onCreateCategory(name, code, description);
+    if (!created) return;
+
     setNewCategoryName("");
     setNewCategoryCode("");
     setNewCategoryDescription("");
@@ -469,11 +418,14 @@ export default function SupplierModal({
                         <SelectValue placeholder="Select company type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(SUPPLIER_COMPANY_TYPE_META).map(([key, meta]) => (
+                        {SUPPLIER_COMPANY_TYPES.map((key) => {
+                          const meta = SUPPLIER_COMPANY_TYPE_META[key];
+                          return (
                           <SelectItem key={key} value={key}>
                             {meta.label}
                           </SelectItem>
-                        ))}
+                        );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
@@ -665,35 +617,40 @@ export default function SupplierModal({
               <p className="text-xs font-medium text-muted-foreground">
                 Add New Category
               </p>
-              <div className="grid gap-2 sm:grid-cols-[1fr_0.8fr_1.2fr_auto]">
+              <form
+                className="grid gap-2 sm:grid-cols-[1fr_0.8fr_1.2fr_auto]"
+                onSubmit={handleCreateCategory}
+              >
                 <Input
+                  name="categoryName"
                   placeholder="Category name"
                   value={newCategoryName}
                   onChange={(event) => setNewCategoryName(event.target.value)}
                   className="text-sm"
                 />
                 <Input
+                  name="categoryCode"
                   placeholder="Code (optional)"
                   value={newCategoryCode}
                   onChange={(event) => setNewCategoryCode(event.target.value)}
                   className="text-sm"
                 />
                 <Input
+                  name="categoryDescription"
                   placeholder="Description (optional)"
                   value={newCategoryDescription}
                   onChange={(event) => setNewCategoryDescription(event.target.value)}
                   className="text-sm"
                 />
                 <Button
-                  type="button"
+                  type="submit"
                   variant="outline"
-                  disabled={creatingCategory || !newCategoryName.trim()}
-                  onClick={handleCreateCategory}
+                  disabled={creatingCategory}
                   size="sm"
                 >
                   {creatingCategory ? "Adding..." : "Add"}
                 </Button>
-              </div>
+              </form>
             </div>
           </div>
 
