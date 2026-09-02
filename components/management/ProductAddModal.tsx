@@ -489,7 +489,7 @@ export default function ProductAddModal({
             colorValue && previousGalleryByColor.has(colorValue)
               ? previousGalleryByColor.get(colorValue) ?? []
               : previous?.gallery ?? [],
-          sku: form.sku.trim().toUpperCase() || previous?.sku || "",
+          sku: form.sku.trim() || previous?.sku || "",
           price: previous?.price ?? form.basePrice ?? "",
           costPrice: previous?.costPrice ?? form.baseCostPrice ?? "",
           stock: previous?.stock ?? "0",
@@ -653,9 +653,8 @@ export default function ProductAddModal({
   };
 
   const handleProductSkuChange = (value: string) => {
-    const sku = value.toUpperCase();
-    setForm((prev) => ({ ...prev, sku }));
-    setVariantRows((prev) => prev.map((row) => ({ ...row, sku })));
+    setForm((prev) => ({ ...prev, sku: value }));
+    setVariantRows((prev) => prev.map((row) => ({ ...row, sku: value })));
   };
 
   const handleBasePriceChange = (value: string) => {
@@ -702,8 +701,8 @@ export default function ProductAddModal({
     const normalizedVariants = variantRows.map((row) => ({
       id: row.id,
       sku: hasVariants
-        ? form.sku.trim().toUpperCase()
-        : row.sku.trim().toUpperCase(),
+        ? form.sku.trim()
+        : row.sku.trim(),
       price: row.price.trim() ? Number(row.price) : basePrice,
       costPrice: row.costPrice.trim() ? Number(row.costPrice) : baseCostPrice,
       stock: row.stock.trim() ? Number(row.stock) : 0,
@@ -789,7 +788,7 @@ export default function ProductAddModal({
         description: form.description || "",
         shortDesc: form.shortDesc || null,
         type: form.type,
-        sku: form.sku.trim().toUpperCase() || null,
+        sku: form.sku.trim() || null,
         categoryId: Number(form.categoryId),
         brandId: form.brandId ? Number(form.brandId) : null,
         basePrice,

@@ -383,7 +383,7 @@ export async function POST(req: Request) {
             : 0;
         const skuRaw =
           typeof item?.sku === "string" && item.sku.trim()
-            ? item.sku.trim().toUpperCase()
+            ? item.sku.trim()
             : createVariantSku(truncatedSlug, index);
         const sku = skuRaw.slice(0, 64);
         const variantCurrency =
@@ -452,7 +452,7 @@ export async function POST(req: Request) {
           type,
           sku:
             typeof body.sku === "string" && body.sku.trim()
-              ? body.sku.trim().toUpperCase().slice(0, 64)
+              ? body.sku.trim().slice(0, 64)
               : null,
 
           categoryId: Number(body.categoryId),
@@ -566,7 +566,10 @@ export async function POST(req: Request) {
         const fallbackVariant = await tx.productVariant.create({
           data: {
             productId: created.id,
-            sku: createVariantSku(truncatedSlug, 0).slice(0, 64),
+            sku:
+              typeof body.sku === "string" && body.sku.trim()
+                ? body.sku.trim().slice(0, 64)
+                : createVariantSku(truncatedSlug, 0).slice(0, 64),
             price: basePrice,
             costPrice: baseCostPrice,
             currency,

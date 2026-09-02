@@ -34,6 +34,7 @@ interface WishlistApiItem {
     type?: string | null;
     sku?: string | null;
     available?: boolean | null;
+    stock?: number | string | null;
   };
 }
 
@@ -45,6 +46,10 @@ interface WishlistProduct {
   originalPrice: number;
   discount: number;
   image: string;
+  type: string | null;
+  available: boolean;
+  stock: number;
+  isPurchasable: boolean;
   specs: Array<{ label: string; value: string }>;
 }
 
@@ -211,12 +216,19 @@ export default function WishlistPage() {
               : 0;
 
           const discount = Number.isFinite(apiDiscount) ? apiDiscount : computedDiscount;
+          const type = w.product?.type ? String(w.product.type) : null;
+          const stock = toNumber(w.product?.stock, 0);
+          const available = w.product?.available !== false;
+          const isStockTracked = !type || type === "PHYSICAL" || type === "BUNDLE";
+          const isPurchasable = available && (!isStockTracked || stock > 0);
 
           const specs: Array<{ label: string; value: string }> = [];
           if (w.product?.sku) specs.push({ label: "SKU", value: String(w.product.sku) });
-          if (w.product?.type) specs.push({ label: "Type", value: String(w.product.type) });
-          if (typeof w.product?.available === "boolean")
-            specs.push({ label: "Availability", value: w.product.available ? "In stock" : "Out of stock" });
+          if (type) specs.push({ label: "Type", value: type });
+          specs.push({
+            label: "Availability",
+            value: isPurchasable ? "In stock" : "Out of stock",
+          });
 
           return {
             wishlistId: w.id,
@@ -226,6 +238,10 @@ export default function WishlistPage() {
             originalPrice: toNumber(finalOriginal, toNumber(finalPrice, 0)),
             discount: toNumber(discount, 0),
             image: w.product?.image ?? "/placeholder.svg",
+            type,
+            available,
+            stock,
+            isPurchasable,
             specs: specs.slice(0, 6),
           };
         });
@@ -272,13 +288,19 @@ export default function WishlistPage() {
     }
   };
 
-  const handleAddToCart = (product: WishlistProduct) => {
+  const handleAddToCart = async (product: WishlistProduct) => {
     if (!isAuthenticated) {
       toast.info("Please login to add items to cart.");
       return;
     }
-    addToCart(product.productId);
-    toast.success(`Added to cart: ${product.name}`);
+    if (!product.isPurchasable) {
+      toast.error("This product is out of stock.");
+      return;
+    }
+
+    const added = await addToCart(product.productId);
+    if (added) toast.success(`Added to cart: ${product.name}`);
+    else toast.error("This product could not be added to cart.");
   };
 
   const title = useMemo(() => `Wishlist (${wishlistProducts.length})`, [wishlistProducts.length]);
@@ -466,10 +488,16 @@ export default function WishlistPage() {
                           )}
                         </div>
 
-                        <Button onClick={() => handleAddToCart(item)} className="btn-primary rounded-xl h-10 px-4">
-                          <ShoppingCart className="h-4 w-4 mr-2" />
-                          Add to Cart
-                        </Button>
+                        {item.isPurchasable ? (
+                          <Button onClick={() => void handleAddToCart(item)} className="btn-primary rounded-xl h-10 px-4">
+                            <ShoppingCart className="h-4 w-4 mr-2" />
+                            Add to Cart
+                          </Button>
+                        ) : (
+                          <Button disabled variant="outline" className="rounded-xl h-10 px-4">
+                            Out of Stock
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

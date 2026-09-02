@@ -34,6 +34,8 @@ import {
   Flame,
   Power,
   PowerOff,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -67,6 +69,8 @@ type WarehouseStats = {
   outOfStockItems: number;
   reservedUnits: number;
 };
+
+const PRODUCTS_PER_PAGE = 24;
 
 export default function ProductManager({
   products,
@@ -118,6 +122,7 @@ export default function ProductManager({
   );
   const [warehouseLoading, setWarehouseLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const hasActiveFilters = Boolean(
     search ||
@@ -136,14 +141,27 @@ export default function ProductManager({
     setFeaturedFilter("");
     setStockFilter("");
     setSortBy("name-asc");
+    setCurrentPage(1);
   };
 
   const productList = Array.isArray(products) ? products : [];
 
   const filtered = useMemo(() => {
-    let result = productList.filter((p: any) =>
-      String(p.name ?? "").toLowerCase().includes(search.toLowerCase()),
-    );
+    const query = search.trim().toLowerCase();
+    let result = productList.filter((p: any) => {
+      if (!query) return true;
+      return [
+        p.name,
+        p.sku,
+        p.category?.name,
+        p.brand?.name,
+        ...(Array.isArray(p.variants)
+          ? p.variants.map((variant: any) => variant?.sku)
+          : []),
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
 
     if (categoryFilter) {
       result = result.filter(
@@ -267,6 +285,46 @@ export default function ProductManager({
     warehouseId,
     warehouses,
   ]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+  const paginationPages = useMemo(() => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    const end = Math.min(totalPages, start + maxVisible - 1);
+    start = Math.max(1, end - maxVisible + 1);
+
+    for (let page = start; page <= end; page += 1) {
+      pages.push(page);
+    }
+
+    return pages;
+  }, [currentPage, totalPages]);
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
+    return filtered.slice(start, start + PRODUCTS_PER_PAGE);
+  }, [currentPage, filtered]);
+  const pageStart = filtered.length === 0 ? 0 : (currentPage - 1) * PRODUCTS_PER_PAGE + 1;
+  const pageEnd = Math.min(currentPage * PRODUCTS_PER_PAGE, filtered.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    search,
+    categoryFilter,
+    productTypeFilter,
+    availabilityFilter,
+    featuredFilter,
+    stockFilter,
+    sortBy,
+    warehouseId,
+  ]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const fetchWarehouseData = useCallback(
     async (nextWarehouseId?: string, showRefresh = false) => {
@@ -1160,6 +1218,14 @@ export default function ProductManager({
         </CardContent>
       </Card>
 
+      {!loading && filtered.length > 0 && (
+        <div className="mb-4 flex flex-col gap-3 px-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p>
+            Showing {pageStart}-{pageEnd} of {filtered.length} products
+          </p>
+        </div>
+      )}
+
       {/* LOADING */}
       {loading ? (
         <div className="grid grid-cols-1 gap-4 px-4 sm:grid-cols-2 sm:gap-6 sm:px-6 xl:grid-cols-3 2xl:grid-cols-4">
@@ -1202,7 +1268,7 @@ export default function ProductManager({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 px-4 pb-6 sm:grid-cols-2 sm:gap-6 sm:px-6 xl:grid-cols-3 2xl:grid-cols-4">
-          {filtered.map((p: any) => {
+          {paginatedProducts.map((p: any) => {
             const flashSaleStatus = getFlashSaleStatus(p);
 
             return (
@@ -1416,6 +1482,48 @@ export default function ProductManager({
               </SpotlightCard>
             );
           })}
+        </div>
+      )}
+
+      {!loading && filtered.length > 0 && totalPages > 1 && (
+        <div className="mb-6 flex flex-col gap-3 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            {paginationPages.map((page) => (
+              <Button
+                key={page}
+                type="button"
+                variant={page === currentPage ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCurrentPage(page)}
+                className="min-w-8"
+              >
+                {page}
+              </Button>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={currentPage === totalPages}
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
 

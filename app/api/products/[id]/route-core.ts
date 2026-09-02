@@ -409,7 +409,7 @@ export async function PUT(
             : 0;
         const skuRaw =
           typeof item?.sku === "string" && item.sku.trim()
-            ? item.sku.trim().toUpperCase()
+            ? item.sku.trim()
             : `${slug.substring(0, 20)}-V${index + 1}`.slice(0, 64);
 
         return {
@@ -463,7 +463,7 @@ export async function PUT(
           sku:
             body.sku !== undefined
               ? body.sku
-                ? String(body.sku).trim().toUpperCase().slice(0, 64)
+                ? String(body.sku).trim().slice(0, 64)
                 : null
               : existing.sku,
           categoryId: body.categoryId ? Number(body.categoryId) : existing.categoryId,
@@ -691,7 +691,7 @@ export async function PUT(
               data: {
                 sku:
                   body.sku && String(body.sku).trim()
-                    ? String(body.sku).trim().toUpperCase().slice(0, 64)
+                    ? String(body.sku).trim().slice(0, 64)
                     : defaultVariant.sku,
                 price: nextBasePrice,
                 costPrice:
@@ -715,7 +715,7 @@ export async function PUT(
                 productId: id,
                 sku:
                   body.sku && String(body.sku).trim()
-                    ? String(body.sku).trim().toUpperCase().slice(0, 64)
+                    ? String(body.sku).trim().slice(0, 64)
                     : `${slug.substring(0, 20)}-V1`.toUpperCase(),
                 price: nextBasePrice,
                 costPrice: nextBaseCostPrice ?? null,
