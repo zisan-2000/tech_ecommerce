@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Send, Edit, Trash2, Eye } from "lucide-react";
+import { AlertCircle, Plus, Send, Edit, Trash2, Eye } from "lucide-react";
 import JoditEditorComponent from "@/components/admin/blog/JoditEditor";
 
 interface Newsletter {
@@ -37,6 +37,7 @@ export default function NewsletterManagement() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [previewNewsletter, setPreviewNewsletter] = useState<Newsletter | null>(
     null,
   );
@@ -120,6 +121,7 @@ export default function NewsletterManagement() {
   const handleSend = async (id: string) => {
     try {
       setSendingId(id);
+      setSendError(null);
       const response = await fetch(`${API_BASE}/${id}/send`, {
         method: "POST",
       });
@@ -127,15 +129,23 @@ export default function NewsletterManagement() {
 
       if (response.ok) {
         showToast("Success", result.message || "Newsletter sent successfully");
+        setSendError(null);
         fetchNewsletters();
       } else {
         throw new Error(result.error || "Failed to send newsletter");
       }
     } catch (error) {
       console.error("Failed to send newsletter:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to send newsletter";
+      const displayMessage =
+        errorMessage === "No subscribers found."
+          ? "No subscribed recipients found. Please add at least one active subscriber before sending this newsletter."
+          : errorMessage;
+      setSendError(displayMessage);
       showToast(
         "Error",
-        error instanceof Error ? error.message : "Failed to send newsletter",
+        displayMessage,
         "destructive",
       );
     } finally {
@@ -285,6 +295,19 @@ export default function NewsletterManagement() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {sendError && (
+        <div
+          role="alert"
+          className="mb-6 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-destructive"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold">Newsletter was not sent</p>
+            <p className="text-sm leading-relaxed">{sendError}</p>
+          </div>
+        </div>
+      )}
 
       {/* Newsletter Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
