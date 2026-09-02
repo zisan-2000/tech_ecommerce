@@ -415,6 +415,20 @@ const menuItems: MenuItem[] = [
             ],
           },
           {
+            name: "Supplier Invoices",
+            href: "/admin/scm/supplier-invoices",
+            requiredPermissions: [
+              "supplier_invoices.read",
+              "supplier_invoices.manage",
+              "supplier_ledger.read",
+            ],
+            requiredGlobalPermissions: [
+              "supplier_invoices.read",
+              "supplier_invoices.manage",
+              "supplier_ledger.read",
+            ],
+          },
+          {
             name: "Supplier Ledger",
             href: "/admin/scm/supplier-ledger",
             requiredPermissions: [

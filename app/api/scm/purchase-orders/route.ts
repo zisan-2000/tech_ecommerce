@@ -22,6 +22,7 @@ const PURCHASE_ORDER_READ_PERMISSIONS = [
   "purchase_orders.approve_committee",
   "purchase_orders.approve_final",
   "goods_receipts.manage",
+  "supplier_invoices.manage",
 ] as const;
 
 function toCleanText(value: unknown, max = 500) {

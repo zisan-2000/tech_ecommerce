@@ -161,9 +161,7 @@ export default function NewGoodsReceiptPage() {
       });
       const created = await readJson<GoodsReceipt>(response, "Failed to post goods receipt");
       toast.success("Goods receipt posted");
-      router.push(
-        `/admin/scm/goods-receipts?search=${encodeURIComponent(created.receiptNumber)}&focus=pending-confirmation`,
-      );
+      router.push(`/admin/scm/goods-receipts/${created.id}`);
       router.refresh();
     } catch (error: any) {
       toast.error(error?.message || "Failed to post goods receipt");

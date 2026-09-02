@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -228,6 +228,9 @@ export default function PurchaseOrderDetailPage() {
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
     : [];
+  const globalPermissions = Array.isArray((session?.user as any)?.globalPermissions)
+    ? ((session?.user as any).globalPermissions as string[])
+    : [];
   const canManage = permissions.includes("purchase_orders.manage");
   const canApproveLegacy = permissions.includes("purchase_orders.approve");
   const canApproveManager =
@@ -237,6 +240,7 @@ export default function PurchaseOrderDetailPage() {
   const canApproveFinal =
     permissions.includes("purchase_orders.approve_final") || canApproveLegacy;
   const canApproveAny = canApproveManager || canApproveCommittee || canApproveFinal;
+  const canManageSupplierInvoices = globalPermissions.includes("supplier_invoices.manage");
 
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -421,6 +425,8 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
+  const hasReceivedGoods = purchaseOrder?.items.some((item) => item.quantityReceived > 0) ?? false;
+
   if (loading) {
     return (
       <div className="space-y-6 p-6">
@@ -477,6 +483,14 @@ export default function PurchaseOrderDetailPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
+          {canManageSupplierInvoices && hasReceivedGoods ? (
+            <Button asChild>
+              <Link href={`/admin/scm/supplier-invoices?purchaseOrderId=${purchaseOrder.id}`}>
+                <FileText className="mr-2 h-4 w-4" />
+                Generate Supplier Invoice
+              </Link>
+            </Button>
+          ) : null}
           {actionButtons.map((button) => (
             <Button
               key={button.action}
@@ -884,7 +898,7 @@ export default function PurchaseOrderDetailPage() {
           {(purchaseOrder.goodsReceipts?.length || 0) > 0 ? (
             <Card>
               <CardHeader>
-                <CardTitle>Receipt Links</CardTitle>
+                <CardTitle>Receipt & Invoice Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {purchaseOrder.goodsReceipts?.map((receipt) => (
@@ -895,6 +909,14 @@ export default function PurchaseOrderDetailPage() {
                     </Link>
                   </Button>
                 ))}
+                {canManageSupplierInvoices ? (
+                  <Button asChild className="w-full justify-start">
+                    <Link href={`/admin/scm/supplier-invoices?purchaseOrderId=${purchaseOrder.id}`}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Generate Supplier Invoice
+                    </Link>
+                  </Button>
+                ) : null}
               </CardContent>
             </Card>
           ) : null}

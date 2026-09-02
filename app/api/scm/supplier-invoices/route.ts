@@ -22,6 +22,19 @@ function canReadSupplierInvoices(access: Awaited<ReturnType<typeof getAccessCont
   return access.hasGlobal("supplier_ledger.read") || access.hasGlobal("supplier_invoices.read") || access.hasGlobal("supplier_invoices.manage");
 }
 
+const supplierInvoiceListInclude = {
+  ...supplierInvoiceInclude,
+  ledgerEntries: {
+    where: {
+      entryType: "ADJUSTMENT" as const,
+      direction: "CREDIT" as const,
+    },
+    select: {
+      amount: true,
+    },
+  },
+} satisfies Prisma.SupplierInvoiceInclude;
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -43,7 +56,7 @@ export async function GET(request: NextRequest) {
         ...(status ? { status: status as any } : {}),
       },
       orderBy: [{ issueDate: "desc" }, { id: "desc" }],
-      include: supplierInvoiceInclude,
+      include: supplierInvoiceListInclude,
     });
 
     return NextResponse.json(invoices);

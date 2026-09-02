@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { uploadFile } from "@/lib/upload-file";
 import { Button } from "@/components/ui/button";
@@ -150,7 +150,11 @@ export default function GoodsReceiptDetailPage() {
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
     : [];
+  const globalPermissions = Array.isArray((session?.user as any)?.globalPermissions)
+    ? ((session?.user as any).globalPermissions as string[])
+    : [];
   const canManagePosting = permissions.includes("goods_receipts.manage");
+  const canManageSupplierInvoices = globalPermissions.includes("supplier_invoices.manage");
 
   const [receipt, setReceipt] = useState<GoodsReceipt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -348,6 +352,14 @@ export default function GoodsReceiptDetailPage() {
           {canManagePosting ? (
             <Button asChild variant="outline">
               <Link href="/admin/scm/goods-receipts/new">New GRN</Link>
+            </Button>
+          ) : null}
+          {canManageSupplierInvoices ? (
+            <Button asChild>
+              <Link href={`/admin/scm/supplier-invoices?purchaseOrderId=${receipt.purchaseOrder.id}&goodsReceiptId=${receipt.id}`}>
+                <FileText className="mr-2 h-4 w-4" />
+                Generate Supplier Invoice
+              </Link>
             </Button>
           ) : null}
         </div>
@@ -552,8 +564,21 @@ export default function GoodsReceiptDetailPage() {
 
           <ScmNextStepPanel
             title={receipt.matchSummary.status}
-            subtitle="This panel keeps confirmation, document upload, and evaluation inside the single GRN workspace."
-            actions={[]}
+            subtitle="This panel keeps confirmation, invoice review, document upload, and evaluation inside the single GRN workspace."
+            actions={
+              canManageSupplierInvoices
+                ? [
+                    {
+                      key: "generate_supplier_invoice",
+                      label: "Generate Supplier Invoice",
+                      onClick: () =>
+                        router.push(
+                          `/admin/scm/supplier-invoices?purchaseOrderId=${receipt.purchaseOrder.id}&goodsReceiptId=${receipt.id}`,
+                        ),
+                    },
+                  ]
+                : []
+            }
             emptyMessage="No direct workflow action is required right now."
           >
             <div className="space-y-2 text-sm text-muted-foreground">

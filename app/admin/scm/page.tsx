@@ -8,6 +8,7 @@ import {
   Bell,
   ClipboardCheck,
   ClipboardList,
+  ReceiptText,
   FileText,
   GitCompareArrows,
   PackageCheck,
@@ -125,6 +126,14 @@ const quickStartLinks: WorkspaceLink[] = [
     permissions: ["goods_receipts.manage"],
   },
   {
+    title: "Create Supplier Invoice",
+    href: "/admin/scm/supplier-invoices",
+    description: "Review received PO lines before AP posting.",
+    icon: ReceiptText,
+    permissions: ["supplier_invoices.manage"],
+    globalPermissions: ["supplier_invoices.manage"],
+  },
+  {
     title: "Submit PRF",
     href: "/admin/scm/payment-requests/new",
     description: "Initiate supplier payment workflow.",
@@ -233,6 +242,14 @@ const moduleDirectory: Array<{ label: string; links: WorkspaceLink[] }> = [
           "payment_requests.approve_finance",
           "payment_requests.treasury",
         ],
+      },
+      {
+        title: "Supplier Invoices",
+        href: "/admin/scm/supplier-invoices",
+        description: "Create and monitor AP invoice records.",
+        icon: ReceiptText,
+        permissions: ["supplier_invoices.read", "supplier_invoices.manage"],
+        globalPermissions: ["supplier_invoices.read", "supplier_invoices.manage"],
       },
       {
         title: "Supplier Ledger",
