@@ -31,7 +31,7 @@ async function uploadFile(file: File): Promise<string> {
   const fd = new FormData();
   fd.append("file", file);
 
-  const res = await fetch("/api/upload", {
+  const res = await fetch("/api/upload/delivery-man-documents", {
     method: "POST",
     body: fd,
   });
@@ -45,11 +45,18 @@ async function uploadFile(file: File): Promise<string> {
     throw new Error("Upload route did not return valid JSON");
   }
 
-  if (!res.ok || !data.success || !data.fileUrl) {
-    throw new Error(data.error || "File upload failed");
+  const fileUrl =
+    typeof data.fileUrl === "string"
+      ? data.fileUrl
+      : typeof data.url === "string"
+        ? data.url
+        : "";
+
+  if (!res.ok || !data.success || !fileUrl) {
+    throw new Error(data.error || data.message || "File upload failed");
   }
 
-  return data.fileUrl;
+  return fileUrl;
 }
 
 async function uploadDeliveryManDocuments(params: {

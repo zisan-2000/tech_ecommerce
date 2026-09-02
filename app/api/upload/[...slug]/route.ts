@@ -27,6 +27,7 @@ const INVESTOR_KYC_PREFIX = "investor-kyc";
 const INVESTOR_PAYOUT_PROOF_PREFIX = "investor-payout-proof";
 const PAYMENT_SCREENSHOT_PREFIX = "paymentScreenshot";
 const DELIVERY_PROOF_PREFIX = "delivery-proofs";
+const DELIVERY_MAN_DOCUMENT_PREFIX = "delivery-man-documents";
 const USER_PROFILE_PREFIX = "userProfilePic";
 
 const PRODUCT_IMAGE_PREFIXES = new Set([
@@ -129,6 +130,13 @@ function isInvestorPayoutProofPath(relPath: string) {
   return (
     relPath === INVESTOR_PAYOUT_PROOF_PREFIX ||
     relPath.startsWith(`${INVESTOR_PAYOUT_PROOF_PREFIX}/`)
+  );
+}
+
+function isDeliveryManDocumentPath(relPath: string) {
+  return (
+    relPath === DELIVERY_MAN_DOCUMENT_PREFIX ||
+    relPath.startsWith(`${DELIVERY_MAN_DOCUMENT_PREFIX}/`)
   );
 }
 
@@ -264,6 +272,16 @@ async function canWriteInvestorPayoutProofFiles(sessionUser: {
     "investor_payout.pay",
     "investor_payout.void",
   ]);
+}
+
+async function canWriteDeliveryManDocumentFiles(sessionUser: {
+  id?: string;
+  role?: string;
+} | null | undefined) {
+  const access = await getAccessContext(sessionUser);
+  if (!access.userId) return false;
+
+  return access.hasAny(["delivery-men.manage", "logistics.manage"]);
 }
 
 async function canReadScmGrnFile(
@@ -421,6 +439,36 @@ async function canReadInvestorPayoutProofFile(
   ]);
 }
 
+async function canReadDeliveryManDocumentFile(
+  relPath: string,
+  sessionUser: { id?: string; role?: string } | null | undefined,
+) {
+  const access = await getAccessContext(sessionUser);
+  if (!access.userId) return false;
+
+  if (access.hasAny(["delivery-men.manage", "logistics.manage"])) {
+    return true;
+  }
+
+  const fileUrl = `/api/upload/${relPath}`;
+  const document = await prisma.deliveryManDocument.findFirst({
+    where: { fileUrl },
+    select: {
+      profile: {
+        select: {
+          userId: true,
+          warehouseId: true,
+        },
+      },
+    },
+  });
+
+  return Boolean(
+    document &&
+      document.profile.userId === access.userId,
+  );
+}
+
 /* ---------------- POST (UPLOAD) ---------------- */
 export async function POST(
   req: Request,
@@ -439,13 +487,15 @@ export async function POST(
     const requiresScmMaterialScope = isScmMaterialPath(relPath);
     const requiresInvestorKycScope = isInvestorKycPath(relPath);
     const requiresInvestorPayoutProofScope = isInvestorPayoutProofPath(relPath);
+    const requiresDeliveryManDocumentScope = isDeliveryManDocumentPath(relPath);
 
     if (
       requiresScmProposalScope ||
       requiresScmGrnScope ||
       requiresScmMaterialScope ||
       requiresInvestorKycScope ||
-      requiresInvestorPayoutProofScope
+      requiresInvestorPayoutProofScope ||
+      requiresDeliveryManDocumentScope
     ) {
       const session = await getServerSession(authOptions);
       const sessionUser = session?.user as { id?: string; role?: string } | undefined;
@@ -469,7 +519,10 @@ export async function POST(
       const canWriteInvestorPayoutProof = requiresInvestorPayoutProofScope
         ? await canWriteInvestorPayoutProofFiles(sessionUser)
         : true;
-      if (!canWriteProposal || !canWriteGrn || !canWriteMaterial || !canWriteInvestorKyc || !canWriteInvestorPayoutProof) {
+      const canWriteDeliveryManDocument = requiresDeliveryManDocumentScope
+        ? await canWriteDeliveryManDocumentFiles(sessionUser)
+        : true;
+      if (!canWriteProposal || !canWriteGrn || !canWriteMaterial || !canWriteInvestorKyc || !canWriteInvestorPayoutProof || !canWriteDeliveryManDocument) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
@@ -483,7 +536,8 @@ export async function POST(
       requiresScmGrnScope ||
       requiresScmMaterialScope ||
       requiresInvestorKycScope ||
-      requiresInvestorPayoutProofScope;
+      requiresInvestorPayoutProofScope ||
+      requiresDeliveryManDocumentScope;
     const allowsGuestUpload =
       prefix === PAYMENT_SCREENSHOT_PREFIX || prefix === DELIVERY_PROOF_PREFIX;
 
@@ -512,7 +566,7 @@ export async function POST(
 
     const rateLimit = await rateLimitRequest(req, {
       scope: `scoped-upload:${prefix}`,
-      limit: 20,
+      limit: prefix === DELIVERY_MAN_DOCUMENT_PREFIX ? 40 : 20,
       windowMs: 10 * 60 * 1000,
     });
     if (!rateLimit.allowed) {
@@ -612,6 +666,7 @@ export async function GET(
     const requiresScmMaterialScope = isScmMaterialPath(relPath);
     const requiresInvestorKycScope = isInvestorKycPath(relPath);
     const requiresInvestorPayoutProofScope = isInvestorPayoutProofPath(relPath);
+    const requiresDeliveryManDocumentScope = isDeliveryManDocumentPath(relPath);
     const requiresDigitalAssetScope = slug[0] === "digital-assets";
     const requiresProtectedScope =
       requiresScmProposalScope ||
@@ -619,6 +674,7 @@ export async function GET(
       requiresScmMaterialScope ||
       requiresInvestorKycScope ||
       requiresInvestorPayoutProofScope ||
+      requiresDeliveryManDocumentScope ||
       requiresDigitalAssetScope;
 
     if (slug[0] === DELIVERY_PROOF_PREFIX) {
@@ -666,10 +722,13 @@ export async function GET(
       const canReadInvestorPayoutProof = requiresInvestorPayoutProofScope
         ? await canReadInvestorPayoutProofFile(relPath, sessionUser)
         : true;
+      const canReadDeliveryManDocument = requiresDeliveryManDocumentScope
+        ? await canReadDeliveryManDocumentFile(relPath, sessionUser)
+        : true;
       const canReadDigitalAsset = requiresDigitalAssetScope
         ? (await getAccessContext(sessionUser)).has("products.manage")
         : true;
-      if (!canReadProposal || !canReadGrn || !canReadMaterial || !canReadInvestorKyc || !canReadInvestorPayoutProof || !canReadDigitalAsset) {
+      if (!canReadProposal || !canReadGrn || !canReadMaterial || !canReadInvestorKyc || !canReadInvestorPayoutProof || !canReadDeliveryManDocument || !canReadDigitalAsset) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }

@@ -5,6 +5,7 @@ import { del, get, put } from "@vercel/blob";
 const LOCAL_UPLOAD_ROOT = path.join(process.cwd(), "public", "upload");
 const PRIVATE_PREFIXES = new Set([
   "delivery-proofs",
+  "delivery-man-documents",
   "digital-assets",
   "investor-kyc",
   "investor-payout-proof",

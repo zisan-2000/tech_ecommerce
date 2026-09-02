@@ -45,7 +45,7 @@ export async function uploadDeliveryManDocuments(
   ) {
     if (!file) return;
 
-    const fileUrl = await uploadFile(file);
+    const fileUrl = await uploadFile(file, "/api/upload/delivery-man-documents");
 
     documents.push({
       type,

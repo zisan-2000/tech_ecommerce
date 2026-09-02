@@ -201,14 +201,21 @@ export default function DeliveryManEditPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const uploadResponse = await fetch("/api/upload", {
+      const uploadResponse = await fetch("/api/upload/delivery-man-documents", {
         method: "POST",
         body: formData,
       });
 
       const uploadData = await uploadResponse.json();
 
-      if (uploadData.success) {
+      const uploadedFileUrl =
+        typeof uploadData.fileUrl === "string"
+          ? uploadData.fileUrl
+          : typeof uploadData.url === "string"
+            ? uploadData.url
+            : "";
+
+      if (uploadData.success && uploadedFileUrl) {
         // Update delivery man with new document
         const documentResponse = await fetch(
           `/api/delivery-men/${id}/documents`,
@@ -219,7 +226,7 @@ export default function DeliveryManEditPage() {
             },
             body: JSON.stringify({
               type,
-              fileUrl: uploadData.fileUrl,
+              fileUrl: uploadedFileUrl,
               fileName: file.name,
               mimeType: file.type,
               fileSize: file.size,
@@ -236,7 +243,7 @@ export default function DeliveryManEditPage() {
           toast.error(documentData.message || "Failed to save document");
         }
       } else {
-        toast.error(uploadData.error || "Failed to upload file");
+        toast.error(uploadData.error || uploadData.message || "Failed to upload file");
       }
     } catch (error) {
       console.error("Error uploading file:", error);
