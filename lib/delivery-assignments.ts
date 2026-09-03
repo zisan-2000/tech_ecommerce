@@ -8,6 +8,7 @@ import type { AccessContext } from "@/lib/rbac";
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
 import { syncCommissionEntriesForOrderStatus } from "@/lib/business-network/commission";
+import { transitionOrderStatusWithInventory } from "@/lib/order-inventory-lifecycle";
 
 export const DELIVERY_ASSIGNMENT_MANAGE_PERMISSIONS = [
   "delivery-men.manage",
@@ -290,27 +291,7 @@ export type DeliveryAssignmentWithDetails = Prisma.DeliveryAssignmentGetPayload<
   include: typeof deliveryAssignmentDetailsInclude;
 }>;
 
-type DeliveryAssignmentMutationClient =
-  | Pick<
-      PrismaClient,
-      | "deliveryAssignment"
-      | "deliveryAssignmentLog"
-      | "warehousePickupProof"
-      | "shipment"
-      | "order"
-      | "shipmentAssignment"
-      | "deliveryManProfile"
-    >
-  | Pick<
-      Prisma.TransactionClient,
-      | "deliveryAssignment"
-      | "deliveryAssignmentLog"
-      | "warehousePickupProof"
-      | "shipment"
-      | "order"
-      | "shipmentAssignment"
-      | "deliveryManProfile"
-    >;
+type DeliveryAssignmentMutationClient = Prisma.TransactionClient;
 
 export function hasDeliveryAssignmentManagementAccess(access: AccessContext) {
   return DELIVERY_ASSIGNMENT_MANAGE_PERMISSIONS.some((permission) =>
@@ -511,6 +492,9 @@ async function syncShipmentAndOrderForAssignmentStatus(
   const nextShipmentStatus = mapAssignmentStatusToShipmentStatus(
     input.nextAssignmentStatus,
   );
+  const nextOrderStatus = mapAssignmentStatusToOrderStatus(
+    input.nextAssignmentStatus,
+  );
   const shipmentData: Prisma.ShipmentUpdateInput = {
     status: nextShipmentStatus,
     warehouse:
@@ -562,6 +546,27 @@ async function syncShipmentAndOrderForAssignmentStatus(
     shipmentData.deliveredAt = now;
   }
 
+  if (nextOrderStatus) {
+    const tx = client;
+    const transition = await transitionOrderStatusWithInventory({
+      tx,
+      orderId: input.order.id,
+      nextStatus: nextOrderStatus,
+      reason: `Order #${input.order.id} ${nextOrderStatus.toLowerCase()} inventory restoration from delivery assignment`,
+      // FAILED is a retryable delivery attempt. Physical stock has not yet
+      // returned to the warehouse; RETURNED performs the restoration.
+      restoreInventory: nextOrderStatus !== "FAILED",
+    });
+    if (transition.changed) {
+      await syncCommissionEntriesForOrderStatus({
+        tx,
+        orderId: input.order.id,
+        orderStatus: nextOrderStatus,
+        actorUserId: input.deliveryManUserId,
+      });
+    }
+  }
+
   const updatedShipment = await client.shipment.update({
     where: {
       id: input.shipment.id,
@@ -573,7 +578,7 @@ async function syncShipmentAndOrderForAssignmentStatus(
     },
   });
 
-  await appendShipmentStatusLog(client as Prisma.TransactionClient, {
+  await appendShipmentStatusLog(client, {
     shipmentId: input.shipment.id,
     fromStatus: input.shipment.status,
     toStatus: updatedShipment.status,
@@ -581,26 +586,6 @@ async function syncShipmentAndOrderForAssignmentStatus(
     note: input.logNote ?? null,
   });
 
-  const nextOrderStatus = mapAssignmentStatusToOrderStatus(
-    input.nextAssignmentStatus,
-  );
-
-  if (nextOrderStatus && nextOrderStatus !== input.order.status) {
-    await client.order.update({
-      where: {
-        id: input.order.id,
-      },
-      data: {
-        status: nextOrderStatus,
-      },
-    });
-    await syncCommissionEntriesForOrderStatus({
-      tx: client as Prisma.TransactionClient,
-      orderId: input.order.id,
-      orderStatus: nextOrderStatus,
-      actorUserId: input.deliveryManUserId,
-    });
-  }
 }
 
 async function completeGenericShipmentAssignment(

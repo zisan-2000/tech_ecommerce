@@ -132,12 +132,13 @@ export async function syncVariantWarehouseStock(params: {
 
 export async function deductVariantInventory(params: {
   tx: TransactionClient;
+  orderId: number;
   productId: number;
   productVariantId: number;
   quantity: number;
   reason: string;
 }) {
-  const { tx, productId, productVariantId, quantity, reason } = params;
+  const { tx, orderId, productId, productVariantId, quantity, reason } = params;
 
   if (!Number.isFinite(quantity) || quantity <= 0) {
     throw new Error("Deduction quantity must be greater than 0");
@@ -187,6 +188,7 @@ export async function deductVariantInventory(params: {
 
     await tx.inventoryLog.create({
       data: {
+        orderId,
         productId,
         variantId: productVariantId,
         warehouseId: level.warehouseId,
@@ -325,6 +327,7 @@ export async function commitOrderInventoryReservations(params: {
 
     await tx.inventoryLog.create({
       data: {
+        orderId,
         productId: reservation.stockLevel.variant.productId,
         variantId: reservation.stockLevel.productVariantId,
         warehouseId: reservation.stockLevel.warehouseId,
@@ -383,6 +386,135 @@ export async function releaseOrderInventoryReservations(params: {
     await captureVariantInventoryDailySnapshots(tx, variantId);
   }
   return { reservationCount: reservations.length, releasedQuantity };
+}
+
+export type OrderInventoryMovement = {
+  productId: number;
+  variantId: number | null;
+  warehouseId: number | null;
+  change: number;
+};
+
+export type OrderInventoryRestock = {
+  productId: number;
+  variantId: number;
+  warehouseId: number;
+  quantity: number;
+};
+
+/**
+ * Calculates only the outstanding quantity that still needs to be returned.
+ * Positive restoration logs offset the original negative deduction logs, which
+ * makes retrying a terminal status transition safe and idempotent.
+ */
+export function buildOrderInventoryRestockPlan(
+  movements: OrderInventoryMovement[],
+): OrderInventoryRestock[] {
+  const netByAllocation = new Map<
+    string,
+    Omit<OrderInventoryRestock, "quantity"> & { netChange: number }
+  >();
+
+  for (const movement of movements) {
+    if (
+      !Number.isSafeInteger(movement.productId) ||
+      !Number.isSafeInteger(movement.variantId) ||
+      !Number.isSafeInteger(movement.warehouseId) ||
+      !Number.isSafeInteger(movement.change) ||
+      movement.variantId === null ||
+      movement.warehouseId === null
+    ) {
+      continue;
+    }
+
+    const key = `${movement.productId}:${movement.variantId}:${movement.warehouseId}`;
+    const current = netByAllocation.get(key);
+    netByAllocation.set(key, {
+      productId: movement.productId,
+      variantId: movement.variantId,
+      warehouseId: movement.warehouseId,
+      netChange: (current?.netChange ?? 0) + movement.change,
+    });
+  }
+
+  return Array.from(netByAllocation.values())
+    .filter((allocation) => allocation.netChange < 0)
+    .map(({ netChange, ...allocation }) => ({
+      ...allocation,
+      quantity: -netChange,
+    }))
+    .sort(
+      (left, right) =>
+        left.variantId - right.variantId ||
+        left.warehouseId - right.warehouseId ||
+        left.productId - right.productId,
+    );
+}
+
+export async function restoreOrderInventory(params: {
+  tx: TransactionClient;
+  orderId: number;
+  reason: string;
+}) {
+  const { tx, orderId, reason } = params;
+  const released = await releaseOrderInventoryReservations({ tx, orderId });
+  const movements = await tx.inventoryLog.findMany({
+    where: { orderId },
+    select: {
+      productId: true,
+      variantId: true,
+      warehouseId: true,
+      change: true,
+    },
+    orderBy: { id: "asc" },
+  });
+  const restockPlan = buildOrderInventoryRestockPlan(movements);
+  const touchedVariants = new Set<number>();
+  let restoredQuantity = 0;
+
+  for (const allocation of restockPlan) {
+    await tx.stockLevel.upsert({
+      where: {
+        warehouseId_productVariantId: {
+          warehouseId: allocation.warehouseId,
+          productVariantId: allocation.variantId,
+        },
+      },
+      create: {
+        warehouseId: allocation.warehouseId,
+        productVariantId: allocation.variantId,
+        quantity: allocation.quantity,
+        reserved: 0,
+      },
+      update: {
+        quantity: { increment: allocation.quantity },
+      },
+    });
+    await tx.inventoryLog.create({
+      data: {
+        orderId,
+        productId: allocation.productId,
+        variantId: allocation.variantId,
+        warehouseId: allocation.warehouseId,
+        change: allocation.quantity,
+        reason,
+      },
+    });
+    touchedVariants.add(allocation.variantId);
+    restoredQuantity += allocation.quantity;
+  }
+
+  for (const variantId of touchedVariants) {
+    await refreshVariantStock(tx, variantId);
+    await captureVariantInventoryDailySnapshots(tx, variantId);
+  }
+
+  return {
+    releasedReservationCount: released.reservationCount,
+    releasedReservationQuantity: released.releasedQuantity,
+    restoredAllocationCount: restockPlan.length,
+    restoredQuantity,
+  };
 }
 
 export async function cleanupExpiredInventoryReservations(params: {

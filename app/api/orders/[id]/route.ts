@@ -10,11 +10,43 @@ import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { OrderStatus } from "@/generated/prisma";
 import { syncCommissionEntriesForOrderStatus } from "@/lib/business-network/commission";
 import {
+  type AllowedOrderStatusTransitions,
+  OrderStatusTransitionError,
+  transitionOrderStatusWithInventory,
+} from "@/lib/order-inventory-lifecycle";
+import {
   orderProductSelect,
   orderUserSelect,
   orderVariantSelect,
   redactCustomerOrder,
 } from "@/lib/order-public";
+
+const ORDER_STATUS_TRANSITIONS: AllowedOrderStatusTransitions = {
+  [OrderStatus.PENDING]: [
+    OrderStatus.CONFIRMED,
+    OrderStatus.PROCESSING,
+    OrderStatus.SHIPPED,
+    OrderStatus.FAILED,
+    OrderStatus.CANCELLED,
+  ],
+  [OrderStatus.CONFIRMED]: [
+    OrderStatus.PROCESSING,
+    OrderStatus.SHIPPED,
+    OrderStatus.FAILED,
+    OrderStatus.CANCELLED,
+  ],
+  [OrderStatus.PROCESSING]: [
+    OrderStatus.SHIPPED,
+    OrderStatus.DELIVERED,
+    OrderStatus.FAILED,
+    OrderStatus.CANCELLED,
+  ],
+  [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED, OrderStatus.FAILED],
+  [OrderStatus.DELIVERED]: [OrderStatus.RETURNED],
+  [OrderStatus.FAILED]: [],
+  [OrderStatus.RETURNED]: [],
+  [OrderStatus.CANCELLED]: [],
+};
 
 // GET /api/orders/:id
 export async function GET(
@@ -173,6 +205,7 @@ export async function PATCH(
     }
 
     const data: any = {};
+    let requestedStatus: OrderStatus | undefined;
 
     if (status) {
       const validOrderStatuses = [
@@ -193,20 +226,9 @@ export async function PATCH(
         );
       }
 
-      const allowedTransitions: Record<string, string[]> = {
-        PENDING: ["CONFIRMED", "PROCESSING", "SHIPPED", "FAILED", "CANCELLED"],
-        CONFIRMED: ["PROCESSING", "SHIPPED", "FAILED", "CANCELLED"],
-        PROCESSING: ["SHIPPED", "DELIVERED", "FAILED", "CANCELLED"],
-        SHIPPED: ["DELIVERED", "FAILED"],
-        DELIVERED: ["RETURNED"],
-        FAILED: [],
-        RETURNED: [],
-        CANCELLED: [],
-      };
-
       if (
         status !== existingOrder.status &&
-        !(allowedTransitions[existingOrder.status] || []).includes(status)
+        !(ORDER_STATUS_TRANSITIONS[existingOrder.status] || []).includes(status)
       ) {
         return NextResponse.json(
           {
@@ -215,7 +237,7 @@ export async function PATCH(
           { status: 400 }
         );
       }
-      data.status = status;
+      requestedStatus = status as OrderStatus;
     }
 
     if (paymentStatus) {
@@ -234,80 +256,52 @@ export async function PATCH(
       data.transactionId = transactionId;
     }
 
-    if (Object.keys(data).length === 0) {
+    if (!requestedStatus && Object.keys(data).length === 0) {
       return NextResponse.json(
         { error: "No valid fields to update" },
         { status: 400 }
       );
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const nextStatus = data.status as string | undefined;
-      if (nextStatus === "DELIVERED" && existingOrder.status !== "DELIVERED") {
-        const items = await tx.orderItem.findMany({
-          where: { orderId },
-          select: { productId: true, quantity: true },
+    const result = await prisma.$transaction(async (tx) => {
+      let previousStatus = existingOrder.status;
+      let statusChanged = false;
+      let updatedOrder;
+
+      if (requestedStatus) {
+        const transition = await transitionOrderStatusWithInventory({
+          tx,
+          orderId,
+          nextStatus: requestedStatus,
+          reason: `Order #${orderId} ${requestedStatus.toLowerCase()} inventory restoration`,
+          allowedTransitions: ORDER_STATUS_TRANSITIONS,
         });
-
-        const qtyByProduct = new Map<number, number>();
-        for (const it of items) {
-          qtyByProduct.set(it.productId, (qtyByProduct.get(it.productId) || 0) + it.quantity);
-        }
-
-        for (const [productId, qty] of qtyByProduct.entries()) {
-          const product = await tx.product.findUnique({
-            where: { id: productId },
-            select: { soldCount: true },
-          });
-
-          await tx.product.update({
-            where: { id: productId },
-            data: {
-              soldCount: Math.max((product?.soldCount ?? 0) + qty, 0),
-            },
-          });
-        }
-      } else if (nextStatus === "RETURNED" && existingOrder.status === "DELIVERED") {
-        const items = await tx.orderItem.findMany({
-          where: { orderId },
-          select: { productId: true, quantity: true },
-        });
-
-        const qtyByProduct = new Map<number, number>();
-        for (const it of items) {
-          qtyByProduct.set(it.productId, (qtyByProduct.get(it.productId) || 0) + it.quantity);
-        }
-
-        for (const [productId, qty] of qtyByProduct.entries()) {
-          const product = await tx.product.findUnique({
-            where: { id: productId },
-            select: { soldCount: true },
-          });
-
-          await tx.product.update({
-            where: { id: productId },
-            data: {
-              soldCount: Math.max((product?.soldCount ?? 0) - qty, 0),
-            },
-          });
-        }
+        previousStatus = transition.previousStatus;
+        statusChanged = transition.changed;
+        updatedOrder = transition.order;
+      } else {
+        updatedOrder = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
       }
 
-      const updatedOrder = await tx.order.update({
-        where: { id: orderId },
-        data,
-      });
-      if (nextStatus && nextStatus !== existingOrder.status) {
+      if (Object.keys(data).length > 0) {
+        updatedOrder = await tx.order.update({
+          where: { id: orderId },
+          data,
+        });
+      }
+
+      if (requestedStatus && statusChanged) {
         await syncCommissionEntriesForOrderStatus({
           tx,
           orderId,
-          orderStatus: nextStatus as OrderStatus,
+          orderStatus: requestedStatus,
           actorUserId,
           request,
         });
       }
-      return updatedOrder;
+      return { order: updatedOrder, previousStatus, statusChanged };
     });
+    const updated = result.order;
 
     revalidateStorefrontCatalog();
 
@@ -319,14 +313,14 @@ export async function PATCH(
       request,
       metadata: {
         message:
-          status && status !== existingOrder.status
-            ? `Order #${updated.id} status changed from ${existingOrder.status} to ${status}`
+          requestedStatus && result.statusChanged
+            ? `Order #${updated.id} status changed from ${result.previousStatus} to ${requestedStatus}`
             : paymentStatus && paymentStatus !== existingOrder.paymentStatus
               ? `Order #${updated.id} payment status changed from ${existingOrder.paymentStatus} to ${paymentStatus}`
               : `Order #${updated.id} updated`,
       },
       before: {
-        status: existingOrder.status,
+        status: result.previousStatus,
         paymentStatus: existingOrder.paymentStatus,
         transactionId: existingOrder.transactionId,
       },
@@ -339,6 +333,9 @@ export async function PATCH(
 
     return NextResponse.json(updated);
   } catch (error) {
+    if (error instanceof OrderStatusTransitionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error("Error updating order:", error);
     return NextResponse.json(
       { error: "Internal server error" },

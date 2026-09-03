@@ -7,6 +7,7 @@ import { isDeliveryConfirmationStatus } from "@/lib/delivery-proof";
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { OrderStatus } from "@/generated/prisma";
 import { syncCommissionEntriesForOrderStatus } from "@/lib/business-network/commission";
+import { transitionOrderStatusWithInventory } from "@/lib/order-inventory-lifecycle";
 
 function getClientIp(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -156,34 +157,23 @@ export async function POST(
         },
       });
 
-      if (shipment.status !== "DELIVERED") {
-        const items = await tx.orderItem.findMany({
-          where: { orderId: shipment.orderId },
-          select: { productId: true, quantity: true },
+      const transition = await transitionOrderStatusWithInventory({
+        tx,
+        orderId: shipment.orderId,
+        nextStatus: OrderStatus.DELIVERED,
+        reason: `Order #${shipment.orderId} delivered through customer confirmation`,
+      });
+      if (transition.changed) {
+        await syncCommissionEntriesForOrderStatus({
+          tx,
+          orderId: shipment.orderId,
+          orderStatus: OrderStatus.DELIVERED,
+          actorUserId: userId,
+          request,
         });
+      }
 
-        const qtyByProduct = new Map<number, number>();
-        for (const item of items) {
-          qtyByProduct.set(
-            item.productId,
-            (qtyByProduct.get(item.productId) || 0) + item.quantity,
-          );
-        }
-
-        for (const [productId, qty] of qtyByProduct.entries()) {
-          const product = await tx.product.findUnique({
-            where: { id: productId },
-            select: { soldCount: true },
-          });
-
-          await tx.product.update({
-            where: { id: productId },
-            data: {
-              soldCount: Math.max((product?.soldCount ?? 0) + qty, 0),
-            },
-          });
-        }
-
+      if (shipment.status !== "DELIVERED") {
         await tx.shipment.update({
           where: { id: shipment.id },
           data: {
@@ -197,20 +187,6 @@ export async function POST(
           fromStatus: shipment.status,
           toStatus: "DELIVERED",
           source: "DELIVERY_PROOF",
-        });
-      }
-
-      if (shipment.order.status !== "DELIVERED") {
-        await tx.order.update({
-          where: { id: shipment.orderId },
-          data: { status: "DELIVERED" },
-        });
-        await syncCommissionEntriesForOrderStatus({
-          tx,
-          orderId: shipment.orderId,
-          orderStatus: OrderStatus.DELIVERED,
-          actorUserId: userId,
-          request,
         });
       }
 

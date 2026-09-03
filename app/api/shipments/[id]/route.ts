@@ -16,6 +16,7 @@ import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { OrderStatus } from "@/generated/prisma";
 import { syncCommissionEntriesForOrderStatus } from "@/lib/business-network/commission";
 import { canWarehouseFulfillOrder } from "@/lib/order-warehouse-stock";
+import { transitionOrderStatusWithInventory } from "@/lib/order-inventory-lifecycle";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -531,66 +532,37 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const nextStatus = data.status as string | undefined;
       const prevStatus = existingShipment.status as string;
 
-      // Update soldCount based on shipment status transition
-      // - DELIVERED: add quantities (only once)
-      // - RETURNED/CANCELLED: subtract quantities only if it was previously DELIVERED
-      const shouldIncrement = nextStatus === "DELIVERED" && prevStatus !== "DELIVERED";
-      const shouldDecrement =
-        (nextStatus === "RETURNED" || nextStatus === "CANCELLED") && prevStatus === "DELIVERED";
-
-      if (shouldIncrement || shouldDecrement) {
-        const items = await tx.orderItem.findMany({
-          where: { orderId: existingShipment.orderId },
-          select: { productId: true, quantity: true },
-        });
-
-        const qtyByProduct = new Map<number, number>();
-        for (const it of items) {
-          qtyByProduct.set(it.productId, (qtyByProduct.get(it.productId) || 0) + it.quantity);
-        }
-
-        for (const [productId, qty] of qtyByProduct.entries()) {
-          const product = await tx.product.findUnique({
-            where: { id: productId },
-            select: { soldCount: true },
-          });
-
-          const current = product?.soldCount ?? 0;
-          const next = shouldIncrement ? current + qty : current - qty;
-
-          await tx.product.update({
-            where: { id: productId },
-            data: {
-              soldCount: Math.max(next, 0),
-            },
-          });
-        }
-      }
-
       if (nextStatus && nextStatus !== prevStatus) {
-        const nextOrderStatus =
+        const nextOrderStatus: OrderStatus | null =
           nextStatus === "DELIVERED"
-            ? "DELIVERED"
+            ? OrderStatus.DELIVERED
             : nextStatus === "RETURNED"
-              ? "RETURNED"
+              ? OrderStatus.RETURNED
               : nextStatus === "FAILED"
-                ? "FAILED"
+                ? OrderStatus.FAILED
                 : nextStatus === "CANCELLED"
-                  ? "CANCELLED"
+                  ? OrderStatus.CANCELLED
                   : null;
 
         if (nextOrderStatus) {
-          await tx.order.update({
-            where: { id: existingShipment.orderId },
-            data: { status: nextOrderStatus },
-          });
-          await syncCommissionEntriesForOrderStatus({
+          const transition = await transitionOrderStatusWithInventory({
             tx,
             orderId: existingShipment.orderId,
-            orderStatus: nextOrderStatus as OrderStatus,
-            actorUserId: access.userId,
-            request,
+            nextStatus: nextOrderStatus,
+            reason: `Order #${existingShipment.orderId} ${nextOrderStatus.toLowerCase()} inventory restoration from shipment #${id}`,
+            // A failed delivery can be reassigned; stock returns only after
+            // cancellation or a confirmed return to the warehouse.
+            restoreInventory: nextOrderStatus !== OrderStatus.FAILED,
           });
+          if (transition.changed) {
+            await syncCommissionEntriesForOrderStatus({
+              tx,
+              orderId: existingShipment.orderId,
+              orderStatus: nextOrderStatus,
+              actorUserId: access.userId,
+              request,
+            });
+          }
         }
       }
 
