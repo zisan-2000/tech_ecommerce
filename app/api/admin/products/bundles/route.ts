@@ -7,8 +7,13 @@ import {
   type BundleItem,
   type DiscountType 
 } from '@/lib/bundle';
-import type { Product } from '@/types/bundle';
 import { revalidateStorefrontCatalog } from '@/lib/storefront-catalog-cache';
+import {
+  calculateBundleBuildCapacity,
+  normalizeBundleSku,
+  normalizeBundleStockQuantity,
+  syncBundleDefaultVariant,
+} from '@/lib/bundle-inventory';
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,6 +71,25 @@ export async function GET(request: NextRequest) {
           },
           brand: {
             select: { id: true, name: true }
+          },
+          variants: {
+            include: {
+              stockLevels: {
+                include: {
+                  warehouse: {
+                    select: {
+                      id: true,
+                      name: true,
+                      code: true,
+                      isDefault: true
+                    }
+                  }
+                },
+                orderBy: { warehouseId: 'asc' }
+              }
+            },
+            where: { active: true },
+            orderBy: { isDefault: 'desc' }
           }
         },
         orderBy: { createdAt: 'desc' }
@@ -122,6 +146,7 @@ export async function POST(request: NextRequest) {
       name,
       description,
       shortDesc,
+      sku,
       categoryId,
       brandId,
       brandIds,
@@ -143,6 +168,14 @@ export async function POST(request: NextRequest) {
     if (!name || !description || !categoryId || !items || items.length < 2) {
       return NextResponse.json(
         { error: 'Missing required fields. Bundle must have at least 2 items.' },
+        { status: 400 }
+      );
+    }
+
+    const parsedWarehouseId = Number(warehouseId);
+    if (!Number.isInteger(parsedWarehouseId) || parsedWarehouseId <= 0) {
+      return NextResponse.json(
+        { error: 'Please select a valid warehouse' },
         { status: 400 }
       );
     }
@@ -193,6 +226,15 @@ export async function POST(request: NextRequest) {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
+    const bundleSku = normalizeBundleSku(sku, slug);
+    const requestedStockQuantity = normalizeBundleStockQuantity(bundleStockLimit);
+
+    if (requestedStockQuantity === undefined) {
+      return NextResponse.json(
+        { error: 'Bundle stock must be a whole number greater than or equal to 0' },
+        { status: 400 }
+      );
+    }
 
     // Check if slug already exists
     const existingProduct = await prisma.product.findUnique({
@@ -206,8 +248,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const existingSku = await prisma.product.findFirst({
+      where: {
+        sku: bundleSku,
+      },
+      select: { id: true },
+    });
+
+    if (existingSku) {
+      return NextResponse.json(
+        { error: 'A product with this SKU already exists' },
+        { status: 409 }
+      );
+    }
+
     // Create bundle product and items in a transaction
     const result = await prisma.$transaction(async (tx) => {
+      const maxBuildCapacity = await calculateBundleBuildCapacity({
+        tx,
+        items: mergedItems,
+        warehouseId: parsedWarehouseId,
+      });
+      const bundleStockQuantity =
+        requestedStockQuantity !== null
+          ? requestedStockQuantity
+          : maxBuildCapacity;
+
+      if (bundleStockQuantity > maxBuildCapacity) {
+        throw new Error(
+          `Bundle stock cannot exceed available build capacity (${maxBuildCapacity})`
+        );
+      }
+
       // Create the bundle product
       const bundle = await tx.product.create({
         data: {
@@ -216,6 +288,7 @@ export async function POST(request: NextRequest) {
           description,
           shortDesc,
           type: 'BUNDLE',
+          sku: bundleSku,
           categoryId,
           brandId: brandId || null,
           basePrice: pricing.discountedPrice,
@@ -223,16 +296,22 @@ export async function POST(request: NextRequest) {
           currency,
           image,
           gallery: gallery || [],
-          bundleStockLimit:
-            bundleStockLimit !== null &&
-            bundleStockLimit !== undefined &&
-            Number(bundleStockLimit) > 0
-              ? Number(bundleStockLimit)
-              : null,
+          bundleStockLimit: bundleStockQuantity,
           available,
           featured,
           VatClassId: vatClassId || null, // Use provided VAT class or null
         }
+      });
+
+      await syncBundleDefaultVariant({
+        tx,
+        productId: bundle.id,
+        sku: bundleSku,
+        price: pricing.discountedPrice,
+        currency,
+        stockQuantity: bundleStockQuantity,
+        warehouseId: parsedWarehouseId,
+        reason: 'Admin bundle initial stock',
       });
 
       // Create bundle items
@@ -262,6 +341,15 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating bundle:', error);
+    if (
+      error instanceof Error &&
+      error.message.startsWith('Bundle stock cannot exceed')
+    ) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to create bundle' },
       { status: 500 }

@@ -8,6 +8,12 @@ import {
   type DiscountType 
 } from '@/lib/bundle';
 import { revalidateStorefrontCatalog } from '@/lib/storefront-catalog-cache';
+import {
+  calculateBundleBuildCapacity,
+  normalizeBundleSku,
+  normalizeBundleStockQuantity,
+  syncBundleDefaultVariant,
+} from '@/lib/bundle-inventory';
 
 export async function GET(
   request: NextRequest,
@@ -36,6 +42,21 @@ export async function GET(
             product: {
               include: {
                 variants: {
+                  include: {
+                    stockLevels: {
+                      include: {
+                        warehouse: {
+                          select: {
+                            id: true,
+                            name: true,
+                            code: true,
+                            isDefault: true
+                          }
+                        }
+                      },
+                      orderBy: { warehouseId: 'asc' }
+                    }
+                  },
                   where: { active: true },
                   orderBy: { isDefault: 'desc' }
                 }
@@ -46,7 +67,26 @@ export async function GET(
         },
         category: true,
         brand: true,
-        VatClass: true
+        VatClass: true,
+        variants: {
+          include: {
+            stockLevels: {
+              include: {
+                warehouse: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    isDefault: true
+                  }
+                }
+              },
+              orderBy: { warehouseId: 'asc' }
+            }
+          },
+          where: { active: true },
+          orderBy: { isDefault: 'desc' }
+        }
       }
     });
 
@@ -109,6 +149,7 @@ export async function PUT(
       name,
       description,
       shortDesc,
+      sku,
       categoryId,
       brandId,
       vatClassId,
@@ -119,6 +160,7 @@ export async function PUT(
       manualPrice,
       items,
       bundleStockLimit,
+      warehouseId,
       available,
       featured,
       currency
@@ -130,6 +172,17 @@ export async function PUT(
         id: bundleId,
         type: 'BUNDLE',
         deleted: false
+      },
+      include: {
+        variants: {
+          include: {
+            stockLevels: {
+              orderBy: { warehouseId: 'asc' }
+            }
+          },
+          where: { active: true },
+          orderBy: { isDefault: 'desc' }
+        }
       }
     });
 
@@ -144,6 +197,15 @@ export async function PUT(
     if (!name || !description || !categoryId || !items || items.length < 2) {
       return NextResponse.json(
         { error: 'Missing required fields. Bundle must have at least 2 items.' },
+        { status: 400 }
+      );
+    }
+
+    const currentWarehouseId = existingBundle.variants[0]?.stockLevels[0]?.warehouseId ?? null;
+    const parsedWarehouseId = Number(warehouseId ?? currentWarehouseId);
+    if (!Number.isInteger(parsedWarehouseId) || parsedWarehouseId <= 0) {
+      return NextResponse.json(
+        { error: 'Please select a valid warehouse' },
         { status: 400 }
       );
     }
@@ -213,8 +275,53 @@ export async function PUT(
       }
     }
 
+    const bundleSku = normalizeBundleSku(
+      sku,
+      slug,
+      existingBundle.sku ?? existingBundle.variants[0]?.sku ?? null,
+    );
+    const requestedStockQuantity = normalizeBundleStockQuantity(bundleStockLimit);
+
+    if (requestedStockQuantity === undefined) {
+      return NextResponse.json(
+        { error: 'Bundle stock must be a whole number greater than or equal to 0' },
+        { status: 400 }
+      );
+    }
+
+    const skuConflict = await prisma.product.findFirst({
+      where: {
+        sku: bundleSku,
+        id: { not: bundleId }
+      },
+      select: { id: true }
+    });
+
+    if (skuConflict) {
+      return NextResponse.json(
+        { error: 'A product with this SKU already exists' },
+        { status: 409 }
+      );
+    }
+
     // Update bundle and items in a transaction
     const result = await prisma.$transaction(async (tx) => {
+      const maxBuildCapacity = await calculateBundleBuildCapacity({
+        tx,
+        items: mergedItems,
+        warehouseId: parsedWarehouseId,
+      });
+      const bundleStockQuantity =
+        requestedStockQuantity !== null
+          ? requestedStockQuantity
+          : maxBuildCapacity;
+
+      if (bundleStockQuantity > maxBuildCapacity) {
+        throw new Error(
+          `Bundle stock cannot exceed available build capacity (${maxBuildCapacity})`
+        );
+      }
+
       // Update the bundle product
       const bundle = await tx.product.update({
         where: { id: bundleId },
@@ -223,6 +330,7 @@ export async function PUT(
           slug,
           description,
           shortDesc,
+          sku: bundleSku,
           categoryId,
           brandId,
           basePrice: pricing.discountedPrice,
@@ -230,16 +338,22 @@ export async function PUT(
           currency,
           image,
           gallery: gallery || [],
-          bundleStockLimit:
-            bundleStockLimit !== null &&
-            bundleStockLimit !== undefined &&
-            Number(bundleStockLimit) > 0
-              ? Number(bundleStockLimit)
-              : null,
+          bundleStockLimit: bundleStockQuantity,
           available,
           featured,
           VatClassId: vatClassId || null,
         }
+      });
+
+      await syncBundleDefaultVariant({
+        tx,
+        productId: bundle.id,
+        sku: bundleSku,
+        price: pricing.discountedPrice,
+        currency,
+        stockQuantity: bundleStockQuantity,
+        warehouseId: parsedWarehouseId,
+        reason: 'Admin bundle stock sync',
       });
 
       // Delete existing bundle items
@@ -272,6 +386,15 @@ export async function PUT(
 
   } catch (error) {
     console.error('Error updating bundle:', error);
+    if (
+      error instanceof Error &&
+      error.message.startsWith('Bundle stock cannot exceed')
+    ) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to update bundle' },
       { status: 500 }

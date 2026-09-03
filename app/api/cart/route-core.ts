@@ -173,6 +173,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const bundleVariant =
+        product.variants.find((variant) => variant.isDefault) ??
+        product.variants[0] ??
+        null;
+
       let derivedBundleStock = Number.POSITIVE_INFINITY;
 
       for (const bundleItem of product.bundleItems) {
@@ -224,12 +229,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const existing = await findStandardCartItem(userId, productId, null);
+      const existing = await findStandardCartItem(
+        userId,
+        productId,
+        bundleVariant?.id ?? null,
+      );
+      const legacyNullVariantItem =
+        bundleVariant
+          ? await findStandardCartItem(userId, productId, null)
+          : null;
 
       let cartItem;
 
-      if (existing) {
-        const nextQuantity = existing.quantity + quantity;
+      if (existing || legacyNullVariantItem) {
+        const targetCartItem = existing ?? legacyNullVariantItem!;
+        const nextQuantity =
+          targetCartItem.quantity +
+          quantity +
+          (existing && legacyNullVariantItem ? legacyNullVariantItem.quantity : 0);
 
         let updatedDerivedBundleStock = Number.POSITIVE_INFINITY;
         for (const bundleItem of product.bundleItems) {
@@ -281,18 +298,25 @@ export async function POST(request: NextRequest) {
         }
 
         cartItem = await prisma.cartItem.update({
-          where: { id: existing.id },
+          where: { id: targetCartItem.id },
           data: {
+            variantId: bundleVariant?.id ?? null,
             quantity: nextQuantity,
             lastReminderAt: null,
           },
         });
+
+        if (existing && legacyNullVariantItem) {
+          await prisma.cartItem.delete({
+            where: { id: legacyNullVariantItem.id },
+          });
+        }
       } else {
         cartItem = await prisma.cartItem.create({
           data: {
             userId,
             productId,
-            variantId: null,
+            variantId: bundleVariant?.id ?? null,
             quantity,
           },
         });

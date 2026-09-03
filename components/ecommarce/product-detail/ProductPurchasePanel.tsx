@@ -139,6 +139,7 @@ export default function ProductPurchasePanel({
       product: {
         id: product.id,
         name: product.name,
+        type: product.type,
         price: product.basePrice,
         image: activeImage ?? product.image,
         variants: product.variants.map((variant) => ({

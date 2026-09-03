@@ -54,6 +54,7 @@ type BundleFormModalProps = {
 
 const defaultFormData = {
   name: "",
+  sku: "",
   description: "",
   shortDesc: "",
   categoryId: "",
@@ -175,6 +176,12 @@ export default function BundleFormModal({
 
           setFormData({
             name: bundleData.name || "",
+            sku:
+              bundleData.sku ||
+              bundleData.variants?.find((variant: any) => variant.isDefault)
+                ?.sku ||
+              bundleData.variants?.[0]?.sku ||
+              "",
             description: bundleData.description || "",
             shortDesc: bundleData.shortDesc || "",
             categoryId: String(bundleData.categoryId || ""),
@@ -187,7 +194,15 @@ export default function BundleFormModal({
             available: Boolean(bundleData.available),
             featured: Boolean(bundleData.featured),
             currency: bundleData.currency || "BDT",
-            warehouseId: "",
+            warehouseId:
+              bundleData.variants
+                ?.find((variant: any) => variant.isDefault)
+                ?.stockLevels?.[0]?.warehouseId?.toString() ||
+              bundleData.variants?.[0]?.stockLevels?.[0]?.warehouseId?.toString() ||
+              nextWarehouses
+                .find((warehouse: Warehouse) => warehouse.isDefault)
+                ?.id?.toString() ||
+              "",
             vatClassId: bundleData.VatClassId
               ? String(bundleData.VatClassId)
               : "none",
@@ -418,6 +433,11 @@ export default function BundleFormModal({
       return;
     }
 
+    if (!formData.sku.trim()) {
+      toast.error("Bundle SKU is required");
+      return;
+    }
+
     if (!formData.description.trim()) {
       toast.error("Bundle description is required");
       return;
@@ -428,7 +448,7 @@ export default function BundleFormModal({
       return;
     }
 
-    if (!isEdit && !formData.warehouseId) {
+    if (!formData.warehouseId) {
       toast.error("Please select a warehouse");
       return;
     }
@@ -452,6 +472,7 @@ export default function BundleFormModal({
     try {
       const payload = {
         name: formData.name.trim(),
+        sku: formData.sku.trim(),
         description: formData.description.trim(),
         shortDesc: formData.shortDesc.trim(),
         categoryId: parseInt(formData.categoryId, 10),
@@ -564,6 +585,22 @@ export default function BundleFormModal({
                     </div>
 
                     <div>
+                      <Label htmlFor="bundle-sku">Bundle SKU *</Label>
+                      <Input
+                        id="bundle-sku"
+                        value={formData.sku}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            sku: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g., BUNDLE-STARTER-001"
+                        required
+                      />
+                    </div>
+
+                    <div>
                       <Label htmlFor="bundle-short-desc">
                         Short Description
                       </Label>
@@ -662,34 +699,32 @@ export default function BundleFormModal({
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      {!isEdit && (
-                        <div>
-                          <Label htmlFor="bundle-warehouse">Warehouse *</Label>
-                          <Select
-                            value={formData.warehouseId}
-                            onValueChange={(value) =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                warehouseId: value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger id="bundle-warehouse">
-                              <SelectValue placeholder="Select warehouse" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {warehouses.map((warehouse) => (
-                                <SelectItem
-                                  key={warehouse.id}
-                                  value={String(warehouse.id)}
-                                >
-                                  {warehouse.name} ({warehouse.code})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
+                      <div>
+                        <Label htmlFor="bundle-warehouse">Warehouse *</Label>
+                        <Select
+                          value={formData.warehouseId}
+                          onValueChange={(value) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              warehouseId: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger id="bundle-warehouse">
+                            <SelectValue placeholder="Select warehouse" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {warehouses.map((warehouse) => (
+                              <SelectItem
+                                key={warehouse.id}
+                                value={String(warehouse.id)}
+                              >
+                                {warehouse.name} ({warehouse.code})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
                       <div>
                         <Label htmlFor="bundle-vat">VAT Class</Label>
@@ -722,12 +757,12 @@ export default function BundleFormModal({
 
                     <div>
                       <Label htmlFor="bundle-stock-limit">
-                        Bundle Stock Limit
+                        Bundle Stock
                       </Label>
                       <Input
                         id="bundle-stock-limit"
                         type="number"
-                        min="1"
+                        min="0"
                         value={formData.bundleStockLimit}
                         onChange={(e) =>
                           setFormData((prev) => ({
@@ -742,9 +777,8 @@ export default function BundleFormModal({
                         }
                       />
                       <p className="mt-1 text-xs text-muted-foreground">
-                        If you enter `10`, only 10 bundles will be sellable even
-                        if child product stock allows more. Leave empty to use
-                        full calculated capacity.
+                        This stock is saved to the selected warehouse. Leave
+                        empty to use the calculated build capacity.
                       </p>
                     </div>
 

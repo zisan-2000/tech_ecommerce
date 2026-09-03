@@ -15,6 +15,7 @@ import {
 interface ProductApiItem {
   id: number | string;
   name: string;
+  type?: string | null;
   price: number;
   image?: string | null;
   variants?: Array<{
@@ -296,6 +297,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             product = {
               id: data.id,
               name: String(data.name || "Product"),
+              type: data.type ?? null,
               price: Number(data.basePrice ?? 0),
               image: data.image ?? "/placeholder.svg",
               variants: Array.isArray(data.variants)
@@ -321,10 +323,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       productCacheRef.current.set(pid, product);
 
-      const variant =
+      const requestedVariant =
         vid !== ""
           ? product.variants?.find((item) => norm(item.id) === vid) ?? null
           : null;
+      const variant =
+        product.type === "BUNDLE"
+          ? requestedVariant ?? product.variants?.[0] ?? null
+          : requestedVariant;
+      const cartVariantKey = normVariant(variant?.id ?? null);
       const variantLabel =
         variant?.options && Object.keys(variant.options).length > 0
           ? Object.entries(variant.options)
@@ -395,7 +402,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
               (item) =>
                 item.pcBuildId === pcBuildId &&
                 norm(item.productId) === pid &&
-                normVariant(item.variantId) === vid,
+                normVariant(item.variantId) === cartVariantKey,
             );
             if (existingBuildRow) return prevItems;
           }
@@ -420,7 +427,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           (item) =>
             !item.pcBuildId &&
             norm(item.productId) === pid &&
-            normVariant(item.variantId) === vid
+            normVariant(item.variantId) === cartVariantKey
         );
 
         if (idx !== -1) {
