@@ -128,7 +128,9 @@ export async function GET() {
       `SELECT "cartItemId", "buildId", "slot" FROM "PcBuildCartItem" WHERE "cartItemId" IN (${ids.join(",")})`,
     );
   } catch (error) {
-    console.error("Failed to load PC build cart mapping:", error);
+    if (!isPcBuilderDatabaseInfrastructureError(error)) {
+      console.error("Failed to load PC build cart mapping:", error);
+    }
     return response;
   }
   const byId = new Map(rows.map((row) => [row.cartItemId, row]));

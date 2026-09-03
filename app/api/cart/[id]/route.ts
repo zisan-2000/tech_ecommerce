@@ -9,6 +9,7 @@ import {
   serializePcBuilderCheckoutState,
 } from "@/lib/pc-builder-checkout";
 import { prisma } from "@/lib/prisma";
+import { isPcBuilderDatabaseInfrastructureError } from "@/lib/pc-builder-database";
 import { replayNextRequest } from "@/lib/replay-next-request";
 import { DELETE as coreDELETE, PATCH as corePATCH } from "./route-core";
 
@@ -92,7 +93,15 @@ export async function PATCH(
     return corePATCH(request, { params: Promise.resolve({ id }) });
   }
 
-  const mapping = await getMapping(cartItemId, userId);
+  let mapping: CartBuildMapRow | null = null;
+  try {
+    mapping = await getMapping(cartItemId, userId);
+  } catch (error) {
+    if (isPcBuilderDatabaseInfrastructureError(error)) {
+      return corePATCH(request, { params: Promise.resolve({ id }) });
+    }
+    throw error;
+  }
   if (!mapping) {
     return corePATCH(request, { params: Promise.resolve({ id }) });
   }
@@ -146,7 +155,15 @@ export async function DELETE(
     return coreDELETE(request, { params: Promise.resolve({ id }) });
   }
 
-  const mapping = await getMapping(cartItemId, userId);
+  let mapping: CartBuildMapRow | null = null;
+  try {
+    mapping = await getMapping(cartItemId, userId);
+  } catch (error) {
+    if (isPcBuilderDatabaseInfrastructureError(error)) {
+      return coreDELETE(request, { params: Promise.resolve({ id }) });
+    }
+    throw error;
+  }
   if (!mapping) {
     return coreDELETE(request, { params: Promise.resolve({ id }) });
   }
