@@ -647,6 +647,7 @@ model Order {
   commercialContext       Json?
   deliveryProofs          DeliveryProof[]
   inventoryReservations   InventoryReservation[]
+  inventoryLogs           InventoryLog[]
   coupon                  Coupon?                @relation(fields: [couponId], references: [id])
   user                    User?                  @relation(fields: [userId], references: [id])
   orderItems              OrderItem[]
@@ -1272,15 +1273,19 @@ model Refund {
 
 model InventoryLog {
   id          Int             @id @default(autoincrement())
+  orderId     Int?
   productId   Int
   variantId   Int?
   warehouseId Int?
   change      Int
   reason      String
   createdAt   DateTime        @default(now())
+  order       Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
   product     Product         @relation(fields: [productId], references: [id])
   variant     ProductVariant? @relation(fields: [variantId], references: [id])
   warehouse   Warehouse?      @relation(fields: [warehouseId], references: [id])
+
+  @@index([orderId, variantId, warehouseId])
 }
 
 model Supplier {

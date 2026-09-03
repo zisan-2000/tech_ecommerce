@@ -5,8 +5,8 @@ import { OrderStatus } from "@/generated/prisma";
 import { syncCommissionEntriesForOrderStatus } from "@/lib/business-network/commission";
 import {
   commitOrderInventoryReservations,
-  releaseOrderInventoryReservations,
 } from "@/lib/inventory";
+import { transitionOrderStatusWithInventory } from "@/lib/order-inventory-lifecycle";
 
 export type SslcommerzGatewayData = {
   type?: string;
@@ -224,17 +224,22 @@ export async function processSslcommerzCallback(
       });
       if (changed.count !== 1) return;
 
-      await releaseOrderInventoryReservations({ tx, orderId: payment.orderId! });
-      await tx.order.update({
-        where: { id: payment.orderId! },
-        data: { status: kind === "cancel" ? "CANCELLED" : "FAILED" },
-      });
-      await syncCommissionEntriesForOrderStatus({
+      const nextStatus =
+        kind === "cancel" ? OrderStatus.CANCELLED : OrderStatus.FAILED;
+      const transition = await transitionOrderStatusWithInventory({
         tx,
         orderId: payment.orderId!,
-        orderStatus: kind === "cancel" ? OrderStatus.CANCELLED : OrderStatus.FAILED,
-        request,
+        nextStatus,
+        reason: `Order #${payment.orderId} ${nextStatus.toLowerCase()} inventory restoration from SSLCommerz`,
       });
+      if (transition.changed) {
+        await syncCommissionEntriesForOrderStatus({
+          tx,
+          orderId: payment.orderId!,
+          orderStatus: nextStatus,
+          request,
+        });
+      }
       if (order.couponId && Number(order.discount_total || 0) > 0) {
         await tx.coupon.updateMany({
           where: { id: order.couponId, usedCount: { gt: 0 } },
