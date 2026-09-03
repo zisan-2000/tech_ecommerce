@@ -198,6 +198,19 @@ interface WarehouseOption {
   isDefault: boolean;
 }
 
+interface WarehouseStockAvailability {
+  warehouseId: number;
+  requiredUnits: number;
+  availableUnits: number;
+  canFulfill: boolean;
+}
+
+interface OrderWarehouseStockResponse {
+  requiresStock: boolean;
+  requiredUnits: number;
+  warehouses: WarehouseStockAvailability[];
+}
+
 interface OrderListCacheEntry {
   orders: Order[];
   pagination: Pagination | null;
@@ -271,6 +284,8 @@ const OrderManagement = () => {
   // editable fields (shipment)
   const [couriers, setCouriers] = useState<CourierOption[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
+  const [warehouseStock, setWarehouseStock] =
+    useState<OrderWarehouseStockResponse | null>(null);
   const [deliveryMen, setDeliveryMen] = useState<DeliveryManAssignmentOption[]>(
     [],
   );
@@ -596,6 +611,7 @@ const OrderManagement = () => {
     applyShipmentState(null);
     setCouriers([]);
     setWarehouses([]);
+    setWarehouseStock(null);
     setDeliveryMen([]);
     setDetailError(null);
     setAssignModalOpen(false);
@@ -626,13 +642,17 @@ const OrderManagement = () => {
         setEditTransactionId(orderData.transactionId || "");
 
         // 2) Supporting options + Shipment (if any)
-        const [courierRes, warehouseRes, deliveryManRes] = await Promise.all([
-          fetch("/api/couriers", { cache: "no-store" }),
-          fetch("/api/warehouses", { cache: "no-store" }),
-          fetch("/api/delivery-men?status=ACTIVE&limit=200&page=1", {
-            cache: "no-store",
-          }),
-        ]);
+        const [courierRes, warehouseRes, deliveryManRes, warehouseStockRes] =
+          await Promise.all([
+            fetch("/api/couriers", { cache: "no-store" }),
+            fetch("/api/warehouses", { cache: "no-store" }),
+            fetch("/api/delivery-men?status=ACTIVE&limit=200&page=1", {
+              cache: "no-store",
+            }),
+            fetch(`/api/orders/${selectedOrderId}/warehouse-stock`, {
+              cache: "no-store",
+            }),
+          ]);
 
         if (courierRes.ok) {
           const cData = await courierRes.json().catch(() => []);
@@ -646,6 +666,13 @@ const OrderManagement = () => {
           setWarehouses(Array.isArray(wData) ? wData : []);
         } else {
           setWarehouses([]);
+        }
+
+        if (warehouseStockRes.ok) {
+          const stockData = await warehouseStockRes.json().catch(() => null);
+          setWarehouseStock(stockData);
+        } else {
+          setWarehouseStock(null);
         }
 
         if (deliveryManRes.ok) {
@@ -692,6 +719,42 @@ const OrderManagement = () => {
 
     loadDetails();
   }, [detailOpen, loadShipmentDetails, selectedOrderId]);
+
+  const warehouseStockById = useMemo(() => {
+    const map = new Map<number, WarehouseStockAvailability>();
+    for (const item of warehouseStock?.warehouses ?? []) {
+      map.set(item.warehouseId, item);
+    }
+    return map;
+  }, [warehouseStock]);
+
+  const isWarehouseSelectable = useCallback(
+    (warehouseId: number) => {
+      if (!warehouseStock?.requiresStock) return true;
+      if (editWarehouseId && Number(editWarehouseId) === warehouseId) {
+        return true;
+      }
+      return warehouseStockById.get(warehouseId)?.canFulfill ?? false;
+    },
+    [editWarehouseId, warehouseStock, warehouseStockById],
+  );
+
+  const warehouseStockLabel = useCallback(
+    (warehouse: WarehouseOption) => {
+      if (!warehouseStock?.requiresStock) {
+        return warehouse.isDefault ? " - Default" : "";
+      }
+
+      const stock = warehouseStockById.get(warehouse.id);
+      const suffix = warehouse.isDefault ? " - Default" : "";
+      if (!stock) return `${suffix} - No stock`;
+      if (stock.canFulfill) {
+        return `${suffix} - Available ${stock.availableUnits}`;
+      }
+      return `${suffix} - Insufficient stock (${stock.availableUnits}/${stock.requiredUnits})`;
+    },
+    [warehouseStock, warehouseStockById],
+  );
 
   // ---- UNIFIED SAVE: ORDER + SHIPMENT ----
   const handleSaveAll = useCallback(async () => {
@@ -753,6 +816,16 @@ const OrderManagement = () => {
         editExpectedDate ||
         editDeliveredDate ||
         editShipmentStatus !== "PENDING";
+
+      if (
+        editWarehouseId &&
+        warehouseStock?.requiresStock &&
+        !isWarehouseSelectable(Number(editWarehouseId))
+      ) {
+        throw new Error(
+          "Selected warehouse does not have enough stock for this order",
+        );
+      }
 
       if (shipment) {
         // PATCH existing shipment
@@ -876,6 +949,8 @@ const OrderManagement = () => {
     editShipmentStatus,
     editExpectedDate,
     editDeliveredDate,
+    warehouseStock,
+    isWarehouseSelectable,
     applyShipmentState,
   ]);
 
@@ -1826,13 +1901,27 @@ const OrderManagement = () => {
                           className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs"
                         >
                           <option value="">Select Warehouse</option>
-                          {warehouses.map((warehouse) => (
-                            <option key={warehouse.id} value={warehouse.id}>
-                              {warehouse.name} ({warehouse.code})
-                              {warehouse.isDefault ? " - Default" : ""}
-                            </option>
-                          ))}
+                          {warehouses.map((warehouse) => {
+                            const selectable = isWarehouseSelectable(
+                              warehouse.id,
+                            );
+                            return (
+                              <option
+                                key={warehouse.id}
+                                value={warehouse.id}
+                                disabled={!selectable}
+                              >
+                                {warehouse.name} ({warehouse.code})
+                                {warehouseStockLabel(warehouse)}
+                              </option>
+                            );
+                          })}
                         </select>
+                        {warehouseStock?.requiresStock ? (
+                          <p className="text-[10px] text-muted-foreground">
+                            Only warehouses with enough stock are selectable.
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="space-y-1 text-xs">

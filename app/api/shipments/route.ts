@@ -13,6 +13,7 @@ import { shipmentDeliveryAssignmentSummarySelect } from "@/lib/delivery-assignme
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission, resolveWarehouseScope } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
+import { canWarehouseFulfillOrder } from "@/lib/order-warehouse-stock";
 
 function hasShipmentManagementAccess(access: AccessContext) {
   return access.has("shipments.manage") || access.has("logistics.manage");
@@ -312,6 +313,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "This order already has a shipment" },
         { status: 409 },
+      );
+    }
+    if (
+      warehouseId !== null &&
+      !(await canWarehouseFulfillOrder(prisma, orderId, warehouseId))
+    ) {
+      return NextResponse.json(
+        { error: "Selected warehouse does not have enough stock for this order" },
+        { status: 400 },
       );
     }
 

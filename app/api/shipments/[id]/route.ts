@@ -15,6 +15,7 @@ import { logActivity } from "@/lib/activity-log";
 import { revalidateStorefrontCatalog } from "@/lib/storefront-catalog-cache";
 import { OrderStatus } from "@/generated/prisma";
 import { syncCommissionEntriesForOrderStatus } from "@/lib/business-network/commission";
+import { canWarehouseFulfillOrder } from "@/lib/order-warehouse-stock";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -362,6 +363,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         }
         if (!canAccessShipmentWarehouse(access, warehouseEntity.id)) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (
+          existingShipment.warehouseId !== warehouseEntity.id &&
+          !(await canWarehouseFulfillOrder(
+            prisma,
+            existingShipment.orderId,
+            warehouseEntity.id,
+          ))
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "Selected warehouse does not have enough stock for this order",
+            },
+            { status: 400 },
+          );
         }
         data.warehouseId = warehouseEntity.id;
       }
