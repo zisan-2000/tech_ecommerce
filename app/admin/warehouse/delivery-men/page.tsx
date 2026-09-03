@@ -41,6 +41,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  MoreHorizontal,
   X,
   Users,
   UserPlus,
@@ -51,8 +52,15 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import dynamic from "next/dynamic";
 
 const DeliveryManEnlistmentForm = dynamic(
@@ -346,11 +354,19 @@ export default function DeliveryMenList() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!selectedDeliveryMan) return;
+    await updateDeliveryManStatus(selectedDeliveryMan, newStatus);
+  };
+
+  const updateDeliveryManStatus = async (
+    deliveryMan: DeliveryMan,
+    newStatus: string,
+  ) => {
+    if (deliveryMan.status === newStatus) return;
 
     try {
       setStatusUpdating(true);
       const response = await fetch(
-        `/api/delivery-men/${selectedDeliveryMan.id}`,
+        `/api/delivery-men/${deliveryMan.id}`,
         {
           method: "PATCH",
           headers: {
@@ -365,8 +381,10 @@ export default function DeliveryMenList() {
       if (!response.ok) {
         if (response.status === 404) {
           toast.error("Delivery man not found");
-          setIsModalOpen(false);
-          setSelectedDeliveryMan(null);
+          if (selectedDeliveryMan?.id === deliveryMan.id) {
+            setIsModalOpen(false);
+            setSelectedDeliveryMan(null);
+          }
         } else {
           toast.error("Failed to update status");
         }
@@ -380,29 +398,87 @@ export default function DeliveryMenList() {
 
         // Update selected delivery man in modal
         setSelectedDeliveryMan((prev) =>
-          prev ? { ...prev, status: newStatus } : null,
+          prev && prev.id === deliveryMan.id
+            ? { ...prev, status: newStatus }
+            : prev,
         );
 
         // Update delivery man in list
         setDeliveryMen((prev) =>
           prev.map((dm) =>
-            dm.id === selectedDeliveryMan.id
+            dm.id === deliveryMan.id
               ? { ...dm, status: newStatus }
               : dm,
           ),
         );
-
-        // Close modal if approved
-        if (newStatus === "ACTIVE") {
-          setIsModalOpen(false);
-          setSelectedDeliveryMan(null);
-        }
       } else {
         toast.error(data.message || "Failed to update status");
       }
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error("Failed to update status");
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const updateDeliveryManApplicationStatus = async (
+    deliveryMan: DeliveryMan,
+    newApplicationStatus: string,
+  ) => {
+    if (deliveryMan.applicationStatus === newApplicationStatus) return;
+
+    try {
+      setStatusUpdating(true);
+      const response = await fetch(`/api/delivery-men/${deliveryMan.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          applicationStatus: newApplicationStatus,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast.error("Delivery man not found");
+          if (selectedDeliveryMan?.id === deliveryMan.id) {
+            setIsModalOpen(false);
+            setSelectedDeliveryMan(null);
+          }
+        } else {
+          toast.error("Failed to update application status");
+        }
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(
+          `Application status updated to ${newApplicationStatus.replace("_", " ")}`,
+        );
+
+        setSelectedDeliveryMan((prev) =>
+          prev && prev.id === deliveryMan.id
+            ? { ...prev, applicationStatus: newApplicationStatus }
+            : prev,
+        );
+
+        setDeliveryMen((prev) =>
+          prev.map((dm) =>
+            dm.id === deliveryMan.id
+              ? { ...dm, applicationStatus: newApplicationStatus }
+              : dm,
+          ),
+        );
+      } else {
+        toast.error(data.message || "Failed to update application status");
+      }
+    } catch (error) {
+      console.error("Error updating application status:", error);
+      toast.error("Failed to update application status");
     } finally {
       setStatusUpdating(false);
     }
@@ -588,12 +664,13 @@ export default function DeliveryMenList() {
                         <TableHead>Application</TableHead>
                         <TableHead>Joined Date</TableHead>
                         <TableHead>Documents</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {deliveryMen.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8">
+                          <TableCell colSpan={8} className="text-center py-8">
                             <div className="flex flex-col items-center gap-2">
                               <User className="h-12 w-12 text-muted-foreground" />
                               <p className="text-muted-foreground">
@@ -667,14 +744,119 @@ export default function DeliveryMenList() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-2 text-sm">
+                              <button
+                                type="button"
+                                className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleViewDetails(deliveryMan);
+                                }}
+                              >
                                 <FileText className="h-3 w-3" />
                                 <span>{deliveryMan._count.documents}</span>
                                 <span className="text-muted-foreground">/</span>
                                 <span>
                                   {deliveryMan._count.references} Refs
                                 </span>
-                              </div>
+                              </button>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Open actions for ${deliveryMan.fullName}`}
+                                    onClick={(event) => event.stopPropagation()}
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="w-56"
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem
+                                    onSelect={() => handleViewDetails(deliveryMan)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    View status & documents
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onSelect={() =>
+                                      router.push(
+                                        `/admin/warehouse/delivery-men/${deliveryMan.id}/edit`,
+                                      )
+                                    }
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                    Edit profile
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel>Change status</DropdownMenuLabel>
+                                  {[
+                                    "PENDING",
+                                    "ACTIVE",
+                                    "SUSPENDED",
+                                    "REJECTED",
+                                    "RESIGNED",
+                                  ].map((status) => (
+                                    <DropdownMenuItem
+                                      key={status}
+                                      disabled={
+                                        statusUpdating ||
+                                        deliveryMan.status === status
+                                      }
+                                      onSelect={() =>
+                                        updateDeliveryManStatus(
+                                          deliveryMan,
+                                          status,
+                                        )
+                                      }
+                                    >
+                                      {status.replace("_", " ")}
+                                    </DropdownMenuItem>
+                                  ))}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel>
+                                    Application status
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuItem
+                                    disabled={
+                                      statusUpdating ||
+                                      deliveryMan.applicationStatus ===
+                                        "UNDER_REVIEW"
+                                    }
+                                    onSelect={() =>
+                                      updateDeliveryManApplicationStatus(
+                                        deliveryMan,
+                                        "UNDER_REVIEW",
+                                      )
+                                    }
+                                  >
+                                    <Clock className="h-4 w-4" />
+                                    Mark under review
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    disabled={
+                                      statusUpdating ||
+                                      deliveryMan.applicationStatus ===
+                                        "APPROVED"
+                                    }
+                                    onSelect={() =>
+                                      updateDeliveryManApplicationStatus(
+                                        deliveryMan,
+                                        "APPROVED",
+                                      )
+                                    }
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                    Approve application
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                           </TableRow>
                         ))
@@ -916,10 +1098,49 @@ export default function DeliveryMenList() {
                       </div>
                       <div>
                         <span className="font-medium">Application Status:</span>
-                        <div className="mt-1">
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
                           {getApplicationStatusBadge(
                             selectedDeliveryMan.applicationStatus,
                           )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={
+                              statusUpdating ||
+                              selectedDeliveryMan.applicationStatus ===
+                                "UNDER_REVIEW"
+                            }
+                            onClick={() =>
+                              updateDeliveryManApplicationStatus(
+                                selectedDeliveryMan,
+                                "UNDER_REVIEW",
+                              )
+                            }
+                            className="h-8 gap-1"
+                          >
+                            <Clock className="h-3.5 w-3.5" />
+                            Under Review
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={
+                              statusUpdating ||
+                              selectedDeliveryMan.applicationStatus ===
+                                "APPROVED"
+                            }
+                            onClick={() =>
+                              updateDeliveryManApplicationStatus(
+                                selectedDeliveryMan,
+                                "APPROVED",
+                              )
+                            }
+                            className="h-8 gap-1"
+                          >
+                            <CheckCircle className="h-3.5 w-3.5" />
+                            Approve
+                          </Button>
                         </div>
                       </div>
                       <div>

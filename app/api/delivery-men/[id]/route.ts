@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { syncDeliveryManWarehouseAccess } from "@/lib/delivery-man-access";
 
+const DELIVERY_MAN_STATUSES = new Set([
+  "PENDING",
+  "ACTIVE",
+  "SUSPENDED",
+  "REJECTED",
+  "RESIGNED",
+]);
+
+const DELIVERY_APPLICATION_STATUSES = new Set([
+  "DRAFT",
+  "SUBMITTED",
+  "UNDER_REVIEW",
+  "APPROVED",
+  "REJECTED",
+]);
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -43,6 +59,12 @@ export async function GET(
         },
         documents: {
           orderBy: { createdAt: "desc" },
+        },
+        _count: {
+          select: {
+            references: true,
+            documents: true,
+          },
         },
         deliveryAssignments: {
           include: {
@@ -133,6 +155,26 @@ export async function PATCH(
     const nextWarehouseId =
       body.warehouseId !== undefined ? parseInt(body.warehouseId, 10) : undefined;
 
+    if (
+      body.status !== undefined &&
+      !DELIVERY_MAN_STATUSES.has(String(body.status))
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Invalid delivery man status" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      body.applicationStatus !== undefined &&
+      !DELIVERY_APPLICATION_STATUSES.has(String(body.applicationStatus))
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Invalid application status" },
+        { status: 400 }
+      );
+    }
+
     if (body.warehouseId !== undefined) {
       if (
         nextWarehouseId === undefined ||
@@ -180,6 +222,12 @@ export async function PATCH(
           },
           documents: {
             orderBy: { createdAt: "desc" },
+          },
+          _count: {
+            select: {
+              references: true,
+              documents: true,
+            },
           },
         },
       });
